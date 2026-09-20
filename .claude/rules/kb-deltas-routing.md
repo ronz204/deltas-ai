@@ -5,7 +5,6 @@ paths:
   - ".claude/rules/**"
   - ".claude/agents/**"
   - ".claude/skills/**"
-  - "deltas/**"
   - "*/deltas/**"
 ---
 
