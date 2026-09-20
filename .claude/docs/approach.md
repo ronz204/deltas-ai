@@ -5,10 +5,10 @@ when bootstrapping (surveyor) or updating (archivist) that project's build
 approach. Unlike structure.md, this file is always created for a
 bootstrapped project, even when the honest content is "not applicable here"
 (no meaningful build sequencing beyond "just build the thing") — state that
-explicitly rather than omitting the file. Unlike a slice's plan.md, this
-file is never discarded once work lands — it stays live-edited the same way
-every other doc does: update the roadmap and status in place as phases
-complete, don't leave a finished phase's entry describing it as pending.
+explicitly rather than omitting the file. This file is never discarded once
+work lands — it stays live-edited the same way every other doc does: update
+the roadmap and status in place as phases complete, don't leave a finished
+phase's entry describing it as pending.
 Delete these guidance comments once every section holds real, grounded
 content. Ground every claim in what was actually decided/confirmed, never
 invent a phase or pillar that hasn't actually been agreed on.

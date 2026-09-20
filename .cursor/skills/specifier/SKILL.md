@@ -17,7 +17,7 @@ A **delta spec** is what this skill produces material for: `<slice>.spec.md` des
 
 Before asking the user anything, find out what's already known:
 
-- Locate `deltas/<slice>.spec.md` at the project root and, if present, `<slice>.design.md` and `<slice>.plan.md` alongside it. Only in a repo genuinely split across multiple services, don't assume every sibling sits next to the file you started from: `design.md` lives under whichever service renders the UI, which can be a different service than the one implementing the logic, and the same slice name can carry its *own* `spec.md` in more than one service (each scoped to what that service owns) rather than a single shared one — check other services' `deltas/` for both before concluding a sibling doesn't exist. If any already have content, read them — every question below should be about a genuine gap or an update, not something already answered.
+- Locate `deltas/<slice>.spec.md` at the project root and, if present, `<slice>.design.md` alongside it. Only in a repo genuinely split across multiple services, don't assume every sibling sits next to the file you started from: `design.md` lives under whichever service renders the UI, which can be a different service than the one implementing the logic, and the same slice name can carry its *own* `spec.md` in more than one service (each scoped to what that service owns) rather than a single shared one — check other services' `deltas/` for both before concluding a sibling doesn't exist. If any already have content, read them — every question below should be about a genuine gap or an update, not something already answered.
 - If the slice's spec (or design) file doesn't exist yet, don't create it — confirm the slice's name and boundary with the user first (creating the file is `archivist`'s step, once there's real content to put in it).
 
 ## Step 1 — Investigate the real implementation
@@ -65,13 +65,13 @@ Any rule candidate flagged in Step 1 gets confirmed here too — ask the user wh
 
 Once the relevant fields (spec: intent, scope, contract, invariants, deferred questions, acceptance criteria, optional context — or design: scope, layout, states, interactions, consumes, deferred questions, acceptance criteria, optional context) are each either confirmed from code/mockup or answered by the user, package the result and invoke `archivist` to write it: a new or updated `<slice>.spec.md` via `references/spec.template.md`, a new or updated `<slice>.design.md` via `references/design.template.md` if the slice has a UI-facing surface in scope, and any rule candidate confirmed in Step 3 for `archivist` to write separately as its own `.cursor/rules/<topic>.mdc` — a cross-cutting convention doesn't belong inside a slice's own files. This skill's job ends at producing that material — it never writes into `deltas/` or `.cursor/rules/` itself, even when the answer seems obvious enough to just write down directly.
 
-If the resulting spec/design implies nontrivial implementation work, say so — the default next step is running the agent's own planning mode directly against the finished spec/design, not a new deliverable from this skill. Only suggest `archivist` draft a `<slice>.plan.md` instead when the plan itself must survive across sessions or be handed off to someone without this conversation's context — that's a separate deliverable with its own template (`references/plans.template.md`), not something this skill's interview needs to produce itself.
+If the resulting spec/design implies nontrivial implementation work, that's ordinary next-step coding work, not a deliverable this skill (or `archivist`) produces — sequencing it is left entirely to however the session gets implementation done.
 
 ---
 
 ## Non-goals
 
-- Don't re-ask about anything already settled in the slice's current `spec.md`, `design.md`, or `plan.md`, if it has them — Step 0 exists specifically to prevent that.
+- Don't re-ask about anything already settled in the slice's current `spec.md` or `design.md`, if it has them — Step 0 exists specifically to prevent that.
 - Don't write `spec.md` or `design.md` directly, even to save a round-trip — the separation from `archivist` is what keeps every spec's shape consistent, not a formality to skip when it's inconvenient.
 - Don't force every field to a firm answer before handing off. "This is intentionally undecided until X" is a complete, valid answer for Deferred / Open questions — manufacturing a premature decision just to fill the section produces a spec/design that lies about its own certainty.
 - Don't spec out a slice that's a single trivial file with no invariant worth protecting — this system's ceremony pays for itself against real complexity, not by default. Same bar applies to `design.md`: don't create one for a trivial surface with no real state/interaction complexity worth pinning down.

@@ -60,7 +60,7 @@ flowchart LR
 | 🗂️ **Archivist** | Lands material into the correct artifact shape — a doc, a rule, an agent, a skill, or a feature's contract | "does the artifact land in the right shape" | ✅ the sole writer |
 | 🛡️ **Sentinel** | Verifies whether an already-written contract still holds against the real implementation | "does the implementation still match its contract" | ❌ reports drift, hands corrections back |
 
-> A hand-edit to any of these files skips the pipeline and is exactly the kind of drift Delta exists to prevent — the one exemption is a trivial, already-settled fix (a typo, a stale command, a plan step visibly done).
+> A hand-edit to any of these files skips the pipeline and is exactly the kind of drift Delta exists to prevent — the one exemption is a trivial, already-settled fix (a typo, a stale command).
 
 Full step-by-step instructions for each skill live in `.claude/skills/<name>/SKILL.md` (and the Cursor-flavored equivalent under `.cursor/skills/`).
 
@@ -83,13 +83,10 @@ CLAUDE.md                      router — orients a session fast, points at ever
 .claude/agents/<name>.md       bounded, repeatable subagents with their own tools/context
 services/<service>/deltas/     per-feature living contracts ("slices")
    ├─ <slice>.spec.md             logic-layer contract: intent, invariants, acceptance criteria
-   ├─ <slice>.design.md           presentation-layer contract (only if the slice has a UI)
-   └─ <slice>.plan.md             exception-only roadmap — not a default third file, see below
+   └─ <slice>.design.md           presentation-layer contract (only if the slice has a UI)
 ```
 
-A **slice** is a bounded feature or capability — sized the way a bounded context would be, not a source file. Two slices whose contracts keep changing together for the same reason are really one slice wearing two names. It's scoped to a capability, never to an architecture layer — a slice never gets split into a domain-logic spec, an application-orchestration spec, and an infrastructure spec for the same capability; that treats "layer" as if it were the capability boundary.
-
-The default path from a finished `spec.md` (and `design.md`, if it has one) to code is Plan Mode, run directly against that contract and never persisted. `<slice>.plan.md` exists for the exception: a plan that must survive across sessions, or be handed to someone without this conversation's context.
+A **slice** is a bounded feature or capability — sized the way a bounded context would be, not a source file. Two slices whose contracts keep changing together for the same reason are really one slice wearing two names. It's scoped to a capability, never to an architecture layer — a slice never gets split into a domain-logic spec, an application-orchestration spec, and an infrastructure spec for the same capability; that treats "layer" as if it were the capability boundary. A slice's contract is the only artifact Delta keeps for it — there's no roadmap file; moving from a finished contract to code is ordinary implementation work, never a second knowledge-base artifact.
 
 Every doc/rule stays self-contained and free of volatile references — no citing a specific file path or function name as proof a convention exists, since that breaks the moment something is renamed. A `spec.md`/`design.md`, by contrast, is expected to name the real implementation, since that's the whole point of a contract checked against it.
 
@@ -112,7 +109,7 @@ This repo has no application source of its own — it *is* the reusable harness.
 3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
 4. **Verify** after implementing — invokes 🛡️ **Sentinel**, which checks the spec's invariants against the real code and reports drift as a compact table:
 
-   `Holds` · `Violated` · `Stale` · `Unverified` · `Gone` · `Conflict`
+   `Holds` · `Violated` · `Unverified` · `Gone` · `Conflict`
 
 5. **Anything else** — a convention, a subagent, an update to `CLAUDE.md` — ask directly; that routes to 🗂️ **Archivist**.
 
@@ -133,5 +130,5 @@ Both English and Spanish trigger phrases are recognized by the skills' own descr
 ## Non-goals
 
 - Delta does not keep an append-only decision log. When two sources disagree, the conflict is resolved explicitly and the resolution becomes the corrected text — nothing else is kept beyond that.
-- Sentinel only checks a slice's `spec.md`/`design.md`/`plan.md` against the code — it doesn't audit `.claude/docs/*` or `.claude/rules/*` for drift.
+- Sentinel only checks a slice's `spec.md`/`design.md` against the code — it doesn't audit `.claude/docs/*` or `.claude/rules/*` for drift.
 - None of the four skills write application code. Delta manages context *about* a codebase, not the codebase itself.

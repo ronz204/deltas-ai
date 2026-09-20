@@ -36,7 +36,7 @@ replace it with one row per service's own `<service>/deltas/` instead.
 | `.claude/agents/` | <bounded, repeatable subagent tasks with their own tool access> |
 | `.claude/skills/` | <capabilities pulled in across tasks, e.g. this project's own archivist/specifier pair> |
 | `.claude/settings.json` | <permission policy — see Permissions below> |
-| `deltas/` | <per-slice spec/design/plan files: `<slice>.spec.md`, optional `<slice>.design.md`, optional `<slice>.plan.md`> |
+| `deltas/` | <per-slice spec/design files: `<slice>.spec.md`, optional `<slice>.design.md`> |
 
 ## Repo layout
 
