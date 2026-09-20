@@ -84,10 +84,12 @@ CLAUDE.md                      router — orients a session fast, points at ever
 services/<service>/deltas/     per-feature living contracts ("slices")
    ├─ <slice>.spec.md             logic-layer contract: intent, invariants, acceptance criteria
    ├─ <slice>.design.md           presentation-layer contract (only if the slice has a UI)
-   └─ <slice>.plan.md             disposable step-by-step roadmap (deleted once it lands)
+   └─ <slice>.plan.md             exception-only roadmap — not a default third file, see below
 ```
 
-A **slice** is a bounded feature or capability — sized the way a bounded context would be, not a source file. Two slices whose contracts keep changing together for the same reason are really one slice wearing two names.
+A **slice** is a bounded feature or capability — sized the way a bounded context would be, not a source file. Two slices whose contracts keep changing together for the same reason are really one slice wearing two names. It's scoped to a capability, never to an architecture layer — a slice never gets split into a domain-logic spec, an application-orchestration spec, and an infrastructure spec for the same capability; that treats "layer" as if it were the capability boundary.
+
+The default path from a finished `spec.md` (and `design.md`, if it has one) to code is Plan Mode, run directly against that contract and never persisted. `<slice>.plan.md` exists for the exception: a plan that must survive across sessions, or be handed to someone without this conversation's context.
 
 Every doc/rule stays self-contained and free of volatile references — no citing a specific file path or function name as proof a convention exists, since that breaks the moment something is renamed. A `spec.md`/`design.md`, by contrast, is expected to name the real implementation, since that's the whole point of a contract checked against it.
 
