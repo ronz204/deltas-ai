@@ -47,7 +47,7 @@ Same discipline as `specifier`: confirm from Step 1 where possible, ask where it
 
 Package the investigation and interview results and invoke `archivist` to write, in one batch:
 
-- `.cursor/rules/orientation.mdc` via `references/mark.template.md` — project description, knowledge base layout, repo layout, setup/common commands, conventions.
+- `.cursor/rules/orientation.mdc` via `references/orientation.template.md` — project description, knowledge base layout, repo layout, setup/common commands, conventions.
 - `overview.md`, `modules.md`, `structure.md`, `database.md`, `expertise.md`, and `approach.md` — these already exist as shipped skeletons under `.cursor/docs/`; fill each in place with what Step 1/Step 2 found rather than creating a new file from `references/docs.template.md`. State "not applicable here" plainly in one of these rather than leaving it as an unfilled skeleton, on the rare project where it genuinely doesn't apply.
 - Each rule candidate confirmed in Step 2, as its own `.cursor/rules/<topic>.mdc` via `references/rules.template.md` — one file per concern, same as any other rule.
 
