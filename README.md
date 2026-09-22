@@ -1,6 +1,6 @@
 <div align="center">
 
-# Δ Delta
+# Delta
 
 **A living-documentation methodology for AI coding agents.**
 
