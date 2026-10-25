@@ -96,7 +96,7 @@ The ETH finding means Delta could be hurting agents today without anyone noticin
 
 ### E. Spec quality
 
-- **E1. Stricter invariant notation** (EARS or Given/When/Then) so Sentinel judgments are less ambiguous. *Effort S–M, value high.*
+- ~~**E1. Stricter invariant notation** (EARS or Given/When/Then) so Sentinel judgments are less ambiguous. *Effort S–M, value high.*~~ **Done 2026-10-25.** Invariants are one claim per line in an EARS form (always/never, When, While, If-then, Where), in plain language with an observable response; acceptance criteria are Given/When/Then lines; design States and Interactions follow the same forms. Required for new or revised specs, older ones stay until touched. Specifier rewrites vague claims, archivist checks the form, sentinel reads the trigger and response to know what to exercise, executor maps a claim onto a test. No lint, since a keyword check would be fragile. Not measured.
 - **E2. Persistent open questions** in Specifier that block closing a spec until resolved. *Effort S, value medium.*
 - **E3. Per-slice health metrics:** last verified date, percent of invariants verified, open questions. *Effort M, value medium.*
 
