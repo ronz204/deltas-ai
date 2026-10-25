@@ -128,4 +128,4 @@ Every artifact has a ceiling on how much context it may cost, set by how often i
 
 - If what you touched is over its ceiling, don't trim it to fit and don't ship it over: fit it by splitting. Read `references/split.guide.md`, show the user the split plan (what stays, what moves where, which pointer replaces it), and apply it only once they confirm.
 - If a pointer is reported broken, fix it before presenting.
-- If `sh` isn't available here, compare the file's line count against the ceilings in `.claude/context-budget.conf` and say the check was approximate.
+- If `sh` isn't available here, compare the file's line count against the ceilings in `.claude/budget.conf` and say the check was approximate.
