@@ -1,0 +1,1 @@
+Read `deltas/{{slice}}.spec.md` and check each item under its Invariants heading against the code in this repository. For each one, say whether it holds, is violated, cannot be verified, or no longer applies, with a one-line justification. Do not change any file.

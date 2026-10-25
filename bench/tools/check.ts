@@ -3,37 +3,15 @@
 // fixture's tests, and verifies that the case's metadata and truth are coherent.
 // Usage: bun run bench/tools/check.ts [case-id ...]
 
-type Verdict = "Holds" | "Violated" | "Unverified" | "Gone" | "Conflict";
-type Claim = { spec: string; n: number; ok: Verdict[] };
-type Base = { repo: string; claims: Claim[] };
-type Case = {
-  id: string;
-  repo: string;
-  category: string;
-  slice: string;
-  holdout?: boolean;
-  patch: string | null;
-  expect: { tests: "pass" | "fail"; failing?: string[] };
-  overrides: Claim[];
-};
+import {
+  BENCH, VERDICTS, copyTree, hasFiles, loadBase, loadCases, removeTree, run, tempDir,
+} from "./shared.ts";
 
-const BENCH = `${import.meta.dir}/..`;
-const TEMP = (process.env.TEMP ?? process.env.TMPDIR ?? "/tmp").replaceAll("\\", "/");
 const CATEGORIES = ["ctrl", "pres", "beht", "bent", "gone", "beni", "spec"];
-const VERDICTS: Verdict[] = ["Holds", "Violated", "Unverified", "Gone", "Conflict"];
-
-function run(cmd: string[], cwd: string): { code: number; out: string } {
-  const r = Bun.spawnSync(cmd, { cwd, stdin: "ignore" });
-  return { code: r.exitCode ?? 1, out: r.stdout.toString() + r.stderr.toString() };
-}
 
 async function freshCopy(repo: string): Promise<string> {
-  const dir = `${TEMP}/bench-check-${crypto.randomUUID().slice(0, 8)}`;
-  const from = `${BENCH}/repos/${repo}`;
-  // Bun's shell `cp -r` panics on Windows (Bun 1.3.14), so copy file by file.
-  for await (const rel of new Bun.Glob("**/*").scan({ cwd: from, dot: true, onlyFiles: true })) {
-    await Bun.write(`${dir}/${rel.replaceAll("\\", "/")}`, Bun.file(`${from}/${rel}`));
-  }
+  const dir = tempDir("bench-check");
+  await copyTree(`${BENCH}/repos/${repo}`, dir);
   return dir;
 }
 
@@ -51,28 +29,19 @@ async function countInvariants(dir: string, spec: string): Promise<number> {
   return [...section.matchAll(/^\d+\. /gm)].length;
 }
 
-async function dirHasFiles(dir: string, path: string): Promise<boolean> {
-  for await (const _ of new Bun.Glob(`${path}/**`).scan({ cwd: dir })) return true;
-  return false;
-}
-
 function touchedFiles(patch: string): string[] {
   return [...patch.matchAll(/^diff --git a\/(\S+) b\/\S+$/gm)].map((m) => m[1]!);
 }
 
 const only = Bun.argv.slice(2);
-const caseIds: string[] = [];
-for await (const meta of new Bun.Glob("*/case.json").scan({ cwd: `${BENCH}/cases` })) {
-  caseIds.push(meta.replaceAll("\\", "/").split("/")[0]!);
-}
-const selected = caseIds.filter((id) => only.length === 0 || only.includes(id)).sort();
+const selected = await loadCases(only);
 
 const results: { id: string; problems: string[]; note: string }[] = [];
 const cleanup: string[] = [];
 
 // Baseline: the untouched repo must be healthy and match the base truth.
 const baseProblems: string[] = [];
-const base = (await Bun.file(`${BENCH}/cases/shop.base.json`).json()) as Base;
+const base = await loadBase("shop");
 {
   const dir = await freshCopy(base.repo);
   cleanup.push(dir);
@@ -93,12 +62,12 @@ const base = (await Bun.file(`${BENCH}/cases/shop.base.json`).json()) as Base;
 }
 results.push({ id: "(baseline)", problems: baseProblems, note: `${base.claims.length} claims` });
 
-for (const id of selected) {
+for (const c of selected) {
+  const id = c.id;
   const problems: string[] = [];
-  const c = (await Bun.file(`${BENCH}/cases/${id}/case.json`).json()) as Case;
 
   // Metadata coherence.
-  if (c.id !== id) problems.push(`id "${c.id}" does not match folder`);
+  if (!(await Bun.file(`${BENCH}/cases/${id}/case.json`).exists())) problems.push("case folder missing");
   if (!CATEGORIES.includes(c.category)) problems.push(`unknown category "${c.category}"`);
   if (!id.includes(`-${c.category}-`)) problems.push(`folder name does not carry category "${c.category}"`);
   if (c.repo !== base.repo) problems.push(`repo "${c.repo}" has no base truth`);
@@ -159,7 +128,7 @@ for (const id of selected) {
     const all = Array.from({ length: count }, (_, i) => i + 1);
     const goneAll = all.every((n) => c.overrides.some((o) => o.n === n && o.ok.length === 1 && o.ok[0] === "Gone"));
     if (!goneAll) problems.push("a retired slice must mark every claim as Gone");
-    if (await dirHasFiles(dir, `source/${c.slice}`)) problems.push(`source/${c.slice} still exists in a "gone" case`);
+    if (await hasFiles(`${dir}/source/${c.slice}`)) problems.push(`source/${c.slice} still exists in a "gone" case`);
   } else {
     if (c.overrides.length === 0) problems.push("a mutation case needs at least one override");
     if (!c.overrides.some((o) => o.ok.length === 1 && o.ok[0] === "Violated")) {
@@ -170,7 +139,7 @@ for (const id of selected) {
   results.push({ id, problems, note });
 }
 
-for (const dir of cleanup) await Bun.$`rm -rf ${dir}`.quiet();
+for (const dir of cleanup) await removeTree(dir);
 
 let failed = 0;
 for (const r of results) {

@@ -36,8 +36,9 @@ Every direct subfolder of `bench/` has a five-letter name, so the tree reads eve
 
 ```
 bench/
-├── README.md                     how to run, how to read results (written in phase 3)
-├── .gitignore                    ignores stats/**/raw/ and scratch work dirs
+├── README.md                     how to run, how to read results
+├── .gitattributes                forces LF so patches apply on any checkout
+├── .gitignore                    ignores everything under stats/<batch>/ except report.md
 ├── repos/                        ENVIRONMENTS (copied, never edited in place)
 │   └── shop/                     fixture #1: a tiny TypeScript shop backend
 │       ├── package.json          no dependencies; `bun test` runs bun's built-in test runner
@@ -61,27 +62,30 @@ bench/
 │   │   └── patch.diff            the mutation
 │   └── ...                       12 cases in total (section 6)
 ├── modes/                        THE VARIABLE BEING COMPARED
+│   ├── suffix.md                 the fixed output-format instruction appended to every prompt
 │   ├── plain/
-│   │   ├── mode.json             name, whether the skill is overlaid, tools allowed
-│   │   ├── prompt.md             generic "verify this spec against the code" prompt
-│   │   └── files/                (empty) overlay copied onto the repo
+│   │   ├── mode.json             skills to overlay (none) and the tools allowed
+│   │   └── prompt.md             generic "verify this spec against the code" prompt
 │   └── skill/
-│       ├── mode.json
-│       ├── prompt.md             natural-language "check the <slice> slice for drift"
-│       └── files/                overlay: .claude/skills/sentinel is copied here at run time
+│       ├── mode.json             skills: ["sentinel"], copied from .claude/skills at run time
+│       └── prompt.md             natural-language "check the <slice> slice for drift"
 ├── tools/                        RUNNER (TypeScript, zero dependencies, run with bun)
+│   ├── shared.ts                 types and small helpers used by every tool
 │   ├── check.ts                  validates that every case is sound (phase 2 gate)
-│   ├── prep.ts                   builds a clean working copy for one run
-│   ├── exec.ts                   launches the agent headless and captures output
+│   ├── prep.ts                   builds a sealed working copy for one run
+│   ├── exec.ts                   launches the agent headless and extracts the metrics
 │   ├── grade.ts                  compares the agent's verdicts against truth
-│   ├── sums.ts                   aggregates runs into a markdown report
+│   ├── grade.test.ts             unit tests for the grader (run with `bun test bench/tools`)
+│   ├── sums.ts                   aggregates runs into the markdown report
 │   └── main.ts                   entry point: loops cases x modes x repetitions
 └── stats/                        RESULTS
     ├── .gitkeep
     └── 2026-11-02-1530/          one folder per batch
-        ├── runs.jsonl            one line of metrics per run (resumable: finished runs are skipped)
-        ├── report.md             aggregated tables, safe to commit
-        └── raw/                  full transcripts (git-ignored)
+        ├── meta.json             model, versions, harness commit (local)
+        ├── runs.jsonl            one line of metrics per run; resumable (local)
+        ├── errors.jsonl          runs that errored, retried on resume (local)
+        ├── raw/                  full transcripts (local)
+        └── report.md             aggregated tables; the only committed file
 ```
 
 Naming rules:
@@ -371,3 +375,26 @@ The login keeps working with `--setting-sources project --strict-mcp-config`. Th
 - Phase 3: `exec.ts` parses `stream-json`; the allow list above is part of `modes/*/mode.json`.
 - Cost is small for a trivial slice (about 20 s); the full cost per run is still to be measured in the phase 4 pilot.
 - Not yet verified: how much a run costs when Sentinel delegates to subagents or runs a test; whether `dontAsk` blocks the `bun test` escalation path as intended (verify in the pilot).
+
+---
+
+## 15. Phase 3 results (2026-10-25)
+
+Built: `shared.ts`, `prep.ts`, `exec.ts`, `grade.ts` (+ `grade.test.ts`), `sums.ts`, `main.ts`, both modes with `modes/suffix.md`, `bench/README.md`, `bench/.gitignore`. `check.ts` now uses `shared.ts`.
+
+Gate, as run:
+
+- `bun test bench/tools`: 9 grader tests pass (extraction of the last JSON block, catch and false-alarm counting, `Unverified` on a drifted claim counted as a miss, omitted claims, format failures, path spelling, `Gone`).
+- `check.ts`: all 13 checks still pass after the refactor.
+- A dry run showed the sealed copies: one commit, mutation committed, clean tree, the Sentinel skill present only in the `skill` copy, and no patch or truth file anywhere in the working copy.
+- A real smoke run (control case `01-ctrl-checkout`, both modes, one repetition, batch deleted afterwards): both clean; `skill` mode invoked the skill, `plain` did not; about 13 s and 5 to 6 turns each; no permission denials. Token medians for that single control were about 60k (`plain`) and 93k (`skill`) in total, mostly cache reads. One sample says nothing about the difference; it only shows the metrics are captured.
+
+Design decisions made while building:
+
+- The prompt goes to the agent through stdin, so no argument quoting can alter it.
+- `ANTHROPIC_API_KEY` is removed from the agent's environment so runs cannot silently bill the API instead of the subscription.
+- `main.ts` refuses hold-out cases unless `--final` is passed, which turns the plan's "never inspect hold-outs while tuning" into a mechanism instead of a promise.
+- Which mode goes first alternates per case and repetition, so neither benefits from always running earlier.
+- Errors are logged to `errors.jsonl` and retried on resume; two consecutive errors stop the batch, since the usual cause is a subscription limit.
+- Modes have no `files/` overlay folder yet (the code supports one if a mode ever needs it).
+- Known weakness, to confirm in the pilot: `dontAsk` permissions with the `Bash(bun test:*)` allow rule have not yet been exercised by a case that makes Sentinel run a test.
