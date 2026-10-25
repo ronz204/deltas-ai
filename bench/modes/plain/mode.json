@@ -1,5 +1,0 @@
-{
-  "id": "plain",
-  "skills": [],
-  "tools": "Read Grep Glob Agent Bash(git status:*) Bash(git diff:*) Bash(bun test:*) PowerShell(bun test:*) PowerShell(git status:*) PowerShell(git diff:*) PowerShell(Select-Object:*)"
-}

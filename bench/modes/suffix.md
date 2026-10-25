@@ -1,1 +1,0 @@
-End your answer with a fenced `json` block of the form {"verdicts":[{"spec":"deltas/{{slice}}.spec.md","n":1,"verdict":"Holds"}]}, with one entry for every numbered item under the spec's Invariants heading, where "n" is the item's 1-based position and "verdict" is one of Holds, Violated, Unverified, Gone, Conflict.

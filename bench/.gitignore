@@ -1,3 +1,0 @@
-# Per-batch results stay local; only report.md is committed.
-/stats/*/*
-!/stats/*/report.md
