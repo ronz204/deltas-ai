@@ -2,6 +2,7 @@
 paths:
   - "**/source/core/**"
   - "**/source/repos/**"
+  - "**/source/app/**"
 ---
 
 # Bounded Context Collaboration Conventions
@@ -17,7 +18,7 @@ This governs how bounded contexts work together without knowing each other: how 
 
 ## Reacting to a change: events by default
 
-- A change in one context that must cause work in another travels as an event. The operation returns it, the caller commits it through the shared kernel's outbox contract in the same transaction, and a handler in the application layer then calls a use case of the receiving context. The emitting context never knows who listens, because that is what lets a listener be added or removed without editing the emitter.
+- A change in one context that must cause work in another travels as an event. The operation returns it, the caller commits it through the shared kernel's outbox contract in the same transaction, and a workflow's reaction in the application layer then calls a use case of the receiving context. The emitting context never knows who listens, because that is what lets a listener be added or removed without editing the emitter.
 - Consistency across contexts is eventual. A transaction covers one entity's change in one context, and a rule that seems to need two contexts in one transaction is a signal the boundary is drawn wrong, not a reason to widen the transaction.
 - An event is the emitting context's public message: plain values only, never an entity, so a listener depends on the data and not on the emitter's internals. Only the application layer consumes it.
 
@@ -28,8 +29,8 @@ This governs how bounded contexts work together without knowing each other: how 
 
 ## Orchestration lives in the application layer
 
-- A flow that needs several contexts at once is coordinated by an application use case that calls each context through its barrel, in sequence, each in its own transaction. No context orchestrates another.
-- A flow whose orchestration has invariants of its own (ordering, compensation after partial failure, idempotency across the boundary) is a named workflow with its own spec, never logic hidden inside one of the contexts it touches, because otherwise one context quietly owns a rule about another.
+- A flow that needs several contexts at once is a workflow in the application layer, never logic inside one of the contexts it touches, because otherwise that context quietly owns a rule about another. The workflow calls each context's use cases in sequence, each in its own transaction, and no context orchestrates another.
+- A workflow whose orchestration has invariants of its own (ordering, compensation after partial failure, idempotency across the boundary) also gets its own spec.
 
 ## The shared kernel is not a shortcut
 
