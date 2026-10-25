@@ -8,19 +8,19 @@ Guiding constraints for any item below: Delta must stay **robust** (verifiable, 
 
 ## 1. Where Delta stands today
 
-- Four single-responsibility skills: Surveyor (bootstrap), Specifier (interview), Archivist (sole writer), Sentinel (verify contract vs. code).
+- Five single-responsibility skills: Surveyor (bootstrap), Specifier (interview), Archivist (sole writer of the knowledge base), Sentinel (verify contract vs. code) and the optional Executor (build code against a contract).
 - Living documentation: files describe what is true now, edited in place, no append-only decision log (git is the history).
 - Three layers: `CLAUDE.md` router, six fixed `.claude/docs/*` files, per-feature `<slice>.spec.md` / `<slice>.design.md` under `deltas/`.
 - Packaged for Claude Code only (`.claude/`); Cursor support was removed on 2026-10-25. No runtime, no CLI: markdown and skills, plus one optional read-only shell script.
-- Does not write application code. Does not keep a roadmap per slice.
+- Writes application code only through the optional Executor, from a plan you approve and that is derived from a spec. Does not keep a roadmap or task list per slice.
 
 ## 2. Comparison with Spec Kit
 
 | | Spec Kit (GitHub) | Delta |
 |---|---|---|
 | Philosophy | Spec-driven development: the spec is the starting point to **generate code** | Living documentation: the spec is a **contract of what is true now** |
-| Flow | Linear per feature: constitution, specify, clarify, plan, tasks, analyze, implement | Four roles: surveyor, specifier, archivist, sentinel |
-| Writes code | Yes (`/implement`) | No (explicit non-goal) |
+| Flow | Linear per feature: constitution, specify, clarify, plan, tasks, analyze, implement | Five roles: surveyor, specifier, archivist, sentinel, executor |
+| Writes code | Yes (`/implement`) | Only through the optional Executor; its plan is derived from unverified claims, never stored |
 | Artifacts per feature | `spec.md`, `plan.md`, `tasks.md`, `research.md`, `data-model.md`, `contracts/`; they accumulate | One `<slice>.spec.md` (+ `design.md` if UI), edited in place |
 | Lifecycle | A spec becomes historical once the feature ships | A contract stays current while the capability exists |
 | Verification | `/analyze` checks spec/plan/tasks consistency **before** implementing | Sentinel checks contract vs. real code **after** implementing |
@@ -30,7 +30,7 @@ Guiding constraints for any item below: Delta must stay **robust** (verifiable, 
 
 **Where Delta wins:** drift detection over time, a KB that does not rot, lower context cost, brownfield onboarding, slices scoped by capability not by layer, zero runtime dependency.
 
-**Where Delta loses:** no spec-to-code path (no plan/tasks/implement), less maturity and community, every write funnels through Archivist (friction), Sentinel audits only specs/designs, no executable "constitution" check before building.
+**Where Delta loses:** a spec-to-code path only through the optional Executor (no stored plan or tasks), less maturity and community, every write funnels through Archivist (friction), Sentinel audits only specs/designs, no executable "constitution" check before building.
 
 **Positioning:** Spec Kit answers "how do I build this feature from a spec"; Delta answers "how do I keep project context true and verifiable". They compose: build with Spec Kit (or a plain plan), keep the resulting contract honest with Delta.
 
@@ -90,7 +90,7 @@ The ETH finding means Delta could be hurting agents today without anyone noticin
 
 ### D. Bridge the Spec Kit gap without competing
 
-- **D1. Optional `implementer` skill.** Reads a spec, proposes a task plan, then triggers Sentinel. A light bridge, not a full `/implement`. *Effort M, value medium.*
+- ~~**D1. Optional `implementer` skill.** Reads a spec, proposes a task plan, then triggers Sentinel. A light bridge, not a full `/implement`. *Effort M, value medium.*~~ **Done 2026-10-25, as `executor`.** An optional fifth skill that writes tests first and then code for one slice. Its work is computed from the claims whose verification tag is not satisfied yet (using `links.sh`), shown as a plan for approval and never stored. It edits source and tests only, hands tag updates and spec problems to archivist and specifier, and does not commit. Costs about 170 tokens of always-loaded description. Not yet run against a real agent.
 - **D2. Change-delta mode.** A change proposes modifications to a spec (which invariant changes) before touching code. OpenSpec's good idea, but the contract remains the only artifact. *Effort M, value medium–high.*
 - **D3. Interoperability.** Import/export between Spec Kit or OpenSpec specs and Delta's format. *Effort M, value medium.*
 
