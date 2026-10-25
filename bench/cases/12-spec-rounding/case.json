@@ -1,0 +1,19 @@
+{
+  "id": "12-spec-rounding",
+  "repo": "shop",
+  "category": "spec",
+  "slice": "pricing",
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": [
+    {
+      "spec": "deltas/pricing.spec.md",
+      "n": 2,
+      "ok": [
+        "Violated"
+      ]
+    }
+  ]
+}

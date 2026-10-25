@@ -1,0 +1,11 @@
+{
+  "id": "10-beni-rename",
+  "repo": "shop",
+  "category": "beni",
+  "slice": "pricing",
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": []
+}

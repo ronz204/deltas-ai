@@ -156,7 +156,7 @@ Sketch of the specs. The final wording lives in `bench/repos/shop/deltas/*.spec.
 Technical constraints:
 
 - **Zero dependencies.** The project's runtime is Bun: tests use `bun:test` and run with `bun test`, TypeScript needs no build step. The fixture is written as plain, portable TypeScript (no `enum`, no `namespace`, no parameter properties) so it would also read naturally in other runtimes.
-- **Healthy baseline is enforced.** `npm test` must pass on the untouched repo, and `cases/shop.base.json` records that every invariant is in an acceptable state.
+- **Healthy baseline is enforced.** `bun test` must pass on the untouched repo, and `cases/shop.base.json` records that every invariant is in an acceptable state.
 - The fixture's `deltas/*.spec.md` are **test data hand-written to control the invariants exactly**, so they are exempt from the "route through `archivist`" rule that governs this project's own knowledge base. The plan's phase 1 should state this exemption where it is created so it is not mistaken for drift.
 
 ### 6.2 The twelve cases
@@ -203,13 +203,25 @@ A `Conflict` case (two slices contradicting each other) is deferred to round two
   "category": "beht",
   "slice": "pricing",
   "patch": "patch.diff",
+  "expect": { "tests": "fail", "failing": ["rounds half up to the nearest cent"] },
   "overrides": [
     { "spec": "deltas/pricing.spec.md", "n": 2, "ok": ["Violated"] }
   ]
 }
 ```
 
-`slice` is what the prompt names, which keeps Sentinel's scope narrow (its own Step 0). `ok` is a set, not a single value, because honest uncertainty (`Unverified`) is a legitimate answer for some claims.
+`slice` is what the prompt names, which keeps Sentinel's scope narrow (its own Step 0). `ok` is a set, not a single value, because honest uncertainty (`Unverified`) is a legitimate answer for some claims. `expect` declares what the fixture's own test suite must do after the patch (`pass`, or `fail` naming the failing tests); it is only used by `tools/check.ts` to prove the case is sound, and is never shown to the agent. `holdout: true` marks the reserved cases (05, 07, 11). `patch` is `null` for controls.
+
+Notes from building the cases:
+
+- Case 09 removes the stock slice *coherently* (its source, its tests, its wiring in checkout, and the checkout tests that depended on it), so the repo stays green and the retirement looks intentional. The stock spec is left behind on purpose; every stock claim is `Gone`.
+- Case 10 renames helpers that are not named in any spec's Contract (`lineTotal` to `priceLine`, `min` to `smaller`), so the rename cannot be mistaken for contract drift.
+- Case 05 uses float arithmetic that still rounds half up. This was checked exhaustively (cents 0 to 200000, percent 0 to 100: zero differences from the integer version), so claim 2 genuinely still holds and only claim 1 is violated.
+- `bench/.gitattributes` forces LF line endings so patches apply identically on any checkout.
+
+### 6.4 Tooling rules
+
+All code under `bench/tools/` is Bun-only: Bun APIs (`Bun.file`, `Bun.write`, `Bun.Glob`, `Bun.spawnSync`, `Bun.$`, `import.meta.dir`) and no imports starting with `node:`. Known Bun 1.3.14 limitation on Windows: the shell builtin `cp -r` panics, so directories are copied file by file with `Bun.Glob` and `Bun.write`.
 
 ## 7. Grading and metrics
 

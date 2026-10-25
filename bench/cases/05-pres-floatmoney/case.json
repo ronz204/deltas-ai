@@ -1,0 +1,20 @@
+{
+  "id": "05-pres-floatmoney",
+  "repo": "shop",
+  "category": "pres",
+  "slice": "pricing",
+  "holdout": true,
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": [
+    {
+      "spec": "deltas/pricing.spec.md",
+      "n": 1,
+      "ok": [
+        "Violated"
+      ]
+    }
+  ]
+}

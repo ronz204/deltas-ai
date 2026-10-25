@@ -1,0 +1,12 @@
+{
+  "id": "11-beni-extract",
+  "repo": "shop",
+  "category": "beni",
+  "slice": "checkout",
+  "holdout": true,
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": []
+}

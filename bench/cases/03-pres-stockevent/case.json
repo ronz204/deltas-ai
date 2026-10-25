@@ -1,0 +1,19 @@
+{
+  "id": "03-pres-stockevent",
+  "repo": "shop",
+  "category": "pres",
+  "slice": "stock",
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": [
+    {
+      "spec": "deltas/stock.spec.md",
+      "n": 3,
+      "ok": [
+        "Violated"
+      ]
+    }
+  ]
+}

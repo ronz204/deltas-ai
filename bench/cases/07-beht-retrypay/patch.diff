@@ -1,0 +1,14 @@
+diff --git a/source/checkout/checkout.ts b/source/checkout/checkout.ts
+index 891677c..d71e1f2 100644
+--- a/source/checkout/checkout.ts
++++ b/source/checkout/checkout.ts
+@@ -52,7 +52,8 @@ export function createCheckout(deps: {
+     }
+ 
+     attempted.add(req.orderId);
+-    const result = await deps.gateway.charge(req.orderId, pricing.total);
++    let result = await deps.gateway.charge(req.orderId, pricing.total);
++    if (!result.ok) result = await deps.gateway.charge(req.orderId, pricing.total);
+     if (!result.ok) {
+       deps.stock.release(req.orderId);
+       throw new PaymentFailedError(result.reason);

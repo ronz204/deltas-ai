@@ -1,0 +1,22 @@
+{
+  "id": "06-beht-rounding",
+  "repo": "shop",
+  "category": "beht",
+  "slice": "pricing",
+  "patch": "patch.diff",
+  "expect": {
+    "tests": "fail",
+    "failing": [
+      "rounds half up to the nearest cent"
+    ]
+  },
+  "overrides": [
+    {
+      "spec": "deltas/pricing.spec.md",
+      "n": 2,
+      "ok": [
+        "Violated"
+      ]
+    }
+  ]
+}

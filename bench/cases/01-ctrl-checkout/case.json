@@ -1,0 +1,11 @@
+{
+  "id": "01-ctrl-checkout",
+  "repo": "shop",
+  "category": "ctrl",
+  "slice": "checkout",
+  "patch": null,
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": []
+}

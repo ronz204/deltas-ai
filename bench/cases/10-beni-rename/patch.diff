@@ -1,0 +1,63 @@
+diff --git a/source/pricing/cart.ts b/source/pricing/cart.ts
+index 5641f37..1854b63 100644
+--- a/source/pricing/cart.ts
++++ b/source/pricing/cart.ts
+@@ -12,7 +12,7 @@ export type Pricing = {
+   total: Money;
+ };
+ 
+-export function lineTotal(line: Line): Money {
++export function priceLine(line: Line): Money {
+   if (!Number.isInteger(line.qty) || line.qty < 1) {
+     throw new RangeError("qty must be a positive integer");
+   }
+@@ -25,7 +25,7 @@ export function priceCart(
+   opts: { percentOff?: number; taxBps: number },
+ ): Pricing {
+   let subtotal = money(0, lines[0]?.unit.currency ?? "USD");
+-  for (const line of lines) subtotal = add(subtotal, lineTotal(line));
++  for (const line of lines) subtotal = add(subtotal, priceLine(line));
+   const discount = percentOff(subtotal, opts.percentOff ?? 0);
+   const taxable = applyDiscount(subtotal, discount);
+   const tax = taxOn(taxable, opts.taxBps);
+diff --git a/source/pricing/discount.ts b/source/pricing/discount.ts
+index 97dca6d..59658bf 100644
+--- a/source/pricing/discount.ts
++++ b/source/pricing/discount.ts
+@@ -1,4 +1,4 @@
+-import { type Money, money, min, subtract } from "./money.ts";
++import { type Money, money, smaller, subtract } from "./money.ts";
+ 
+ // Half up: add half of the divisor before the integer division.
+ export function percentOff(amount: Money, percent: number): Money {
+@@ -9,5 +9,5 @@ export function percentOff(amount: Money, percent: number): Money {
+ }
+ 
+ export function applyDiscount(subtotal: Money, discount: Money): Money {
+-  return subtract(subtotal, min(discount, subtotal));
++  return subtract(subtotal, smaller(discount, subtotal));
+ }
+diff --git a/source/pricing/index.ts b/source/pricing/index.ts
+index 4b02f95..041a1d3 100644
+--- a/source/pricing/index.ts
++++ b/source/pricing/index.ts
+@@ -1,4 +1,4 @@
+-export { type Money, CurrencyMismatchError, add, min, money, subtract, usd } from "./money.ts";
++export { type Money, CurrencyMismatchError, add, money, smaller, subtract, usd } from "./money.ts";
+ export { applyDiscount, percentOff } from "./discount.ts";
+ export { taxOn } from "./tax.ts";
+-export { type Line, type Pricing, lineTotal, priceCart } from "./cart.ts";
++export { type Line, type Pricing, priceLine, priceCart } from "./cart.ts";
+diff --git a/source/pricing/money.ts b/source/pricing/money.ts
+index b8739d9..cd38889 100644
+--- a/source/pricing/money.ts
++++ b/source/pricing/money.ts
+@@ -30,7 +30,7 @@ export function subtract(a: Money, b: Money): Money {
+   return money(a.cents - b.cents, a.currency);
+ }
+ 
+-export function min(a: Money, b: Money): Money {
++export function smaller(a: Money, b: Money): Money {
+   assertSameCurrency(a, b);
+   return a.cents <= b.cents ? a : b;
+ }

@@ -1,0 +1,11 @@
+{
+  "id": "02-ctrl-pricing",
+  "repo": "shop",
+  "category": "ctrl",
+  "slice": "pricing",
+  "patch": null,
+  "expect": {
+    "tests": "pass"
+  },
+  "overrides": []
+}
