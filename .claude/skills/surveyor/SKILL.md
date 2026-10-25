@@ -47,9 +47,9 @@ Same discipline as `specifier`: confirm from Step 1 where possible, ask where it
 
 Package the investigation and interview results and invoke `archivist` to write, in one batch:
 
-- `CLAUDE.md` via `references/claude.template.md` — project description, knowledge base layout, repo layout, setup/common commands, permissions summary, conventions.
-- `overview.md`, `modules.md`, `structure.md`, `database.md`, `expertise.md`, and `approach.md` — these already exist as shipped skeletons under `.claude/docs/`; fill each in place with what Step 1/Step 2 found rather than creating a new file from `references/docs.template.md`. State "not applicable here" plainly in one of these rather than leaving it as an unfilled skeleton, on the rare project where it genuinely doesn't apply.
-- Each rule candidate confirmed in Step 2, as its own `.claude/rules/<topic>.md` via `references/rules.template.md` — one file per concern, same as any other rule.
+- `CLAUDE.md` via `.claude/skills/archivist/references/claude.template.md` — project description, knowledge base layout, repo layout, setup/common commands, permissions summary, conventions.
+- `overview.md`, `modules.md`, `structure.md`, `database.md`, `expertise.md`, and `approach.md` — these already exist as shipped skeletons under `.claude/docs/`; fill each in place with what Step 1/Step 2 found rather than creating a new file from `.claude/skills/archivist/references/docs.template.md`. State "not applicable here" plainly in one of these rather than leaving it as an unfilled skeleton, on the rare project where it genuinely doesn't apply.
+- Each rule candidate confirmed in Step 2, as its own `.claude/rules/<topic>.md` via `.claude/skills/archivist/references/rules.template.md` — one file per concern, same as any other rule.
 
 This skill never writes any of these itself, same separation `specifier` keeps from `archivist` — it produces grounded material, `archivist` still does the write and still applies its own Step 0 discipline against what was found.
 

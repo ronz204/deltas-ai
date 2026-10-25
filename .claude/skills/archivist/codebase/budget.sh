@@ -77,13 +77,16 @@ rows() {
 }
 
 # A skill's `references/...md` pointers must exist in its own folder. One that exists only in
-# another skill resolves, but is ambiguous for a reader of the first skill.
+# another skill resolves, but is ambiguous; a full path from the project root is unambiguous.
 pointers() {
   for d in .claude/skills/*/; do
     for f in "$d"SKILL.md "$d"references/*.md; do
       [ -f "$f" ] || continue
-      for p in $(grep -o 'references/[A-Za-z0-9._/-]*\.md' "$f" | sort -u); do
-        [ -f "$d$p" ] && continue
+      for p in $(grep -o '[A-Za-z0-9._/-]*references/[A-Za-z0-9._/-]*\.md' "$f" | sort -u); do
+        case $p in
+          references/*) [ -f "$d$p" ] && continue ;;
+          *) [ -f "$p" ] && continue ;;
+        esac
         owner=$(ls -d .claude/skills/*/"$p" 2>/dev/null | head -n 1)
         if [ -n "$owner" ]; then echo "ambiguous|$f -> $p (only in ${owner%/"$p"})"
         else echo "broken|$f -> $p"; fi
