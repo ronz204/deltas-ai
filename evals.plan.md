@@ -398,3 +398,55 @@ Design decisions made while building:
 - Errors are logged to `errors.jsonl` and retried on resume; two consecutive errors stop the batch, since the usual cause is a subscription limit.
 - Modes have no `files/` overlay folder yet (the code supports one if a mode ever needs it).
 - Known weakness, to confirm in the pilot: `dontAsk` permissions with the `Bash(bun test:*)` allow rule have not yet been exercised by a case that makes Sentinel run a test.
+
+---
+
+## 16. Phase 4 results: the pilot (2026-10-25)
+
+Batch `pilot`: 7 non-hold-out cases (one per category: `01`, `03`, `06`, `08`, `09`, `10`, `12`) x 2 modes x 3 repetitions = 42 runs, `claude-sonnet-5-5`, harness commit `6e94472`, zero errors. Its `report.md` is committed under `bench/stats/pilot/`. The hold-out cases (05, 07, 11) were not run.
+
+### What the numbers say
+
+| | `plain` | `skill` |
+|---|---|---|
+| Clean runs | 21/21 | 21/21 |
+| Catch rate (drift claims found) | 27/27 | 27/27 |
+| False alarms | 0/87 | 0/87 |
+| Format failures | 0/21 | 0/21 |
+| Skill invoked | n/a | 21/21 |
+| Median total tokens | 61.7k | 121.3k |
+| Median turns | 7 | 11 |
+| Median seconds | 12 | 18 |
+| Subagents spawned (all runs) | 0 | 0 |
+
+Total tokens summed over all runs: `skill` used 1.68 times what `plain` used. Results were identical across the three repetitions of every case.
+
+### How to read it
+
+1. **The benchmark saturated.** Both modes scored 100% everywhere, so it cannot tell them apart. This is a ceiling effect of a fixture that is too easy, not evidence that the skill is unnecessary: each slice has 3 to 5 source files and 5 to 6 invariants, so any agent can read the whole slice in a few calls and reach the right verdict. Sentinel's machinery (targeted grep before reading, delegating to subagents, escalating to run tests) is designed for slices too big to read whole.
+2. **The skill is reliably triggered.** 21/21 invocations from a natural-language prompt, with no instruction to use it.
+3. **At equal accuracy the skill costs about 1.7 times the tokens and 1.5 times the time.** Its procedure adds turns that bought nothing on this fixture. By the reading table in section 9 ("equal accuracy, far more tokens") that is tentatively cost without benefit, but only on this easy fixture; it must be re-tested on a harder one before drawing a conclusion.
+4. **Grading was validated by hand.** Two full answers (`08-bent-ttl`, both modes) were read: the verdicts match the code and each cites the right line. In the `skill` answer the human table and the JSON block agree.
+5. **No subagent was ever spawned**, and no run used `Unverified`. Neither the delegation path nor honest uncertainty was exercised.
+
+### An experiment flaw found and fixed
+
+On Windows the agent runs commands through the `PowerShell` tool, not `Bash`, and the allow list only covered `Bash(...)`. In 4 `skill` runs (`03` reps 2 and 3, `06` reps 1 and 2) the agent tried `bun test ...` and was denied; in `plain` it tried a directory listing and was denied. Answers stayed correct because the agent fell back to reading, but the execution-escalation path of Sentinel was effectively blocked during the pilot. Fix: both `mode.json` files now also allow `PowerShell(bun test:*)`, `PowerShell(git status:*)`, `PowerShell(git diff:*)` and `PowerShell(Select-Object:*)` (the agent pipes test output through it). A probe run of `06` in `skill` mode afterwards executed `bun test` with zero denials. The pilot numbers above were produced before the fix; because every run was 100% correct they are not expected to change, but the pilot report should be read with that in mind.
+
+### Consequence for the plan
+
+Running the full 72-run batch on these same cases would very likely repeat the ceiling and spend subscription tokens for no information. Recommendation: do not run it as designed. Build a harder "round 1b" first (section 17), then run the full batch on that.
+
+## 17. Making the benchmark discriminate (proposal, not started)
+
+Goal: cases where a plain prompt can plausibly fail and the skill's discipline can matter.
+
+1. **A bigger slice.** More files per slice and 10 to 15 invariants per spec, so reading everything is expensive and the targeted-check and delegation steps of Sentinel become relevant.
+2. **Subtler mutations.** Off-by-one boundaries (`>=` vs `>`), a default changed in a deep helper, a swapped call order (release before charge), an error type swapped for a sibling, a constant defined in two places, an invariant violated only through a transitive import via a barrel file.
+3. **Mutations only execution reveals.** Misleading names or stale comments that suggest the claim holds while a test fails, so the skill's escalation to run an existing test earns its keep.
+4. **Several drifts in one slice** (two or three at once) to stress recall, not just single-needle detection.
+5. **Decoys.** Scary-looking but behavior-preserving changes (moved code, renamed constants, restructured but equivalent logic) to keep measuring false alarms where they are likelier.
+6. **A `Conflict` case** (two slices contradicting each other, multi-slice scope), deferred earlier.
+7. **Bring forward round two's real open source repository.** A synthetic fixture the author wrote and mutated is the easiest possible material; a real repo with real specs written for it is the stronger test.
+
+Whichever subset is chosen, `check.ts` must pass for every new case before any agent run, and the hold-out discipline applies to the new set.
