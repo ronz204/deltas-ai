@@ -5,7 +5,6 @@
 **A living-documentation methodology for AI coding agents.**
 
 [![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-CC785C?style=flat-square)](https://claude.com/claude-code)
-[![Cursor](https://img.shields.io/badge/Cursor-compatible-000000?style=flat-square)](https://cursor.com)
 [![Skills](https://img.shields.io/badge/skills-4-blueviolet?style=flat-square)]()
 [![No decision log](https://img.shields.io/badge/decision_log-none_by_design-informational?style=flat-square)]()
 
@@ -15,7 +14,7 @@
 
 Most project context lives in one of two bad places: a person's head, or an ever-growing history of decisions that costs more to read than it's worth. **Delta** treats documentation as a set of **living contracts** instead — files that describe what is true *right now*, edited in place as things change, never appended to as a log. Superseded content is simply gone; git history is already the record of what used to be true.
 
-This repository *is* the harness: the skills, rules, and templates that implement Delta, packaged for both [Claude Code](https://claude.com/claude-code) (`.claude/`) and [Cursor](https://cursor.com) (`.cursor/`). Drop either folder into a project and its agent gains four new capabilities for creating and maintaining that project's documentation.
+This repository *is* the harness: the skills, rules, and templates that implement Delta, packaged for [Claude Code](https://claude.com/claude-code) (`.claude/`). Drop that folder into a project and its agent gains four new capabilities for creating and maintaining that project's documentation.
 
 ## Contents
 
@@ -62,7 +61,7 @@ flowchart LR
 
 > A hand-edit to any of these files skips the pipeline and is exactly the kind of drift Delta exists to prevent — the one exemption is a trivial, already-settled fix (a typo, a stale command).
 
-Full step-by-step instructions for each skill live in `.claude/skills/<name>/SKILL.md` (and the Cursor-flavored equivalent under `.cursor/skills/`).
+Full step-by-step instructions for each skill live in `.claude/skills/<name>/SKILL.md`.
 
 ---
 
@@ -97,14 +96,14 @@ Every doc/rule stays self-contained and free of volatile references — no citin
 This repo has no application source of its own — it *is* the reusable harness.
 
 ```
-1. copy .claude/ and/or .cursor/ into your project
+1. copy .claude/ into your project
 2. "bootstrap this repo with Delta"        → Surveyor writes CLAUDE.md + .claude/docs/*
 3. "let's spec out <feature>"              → Specifier interviews, Archivist writes <slice>.spec.md
 4. "check <feature> for drift"             → Sentinel verifies the contract against the code
 5. anything else worth documenting         → Archivist, directly
 ```
 
-1. **Copy** `.claude/` (for Claude Code) and/or `.cursor/` (for Cursor) into the target repo.
+1. **Copy** `.claude/` into the target repo.
 2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and fills in the six `.claude/docs/*` files from what it finds in the codebase (or from a short interview, if the repo is greenfield).
 3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
 4. **Verify** after implementing — invokes 🛡️ **Sentinel**, which checks the spec's invariants against the real code and reports drift as a compact table:
@@ -123,7 +122,6 @@ This repo has no application source of its own — it *is* the reusable harness.
 | `.claude/rules/` | Editing conventions for the knowledge base itself — route through the matching skill, don't hand-edit |
 | `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
-| `.cursor/` | Same structure, adapted for Cursor's rule/agent conventions (`.mdc` rule files, no `settings.json`) |
 
 ## Non-goals
 
