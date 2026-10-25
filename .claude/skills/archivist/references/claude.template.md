@@ -4,10 +4,17 @@ every Claude Code session automatically. This is the one artifact in this
 system that's allowed — expected — to reference other files by path; its
 entire job is routing to where the real content lives, not holding that
 content itself. Keep it short: every line here costs context on every
-single turn, regardless of whether that turn needs it.
+single turn, and Claude Code itself warns past 200 lines.
+Write it as an index of questions ("if you need X, read Y"), not as an
+inventory of what exists. Leave out anything the agent can derive from the
+code or the tool config — directory listings, dependency lists, commands a
+package manifest already makes obvious — because that is exactly the content
+that drifts and that distracts. Don't use `@path` imports to organize it:
+imported files load together with this one, so they add context instead of
+saving it.
 Fill every section; delete guidance comments before presenting the draft.
 Ground every claim the same as any other artifact — read the actual package
-manifest / build config / CI files for commands and layout, don't guess.
+manifest / build config / CI files and the real tree, don't guess.
 -->
 
 # <Project name>
@@ -16,68 +23,55 @@ manifest / build config / CI files for commands and layout, don't guess.
 
 ---
 
-## Knowledge base layout
+## Where to look
 
 <!--
-Table explaining what lives under .claude/ (and wherever specs live) and
-why — this is the map a session uses to find durable context without
-re-deriving it from the code. List only what actually exists in this
-project; don't include a row for a directory that doesn't exist yet, and
-don't invent a row for a convention this project hasn't adopted. The
-`deltas/` row below is the default for a project with one root — if this
-repo is genuinely split into multiple independently-deployable services,
-replace it with one row per service's own `<service>/deltas/` instead.
+The index. One row per question a session actually has; the second column is a
+trigger ("read X when you need Y"), not a description of the folder. List only
+what actually exists in this project — no row for a directory that doesn't
+exist yet, none for a convention this project hasn't adopted — and adapt the
+doc rows to the docs the project really has. The `deltas/` row is the default
+for a project with one root; if this repo is genuinely split into multiple
+independently-deployable services, replace it with one row per service's own
+`<service>/deltas/`. Don't list the slices themselves: the session finds them
+by listing the folder, so adding one never means editing this file.
 -->
 
-| Path | Holds |
+| If you need... | Read |
 |---|---|
-| `.claude/docs/` | <self-contained reference files, one concern each — e.g. architecture, module reference> |
-| `.claude/rules/` | <conventions auto-loaded when a matching file is opened/edited, scoped via `paths:` frontmatter> |
-| `.claude/agents/` | <bounded, repeatable subagent tasks with their own tool access> |
-| `.claude/skills/` | <capabilities pulled in across tasks, e.g. this project's own archivist/specifier pair> |
-| `.claude/settings.json` | <permission policy — see Permissions below> |
-| `deltas/` | <per-slice spec/design files: `<slice>.spec.md`, optional `<slice>.design.md`> |
+| The contract of a capability before changing its behavior | `deltas/` — list the folder and open the spec that matches (and its design file for UI work) |
+| What the system is, its scope and vocabulary | `.claude/docs/overview.md` |
+| How a component works, step by step | `.claude/docs/modules.md` |
+| The stack, topology, how the parts communicate | `.claude/docs/structure.md` |
+| The data model and persistence | `.claude/docs/database.md` |
+| How a non-trivial mechanism works | `.claude/docs/expertise.md` |
+| The build order, roadmap and done criteria | `.claude/docs/approach.md` |
+| A repeatable task or capability | `.claude/agents/` and `.claude/skills/` |
+| What the agent may or may not run | `.claude/settings.json` — <one sentence on the reasoning only if the file doesn't make it obvious> |
+| A convention for the files you're editing | Nothing to do: `.claude/rules/` loads by itself when a matching file is read |
 
-## Repo layout
+## Commands
 
 <!--
-How the actual codebase is composed — top-level directories and what each
-is for. This is about the code, not the knowledge base above. Read the
-real tree before writing this; don't infer it from the project name or
-from what a similar project usually looks like.
--->
-
-| Path | Purpose |
-|---|---|
-| `<dir>` | <what lives here> |
-
-## Setup & common commands
-
-<!--
-Pull these from the actual package manifest / task runner / CI config —
-never write a command that "should" work without confirming it does. Omit
-a row for anything this project doesn't have (e.g. no separate lint step).
+Only what a session could not guess from the package manifest, task runner or
+CI config: a required environment variable, a non-default test invocation, a
+step order that matters. Confirm each against the real file; never write a
+command that "should" work. Omit the whole section if there is nothing like
+that — a command the manifest already shows doesn't belong here.
 -->
 
 | Task | Command |
 |---|---|
-| Install dependencies | `<command>` |
-| Run in development | `<command>` |
-| Run tests | `<command>` |
-| Lint / typecheck | `<command>` |
-| Build | `<command>` |
+| <what it does> | `<command>` |
 
-## Permissions
+## Non-obvious structure
 
 <!--
-Summarize the policy in .claude/settings.json in a sentence or two, then
-point at it. settings.json is a single-instance, tool-mandated filename —
-safe to name directly, same exception as package.json/tsconfig.json get
-elsewhere in this system. Don't copy the allow/deny lists here; a copy
-drifts out of sync with the real file the first time either one changes.
+Only what the file tree doesn't show: generated or vendored directories not to
+edit, a boundary between deployable units, an entry point that isn't where you'd
+look. Read the real tree before writing. Omit the whole section if the tree
+speaks for itself.
 -->
-
-The full policy lives in `.claude/settings.json`. <One or two sentences on the shape of it — what's denied by default and why, what's pre-approved and why.>
 
 ## Conventions
 
