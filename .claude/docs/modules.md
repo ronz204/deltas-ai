@@ -2,31 +2,31 @@
 This file ships as part of the harness itself, as the fill-in skeleton for
 this doc category — copy it into a project as-is, then fill it in place
 when bootstrapping (surveyor) or updating (archivist) that project's
-per-component functional reference. Delete these guidance comments once
-every section holds real, grounded content. Ground every claim in the real
-source implementing each component (Step 0) — never infer behavior from a
-filename or from what a similar project usually does.
+cross-component behavior reference. It holds only what reading one component
+doesn't reveal: a component's own step-by-step behavior and data shape are in
+its code, and a capability's contract is its spec. Delete these guidance
+comments once every section holds real, grounded content. Ground every claim in
+the real source (Step 0) — never infer behavior from a filename or from what a
+similar project usually does. Omit a section with nothing real to say.
 -->
 
 # Modules
 
-<!-- One sentence: what this file covers and what it deliberately excludes (e.g. "Why these components exist lives in overview.md, not here"). -->
+<!-- One sentence: what this file covers — behavior that spans components or would surprise a reader — and what it deliberately excludes (e.g. "A component's own behavior lives in its code and a capability's contract in its spec, not here"). -->
 
 ---
 
-## `<Component name>`
+## Cross-component flows
 
-<!-- Repeat this subsection per component. Component names are durable architecture vocabulary — describe the boundary, not the source-tree location that implements it. -->
+<!-- A flow that crosses more than one component, where the order or the hand-off isn't visible from any single one of them: a numbered list or a short sequence naming the components by role. Describe what really happens, not an idealized version. Component names are durable architecture vocabulary — describe the boundary, not the source-tree location that implements it. -->
 
-**Purpose.** <!-- What this component is responsible for, in one or two sentences. -->
+## Non-obvious behavior
 
-**Flow.** <!-- The actual step-by-step behavior — a numbered list or a short sequence, whichever reads clearer. Describe what really happens, not an idealized version. -->
+<!-- Per component, only behavior that would surprise a reader or break if changed: hidden coupling, an ordering requirement, a side effect, state kept implicitly. For each, name the component, what it does, and why it matters. Skip anything a reader gets by reading that component. -->
 
-**Data shape.** <!-- The concrete shape this component reads/writes/exposes. Use a fenced code block for anything structural — never describe a schema or payload in prose when a code block says it exactly. -->
+## Shared guarantees
 
-**Dependencies.** <!-- Optional. What this component depends on or is depended on by, only where that detail isn't already obvious from structure.md's system-wide Topology section — component-specific dependency nuance, not a restatement of the global topology. Omit when Topology already covers it. -->
-
-## `<Next component name>`
+<!-- What several components rely on together that no single one states — an ordering, an idempotency expectation, a shared assumption. A guarantee that belongs to one capability goes in that capability's spec instead. Use a fenced code block for anything structural. -->
 
 ---
 

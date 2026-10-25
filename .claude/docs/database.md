@@ -15,6 +15,8 @@ from what a similar stack usually looks like. Omit any section below that
 genuinely doesn't apply to this project's store (e.g. Access control's
 row-level policies on a store with no such feature) rather than forcing
 content into it.
+Record what the schema files don't say on their own: the rationale, the
+invariants, the infrastructure. Don't copy DDL that the migrations already hold.
 -->
 
 # Database
@@ -33,7 +35,7 @@ content into it.
 
 ## Data model
 
-<!-- The entities/tables/collections that matter, their relationships, and the value types (enums, domain-specific types) that constrain them. A fenced code block (schema DDL, or a structured outline) beats prose whenever the shape is structural. Entity/field names are durable architecture vocabulary — describe the shape, never the source-tree location that defines it. -->
+<!-- The entities that matter and how they relate in domain terms, plus the value types (enums, domain-specific types) that constrain them — only where the schema files don't make that plain on their own; don't copy DDL the migrations already hold. A fenced code block is for a structural shape the schema doesn't state outright. Entity/field names are durable architecture vocabulary — describe the shape, never the source-tree location that defines it. -->
 
 ## Persistence invariants
 

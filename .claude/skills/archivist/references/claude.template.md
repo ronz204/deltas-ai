@@ -41,7 +41,7 @@ by listing the folder, so adding one never means editing this file.
 |---|---|
 | The contract of a capability before changing its behavior | `deltas/` — list the folder and open the spec that matches (and its design file for UI work) |
 | What the system is, its scope and vocabulary | `.claude/docs/overview.md` |
-| How a component works, step by step | `.claude/docs/modules.md` |
+| Behavior that spans components or isn't evident from one | `.claude/docs/modules.md` |
 | The stack, topology, how the parts communicate | `.claude/docs/structure.md` |
 | The data model and persistence | `.claude/docs/database.md` |
 | How a non-trivial mechanism works | `.claude/docs/expertise.md` |

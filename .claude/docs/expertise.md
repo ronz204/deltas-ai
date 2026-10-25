@@ -10,6 +10,8 @@ once every section holds real, grounded content. Ground every claim in the
 real technology/algorithm/protocol actually in play (Step 0) or in
 established domain fact — never invent a mechanism explanation that hasn't
 actually been confirmed.
+Explain only the mechanisms where a misunderstanding would cause a mistake in
+this project; general knowledge a session already has doesn't belong here.
 -->
 
 # Expertise

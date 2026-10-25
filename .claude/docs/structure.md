@@ -5,6 +5,9 @@ when bootstrapping (surveyor) or updating (archivist) that project's
 topology reference. Delete these guidance comments once every section holds
 real, grounded content. Ground every claim in the actual stack/config
 (Step 0), never in what a similar project usually looks like.
+Record the reasoning and the facts the code doesn't show. A technology list or a
+dependency map that the manifests and imports already state is pointed at in
+general terms, never copied here.
 -->
 
 # Structure
