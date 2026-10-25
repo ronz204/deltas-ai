@@ -32,6 +32,8 @@ A claim that isn't falsifiable by reading code/behavior isn't something this ski
 
 Also read each claim's verification tag, if it has one, in `spec.md`'s Invariants and Acceptance criteria: `[test: path "name"]`, `[check: command]`, `[manual: step]` or `[none]`. It says how the claim is meant to be checked, so Step 2 doesn't have to rediscover it.
 
+To see a spec's coverage without running anything — how many claims have a test, a check, a manual step, nothing, or no tag, and whether every test link still resolves — run `sh .claude/skills/sentinel/codebase/links.sh [spec ...]`. It reads only, costs no model tokens, and `--check` exits 1 on a broken link.
+
 ## Step 2 — Verify against the real implementation, cheaply
 
 For each claim:
