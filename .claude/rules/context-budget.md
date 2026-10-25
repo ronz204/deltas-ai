@@ -30,7 +30,7 @@ This governs how much context each knowledge-base artifact may cost, and what to
 
 ## Measuring
 
-- The budget script bundled with the archivist skill reads the config, classes every file by how it loads, and reports overruns and broken pointers. It only reads, so running it costs no model tokens. Token figures are estimates (characters divided by four); line and character counts are exact.
+- The budget script bundled with the archivist skill reads the config, classes every file by how it loads, and reports overruns and broken pointers. It only reads, so running it costs no model tokens. Token figures are estimates (about 3.3 characters per token, calibrated against Claude Code's own `/context` report); line and character counts are exact.
 
 ---
 

@@ -24,7 +24,8 @@ cd "${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" || exit 2
 eval "$(tr -d '\r' < .claude/budget.conf)"
 
 limit() { eval "echo \${$1:-0}"; }
-tokens() { echo $(( $(wc -c < "$1") / 4 )); }
+est() { echo $(( $1 * 10 / 33 )); }   # about 3.3 characters per token, calibrated against /context
+tokens() { est "$(wc -c < "$1")"; }
 
 # Prints: lines after the frontmatter, 1 if it has "paths:", characters of its description.
 frontmatter() {
@@ -57,7 +58,7 @@ measure() {
       if [ "$4" = 1 ]; then emit scoped rule lines "$3" rule_scoped_lines "$2"
       else emit always rule lines "$3" rule_always_lines "$2"; fi ;;
     skill|agent)
-      emit always "$1-desc" chars "$5" "$1_desc_chars" "$2" $(( $5 / 4 ))
+      emit always "$1-desc" chars "$5" "$1_desc_chars" "$2" "$(est "$5")"
       emit invoke "$1" lines "$3" "$1_body_lines" "$2" ;;
     *) emit demand "$1" lines "$3" "$1_lines" "$2" ;;
   esac
