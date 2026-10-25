@@ -1,0 +1,123 @@
+# NEXT — Candidate directions for the next version of Delta
+
+A working document, not a contract. It records the research and brainstorm done on 2026-10-25 so the next version of Delta can be chosen from it later. Nothing here is committed scope. Items are ordered by suggested priority, not by decision.
+
+Guiding constraints for any item below: Delta must stay **robust** (verifiable, not vibes), **portable** (no lock-in to one agent or runtime), and **result-producing** (it must measurably help an agent, not just look tidy).
+
+---
+
+## 1. Where Delta stands today
+
+- Four single-responsibility skills: Surveyor (bootstrap), Specifier (interview), Archivist (sole writer), Sentinel (verify contract vs. code).
+- Living documentation: files describe what is true now, edited in place, no append-only decision log (git is the history).
+- Three layers: `CLAUDE.md` router, six fixed `.claude/docs/*` files, per-feature `<slice>.spec.md` / `<slice>.design.md` under `deltas/`.
+- Packaged for Claude Code (`.claude/`) and Cursor (`.cursor/`). No runtime, no CLI: only markdown and skills.
+- Does not write application code. Does not keep a roadmap per slice.
+
+## 2. Comparison with Spec Kit
+
+| | Spec Kit (GitHub) | Delta |
+|---|---|---|
+| Philosophy | Spec-driven development: the spec is the starting point to **generate code** | Living documentation: the spec is a **contract of what is true now** |
+| Flow | Linear per feature: constitution, specify, clarify, plan, tasks, analyze, implement | Four roles: surveyor, specifier, archivist, sentinel |
+| Writes code | Yes (`/implement`) | No (explicit non-goal) |
+| Artifacts per feature | `spec.md`, `plan.md`, `tasks.md`, `research.md`, `data-model.md`, `contracts/`; they accumulate | One `<slice>.spec.md` (+ `design.md` if UI), edited in place |
+| Lifecycle | A spec becomes historical once the feature ships | A contract stays current while the capability exists |
+| Verification | `/analyze` checks spec/plan/tasks consistency **before** implementing | Sentinel checks contract vs. real code **after** implementing |
+| Brownfield | Aimed mostly at new features | Surveyor bootstraps an existing repo |
+| Decision history | Accumulates in artifacts | None by design |
+| Agent support | Many agents via a CLI | Claude Code and Cursor via copied folders |
+
+**Where Delta wins:** drift detection over time, a KB that does not rot, lower context cost, brownfield onboarding, slices scoped by capability not by layer, zero runtime dependency.
+
+**Where Delta loses:** no spec-to-code path (no plan/tasks/implement), less maturity and community, every write funnels through Archivist (friction), Sentinel audits only specs/designs, no executable "constitution" check before building.
+
+**Positioning:** Spec Kit answers "how do I build this feature from a spec"; Delta answers "how do I keep project context true and verifiable". They compose: build with Spec Kit (or a plain plan), keep the resulting contract honest with Delta.
+
+## 3. Research findings (external)
+
+Sources are largely vendor-adjacent blogs and secondary summaries; treat specifics as indicative and verify primaries before relying on any number.
+
+1. **The closest competitor is OpenSpec, not Spec Kit.** It has a delta format (ADDED / MODIFIED / REMOVED), is lightweight, and targets brownfield changes — Delta's own territory. Reviewers say its specs can go static during implementation, which is exactly what Sentinel addresses. One head-to-head reported OpenSpec cheaper and faster with fewer spec lines, while Spec Kit passed slightly more acceptance checks (13/13 vs 12/13).
+2. **Spec Kit is heavy for small changes.** Four artifacts per feature; comparisons recommend a workaround for small modifications. Delta's one-spec-per-slice is cheaper.
+3. **Other tools:** Kiro (AWS, closed IDE, EARS notation requirements/design/tasks) and BMAD (heavy multi-agent simulated agile team, high token cost). Consensus: no single tool wins; fit depends on context.
+4. **Context files can hurt.** The ETH Zurich paper "Evaluating AGENTS.md" (arXiv 2602.11988; 138-task Python benchmark; tested Claude Code, Codex, Qwen Code) found LLM-generated context files tend to **reduce task success** and raise inference cost by over 20%; developer-written ones give at best modest gains. Proposed cause: broad architectural overviews push agents into unbounded exploration. **This is a direct risk to Surveyor (generated docs) and to the six always-loaded docs.**
+5. **Skills vs. AGENTS.md is contested.** A secondhand summary of a Vercel eval claims a compressed AGENTS.md docs index (100%) beat skills (79%), partly because the agent sometimes did not load the relevant skill. Primary source not found; narrow to their tasks and setup. Lesson: run our own evals.
+6. **Automated drift detection is nearly absent.** Sources describe doc maintenance as mostly manual. One harness-engineering skill defines drift as stale or missing edges between code and doc nodes and suggests matching doc text against current code entities. This is Delta's open niche.
+7. **Skill evaluation exists as a field:** SkillsBench (87 tasks, deterministic verifier), AgentSkillOS (30 tasks), SkillAudit (per-artifact multi-dimensional assessment). Useful models for evaluating Delta's own skills.
+8. **MSR 2026 study (466 OSS projects):** no established structure for AGENTS.md yet; projects continuously extend and maintain them.
+
+### Sources
+
+- https://www.augmentcode.com/tools/best-spec-driven-development-tools
+- https://codex.danielvaughan.com/2026/05/22/spec-driven-development-frameworks-codex-cli-spec-kit-kiro-openspec-patterns-best-practices/
+- https://felipefontoura.com/articles/spec-driven-development-tools-compared/
+- https://reenbit.com/bmad-vs-spec-kit-vs-openspec-choosing-your-spec-driven-ai-framework/
+- https://arxiviq.substack.com/p/evaluating-agentsmd-are-repository
+- https://todatabeyond.substack.com/p/do-agentsmdclaudemd-files-help-coding
+- https://arxiv.org/html/2510.21413v2
+- https://mcp.directory/blog/claude-md-vs-agents-md-vs-skills-2026
+- https://arxiv.org/pdf/2606.22613
+
+---
+
+## 4. Candidate directions
+
+Legend — **Effort:** S/M/L. **Value:** how much it moves robustness, portability, or results.
+
+### A. Measure before building (highest priority)
+
+The ETH finding means Delta could be hurting agents today without anyone noticing. Everything else rests on knowing it helps.
+
+- **A1. Delta evals.** A small benchmark of 10–20 real tasks. Compare three configurations: no KB, full KB, trimmed KB. Measure success, tokens, and step count. Decide from data. *Effort M, value very high.*
+- **A2. Context budget.** A line/token cap per doc and per spec, enforced by Archivist when writing. *Effort S, value high.*
+- **A3. Load only what is needed.** Keep `CLAUDE.md` a minimal index; load docs and specs by path scope or on demand instead of always loading all six docs. *Effort S–M, value high.*
+- **A4. Honest Surveyor.** Treat generated docs as hypotheses: keep only what is non-obvious and not derivable from the code, since derivable content is what the paper says distracts agents. *Effort S, value high.*
+
+### B. Make Sentinel infrastructure (the differentiator)
+
+- **B1. CI / pre-commit mode.** Run Sentinel on the slices touched by a diff; warn or fail on `Violated` or `Gone`. *Effort M, value very high.*
+- **B2. Verifiable invariants.** Each invariant carries a verification hint (test, command, grep). A deterministic part of Sentinel then needs no LLM, which is cheaper and more robust. *Effort M, value very high.*
+- **B3. Spec-to-test links.** Each acceptance criterion points to a test; no test means an explicit `Unverified`. *Effort S–M, value high.*
+- **B4. Cheap reference check.** A no-LLM script that flags paths or symbols named in a spec that no longer exist. *Effort S, value high.*
+- **B5. Scope Sentinel to docs/rules too (optional).** Today it audits only specs/designs; an extension could check stale references in docs. Beware of volatile references (docs deliberately avoid them). *Effort M, value medium.*
+
+### C. Portability
+
+- **C1. `AGENTS.md` as the canonical entry point**, with `CLAUDE.md` importing it. *Effort S, value high.*
+- **C2. Single neutral source, generated variants.** Today `.claude/` and `.cursor/` are parallel copies and will diverge. Maintain one neutral format for skills and rules and generate the Claude, Cursor, and Codex variants with a small script. *Effort M, value high.*
+- **C3. Keep zero runtime.** This is the edge over Spec Kit. Any helper script must be a single file with no dependencies, and optional. *Constraint, not a task.*
+
+### D. Bridge the Spec Kit gap without competing
+
+- **D1. Optional `implementer` skill.** Reads a spec, proposes a task plan, then triggers Sentinel. A light bridge, not a full `/implement`. *Effort M, value medium.*
+- **D2. Change-delta mode.** A change proposes modifications to a spec (which invariant changes) before touching code. OpenSpec's good idea, but the contract remains the only artifact. *Effort M, value medium–high.*
+- **D3. Interoperability.** Import/export between Spec Kit or OpenSpec specs and Delta's format. *Effort M, value medium.*
+
+### E. Spec quality
+
+- **E1. Stricter invariant notation** (EARS or Given/When/Then) so Sentinel judgments are less ambiguous. *Effort S–M, value high.*
+- **E2. Persistent open questions** in Specifier that block closing a spec until resolved. *Effort S, value medium.*
+- **E3. Per-slice health metrics:** last verified date, percent of invariants verified, open questions. *Effort M, value medium.*
+
+### F. Speculative
+
+- **F1. Incremental Surveyor:** rescan and propose only the KB diff instead of regenerating. *Effort M.*
+- **F2. Orphan/overlap detection** for slices, automating the manual criteria in `when-write-delta`. *Effort M.*
+- **F3. Hooks:** after a session that touched a slice, suggest running Sentinel. *Effort S.*
+
+## 5. Suggested order
+
+1. **A** first, even a small version. If Delta does not beat "no KB" on our own tasks, the rest is built on sand.
+2. **B** next; it is the differentiator and the deterministic part makes it robust and cheap.
+3. **C** in parallel; cheap and opens the audience.
+4. **D** only if A and B come out well.
+5. **E** and **F** as appetite allows.
+
+## 6. Open decisions
+
+- **Naming collision:** OpenSpec's "delta" format overlaps with the Delta name and may confuse search and positioning.
+- **Audience:** personal/team harness or a publicly released project? This changes the priority of C (portability) and of A1 (public evals).
+- **Eval design:** which real tasks, which repos, which agent/model, and what counts as success.
+- **Write funnel:** is "everything through Archivist" worth its friction once CI-driven checks exist?
+- **Scope of Sentinel:** keep it to specs/designs, or extend to docs and rules?
