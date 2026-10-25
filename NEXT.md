@@ -77,9 +77,9 @@ The ETH finding means Delta could be hurting agents today without anyone noticin
 ### B. Make Sentinel infrastructure (the differentiator)
 
 - **B1. CI / pre-commit mode.** Run Sentinel on the slices touched by a diff; warn or fail on `Violated` or `Gone`. *Effort M, value very high.*
-- **B2. Verifiable invariants.** Each invariant carries a verification hint (test, command, grep). A deterministic part of Sentinel then needs no LLM, which is cheaper and more robust. *Effort M, value very high.*
-- **B3. Spec-to-test links.** Each acceptance criterion points to a test; no test means an explicit `Unverified`. *Effort S–M, value high.*
-- **B4. Cheap reference check.** A no-LLM script that flags paths or symbols named in a spec that no longer exist. *Effort S, value high.*
+- ~~**B2. Verifiable invariants.** Each invariant carries a verification hint (test, command, grep). A deterministic part of Sentinel then needs no LLM, which is cheaper and more robust. *Effort M, value very high.*~~ **Done 2026-10-25, together with B3.** Every invariant and acceptance criterion in a spec ends with a verification tag: `[test: path "name"]`, `[check: command]`, `[manual: step]` or `[none]`. Specifier asks for it, archivist writes it and confirms a cited test exists, and sentinel runs the linked test or command instead of searching for one. The deterministic part is `links.sh`, beside sentinel: it counts claims by kind, lists the gaps and checks that every test link resolves, with no model.
+- ~~**B3. Spec-to-test links.** Each acceptance criterion points to a test; no test means an explicit `Unverified`. *Effort S–M, value high.*~~ **Done 2026-10-25, together with B2.** Acceptance criteria carry the same tag, and no test is an explicit `Unverified` plus a gap in the report. Delta still never writes tests: a `[none]` tag makes the missing test visible under open questions, it does not supply it.
+- **B4. Cheap reference check.** A no-LLM script that flags paths or symbols named in a spec that no longer exist. *Effort S, value high.* Partly covered: `links.sh` already checks the test files and names cited in verification tags, but not other paths or symbols a spec mentions.
 - **B5. Scope Sentinel to docs/rules too (optional).** Today it audits only specs/designs; an extension could check stale references in docs. Beware of volatile references (docs deliberately avoid them). *Effort M, value medium.*
 
 ### C. Portability
