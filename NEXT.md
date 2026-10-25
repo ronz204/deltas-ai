@@ -11,7 +11,7 @@ Guiding constraints for any item below: Delta must stay **robust** (verifiable, 
 - Four single-responsibility skills: Surveyor (bootstrap), Specifier (interview), Archivist (sole writer), Sentinel (verify contract vs. code).
 - Living documentation: files describe what is true now, edited in place, no append-only decision log (git is the history).
 - Three layers: `CLAUDE.md` router, six fixed `.claude/docs/*` files, per-feature `<slice>.spec.md` / `<slice>.design.md` under `deltas/`.
-- Packaged for Claude Code (`.claude/`) and Cursor (`.cursor/`). No runtime, no CLI: only markdown and skills.
+- Packaged for Claude Code only (`.claude/`); Cursor support was removed on 2026-10-25. No runtime, no CLI: markdown and skills, plus one optional read-only shell script.
 - Does not write application code. Does not keep a roadmap per slice.
 
 ## 2. Comparison with Spec Kit
@@ -26,7 +26,7 @@ Guiding constraints for any item below: Delta must stay **robust** (verifiable, 
 | Verification | `/analyze` checks spec/plan/tasks consistency **before** implementing | Sentinel checks contract vs. real code **after** implementing |
 | Brownfield | Aimed mostly at new features | Surveyor bootstraps an existing repo |
 | Decision history | Accumulates in artifacts | None by design |
-| Agent support | Many agents via a CLI | Claude Code and Cursor via copied folders |
+| Agent support | Many agents via a CLI | Claude Code via a copied folder |
 
 **Where Delta wins:** drift detection over time, a KB that does not rot, lower context cost, brownfield onboarding, slices scoped by capability not by layer, zero runtime dependency.
 
@@ -70,7 +70,7 @@ Legend — **Effort:** S/M/L. **Value:** how much it moves robustness, portabili
 The ETH finding means Delta could be hurting agents today without anyone noticing. Everything else rests on knowing it helps.
 
 - **A1. Delta evals.** A small benchmark of 10–20 real tasks. Compare three configurations: no KB, full KB, trimmed KB. Measure success, tokens, and step count. Decide from data. *Effort M, value very high.*
-- **A2. Context budget.** A line/token cap per doc and per spec, enforced by Archivist when writing. *Effort S, value high.*
+- ~~**A2. Context budget.** A line/token cap per doc and per spec, enforced by Archivist when writing. *Effort S, value high.*~~ **Done 2026-10-25 (Claude only).** Per-class ceilings in `.claude/budget.conf`, a read-only POSIX shell report (`budget.sh`, bundled with Archivist) and a rule. An over-budget artifact is fitted by lossless splitting through Archivist's step 8, never trimmed. First applied to Archivist, `ddd-core-layering` and the skill descriptions.
 - **A3. Load only what is needed.** Keep `CLAUDE.md` a minimal index; load docs and specs by path scope or on demand instead of always loading all six docs. *Effort S–M, value high.*
 - **A4. Honest Surveyor.** Treat generated docs as hypotheses: keep only what is non-obvious and not derivable from the code, since derivable content is what the paper says distracts agents. *Effort S, value high.*
 
@@ -85,7 +85,7 @@ The ETH finding means Delta could be hurting agents today without anyone noticin
 ### C. Portability
 
 - **C1. `AGENTS.md` as the canonical entry point**, with `CLAUDE.md` importing it. *Effort S, value high.*
-- **C2. Single neutral source, generated variants.** Today `.claude/` and `.cursor/` are parallel copies and will diverge. Maintain one neutral format for skills and rules and generate the Claude, Cursor, and Codex variants with a small script. *Effort M, value high.*
+- **C2. Single neutral source, generated variants.** Cursor support was removed on 2026-10-25, so no parallel copy is left to keep in sync. If another agent is targeted again, maintain one neutral format for skills and rules and generate each agent's variant with a small script. *Effort M, value medium (only if another agent is targeted).*
 - **C3. Keep zero runtime.** This is the edge over Spec Kit. Any helper script must be a single file with no dependencies, and optional. *Constraint, not a task.*
 
 ### D. Bridge the Spec Kit gap without competing
