@@ -6,9 +6,9 @@ import {
   createCheckout,
   type ChargeResult,
   type Order,
-} from "../src/checkout/index.ts";
-import { usd } from "../src/pricing/index.ts";
-import { createInventory } from "../src/stock/index.ts";
+} from "@checkout";
+import { usd } from "@pricing";
+import { createInventory } from "@stock";
 
 function setup(result: ChargeResult = { ok: true }) {
   const stock = createInventory({ now: () => 0, emit: () => {} });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { InsufficientStockError, createInventory } from "../src/stock/index.ts";
+import { InsufficientStockError, createInventory } from "@stock";
 
 function setup() {
   const stock = createInventory({ now: () => 0, emit: () => {} });

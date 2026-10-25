@@ -41,9 +41,9 @@ bench/
 ├── repos/                        ENVIRONMENTS (copied, never edited in place)
 │   └── shop/                     fixture #1: a tiny TypeScript shop backend
 │       ├── package.json          no dependencies; `bun test` runs bun's built-in test runner
-│       ├── tsconfig.json
+│       ├── tsconfig.json         path aliases @pricing, @stock, @checkout for cross-slice imports
 │       ├── CLAUDE.md             minimal router, as a real Delta project would have
-│       ├── src/
+│       ├── source/
 │       │   ├── pricing/          slice: money, discounts, tax
 │       │   ├── stock/            slice: inventory and reservations
 │       │   └── checkout/         slice: orchestrates pricing + stock + payment

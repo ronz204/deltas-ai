@@ -7,7 +7,7 @@ import {
   percentOff,
   priceCart,
   usd,
-} from "../src/pricing/index.ts";
+} from "@pricing";
 
 describe("percentOff", () => {
   test("rounds half up to the nearest cent", () => {

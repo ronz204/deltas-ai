@@ -1,4 +1,4 @@
-import type { Money } from "../pricing/index.ts";
+import type { Money } from "@pricing";
 
 export type ChargeResult = { ok: true } | { ok: false; reason: string };
 

@@ -1,4 +1,4 @@
-import type { Line, Pricing } from "../pricing/index.ts";
+import type { Line, Pricing } from "@pricing";
 
 export type Order = { orderId: string; lines: Line[]; pricing: Pricing };
 

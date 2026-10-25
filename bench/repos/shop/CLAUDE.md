@@ -4,9 +4,9 @@ A small TypeScript backend for a shop: pricing, stock, and checkout. Runs on Bun
 
 ## Layout
 
-- `src/pricing/` — money, discounts, tax, cart pricing.
-- `src/stock/` — on-hand quantities, reservations, stock events.
-- `src/checkout/` — orchestrates pricing, stock, and payment into an order.
+- `source/pricing/` — money, discounts, tax, cart pricing.
+- `source/stock/` — on-hand quantities, reservations, stock events.
+- `source/checkout/` — orchestrates pricing, stock, and payment into an order.
 - `tests/` — `bun test`.
 
 ## Contracts

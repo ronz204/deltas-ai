@@ -1,5 +1,5 @@
-import { type Line, priceCart } from "../pricing/index.ts";
-import type { Inventory } from "../stock/index.ts";
+import { type Line, priceCart } from "@pricing";
+import type { Inventory } from "@stock";
 import type { PaymentGateway } from "./payment.ts";
 import type { Order, OrderStore } from "./orders.ts";
 

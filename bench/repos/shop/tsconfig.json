@@ -5,7 +5,12 @@
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@pricing": ["./source/pricing/index.ts"],
+      "@stock": ["./source/stock/index.ts"],
+      "@checkout": ["./source/checkout/index.ts"]
+    }
   },
-  "include": ["src", "tests"]
+  "include": ["source", "tests"]
 }
