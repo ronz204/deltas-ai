@@ -4,7 +4,7 @@ paths:
   - "*/source/**"
 ---
 
-# Least-Change Code Conventions
+# Lean-Change Code Conventions
 
 This governs how much code a change adds: it is applied whenever source is written or edited, and it is a ladder of cheaper answers to try before writing new code. It decides size only. How code is expressed is the job of the DDD and language rules, and whether something deserves a spec is the job of the delta-scope rule. Whether it improves results has not been measured.
 
