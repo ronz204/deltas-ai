@@ -5,7 +5,7 @@ paths:
 
 # Application Entries Conventions
 
-This governs how a use case is reached from outside: HTTP plugins, queue processors, auth-library hooks, the request gate that admits a request into its tenant, and the public surface of an application context. An entry only translates what a framework gives it into a use case's input and calls the handler; every decision stays in the handler. Where the files live is the layout rule's concern and how a handler gets its dependencies and transaction is the injection rule's.
+This governs how a use case is reached from outside: HTTP plugins, queue processors, auth-library hooks, the request gate that admits a request into its tenant, and the public surface of an application context. An entry only translates what a framework gives it into a use case's input and calls the handler; every decision stays in the handler. Where the files live is the layout rule's concern and how a handler gets its dependencies and transaction is the injection rule's. Where it needs a language's own mechanism (file extension, visibility, how a type is made immutable or distinct, how an interface is marked), the language idioms rule for the file's extension supplies it.
 
 ---
 
@@ -28,7 +28,7 @@ This governs how a use case is reached from outside: HTTP plugins, queue process
 ## The request gate
 
 - A gate every context's routes need splits by what it decides. What belongs to the auth library alone, such as requiring a session, lives in the infrastructure auth plugin. It receives the session contract typed as the core session contract and never as the library, and hands it to routes through the request context, together with a boundary bound to the actor's identity for the use cases that run before a tenant is known.
-- Admitting a request into its tenant is not library logic: it is a use case of the bounded context that owns the membership data. Its handler fetches what the decision needs through queries and leaves the decision itself to a shared-kernel policy in core, which returns a tagged outcome (admitted with its access, or not admitted with its denial) instead of throwing.
+- Admitting a request into its tenant is not library logic: it is a use case of the bounded context that owns the membership data. Its handler fetches what the decision needs through queries and leaves the decision itself to a shared-kernel policy in core, which returns a tagged outcome (admitted with its access, or not admitted with its denial) instead of signalling a failure.
 - Its plugin registers the gate's macro, opens the run, maps a denial to a response, and hands the route a transactor already bound to the confirmed tenant, so a route behind the gate never receives the root transactor.
 - The composition root builds the auth plugin once, builds the owning context's gate from it, and passes that gate to each context's plugin, which uses it to get the gates. The library's own routes are mounted separately, once, at the entrypoint, because a mount inside the shared plugin would be repeated under every context's prefix.
 - An application context imports only its own folder, the auth plugin's type, and the type of the gate it receives, so contexts never couple through each other's HTTP plumbing.

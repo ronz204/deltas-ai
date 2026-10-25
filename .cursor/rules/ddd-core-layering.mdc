@@ -5,13 +5,13 @@ alwaysApply: false
 
 # Bounded Context Layering Conventions
 
-This governs the internal folder and file layout of every bounded context under `source/core/` (how each building block is written is a separate rule), following a DDD tactical layering organized by semantic sub-slice: each bounded context is split into the cohesive concepts it holds, not into technical layers. It applies to every bounded context there, including the one holding primitives shared across the others.
+This governs the internal folder and file layout of every bounded context under `source/core/` (how each building block is written is a separate rule), following a DDD tactical layering organized by semantic sub-slice: each bounded context is split into the cohesive concepts it holds, not into technical layers. It applies to every bounded context there, including the one holding primitives shared across the others. Where it needs a language's own mechanism (file extension, visibility, how a type is made immutable or distinct, how an interface is marked), the language idioms rule for the file's extension supplies it.
 
 ---
 
 ## Bounded context folders
 
-- Each bounded context is its own folder directly under `source/core/`, named as a two-word kebab-case pair, because a shared naming shape makes the set of bounded contexts scannable as a flat list rather than a mix of single words and long compounds.
+- Each bounded context is its own folder directly under `source/core/`, named as a two-word pair (joined the way the language's package names allow), because a shared naming shape makes the set of bounded contexts scannable as a flat list rather than a mix of single words and long compounds.
 - The second word is chosen to be descriptive of that specific context, not a suffix repeated across every bounded context, because a repeated suffix (e.g. always `-domain` or always `-core`) stops carrying information the moment every folder has it — it becomes noise instead of a signal.
 
 ## What core may depend on
@@ -32,17 +32,17 @@ This governs the internal folder and file layout of every bounded context under 
 ```
 source/core/
   <bounded-context>/
-    index.ts
+    <public entry point>
     <subslice-a>/
-      <subslice-a>.entity.ts
-      <subslice-a>.parts.ts
-      <subslice-a>.vos.ts
-      <subslice-a>.policies.ts
-      <subslice-a>.events.ts
-      <subslice-a>.errors.ts
-      <subslice-a>.repository.ts
-      <subslice-a>.notifier.ts
-      <subslice-a>.scheduler.ts
+      <subslice-a>.entity
+      <subslice-a>.parts
+      <subslice-a>.vos
+      <subslice-a>.policies
+      <subslice-a>.events
+      <subslice-a>.errors
+      <subslice-a>.repository
+      <subslice-a>.notifier
+      <subslice-a>.scheduler
       ...
     <subslice-b>/
       ...
@@ -50,7 +50,7 @@ source/core/
 
 ## File naming inside a sub-slice
 
-- Files are named `<subslice>.<kind>.ts`, where `<subslice>` matches the folder name, and `<kind>` is one of seven fixed kinds or a role, each answering a single question. A role kind (`notifier`, `scheduler`, a session writer) names a contract the domain needs from outside other than the entity's own persistence, so the kind is the role itself.
+- Files are named `<subslice>.<kind>` plus the language's extension (the language idioms rule sets the separator between the two), where `<subslice>` matches the folder name, and `<kind>` is one of seven fixed kinds or a role, each answering a single question. A role kind (`notifier`, `scheduler`, a session writer) names a contract the domain needs from outside other than the entity's own persistence, so the kind is the role itself.
 
 | Group | Kind | Holds |
 |---|---|---|
@@ -59,7 +59,7 @@ source/core/
 | Model | `vos` | Value objects, including the sub-slice's typed identifiers and closed sets of literal values (a state, a tier) |
 | Behavior | `policies` | Pure domain rules that don't belong to a single entity: a decision computed from several values, a threshold policy, a domain service. No I/O; inputs in, verdict out |
 | Signals | `events` | Domain events the root entity emits |
-| Signals | `errors` | The domain error the sub-slice raises, with its closed set of codes |
+| Signals | `errors` | The domain error the sub-slice signals, with its closed set of codes |
 | Boundary | `repository` | The entity's write-side persistence interface, plus the simple reads a write needs to decide: load one entity (by id, by natural key, or locked for update), count rows to enforce a limit, and insert or update, including compare-and-set transitions |
 | Boundary | `<role>` (e.g. `notifier`, `scheduler`) | One contract the domain needs from outside that isn't the entity's persistence, one file per contract, with the role as the kind. This is what replaces a catch-all contracts file |
 
@@ -69,18 +69,18 @@ source/core/
 - Method names follow fixed verbs, so a reader knows the shape of a call before opening it. A repository uses `find…` (load by id or natural key), `lock` (load for update), `insert`, `update`, `transition` (a compare-and-set; it returns whether it applied, or, when every caller would answer a stale transition with the same domain error, raises that error itself, so the check is written once), and `count…`. A name outside those verbs is a signal the method is on the wrong side: a read for a reader is a query, which exposes exactly one method, `execute`, because its file and class name already say what it reads.
 - Only the kinds a sub-slice actually needs exist — a sub-slice with no domain events has no `events` file, and one needing nothing from outside has no `repository` or role file — because an empty placeholder communicates nothing a missing file doesn't already communicate.
 - The `<subslice>.` prefix is kept even though the folder already disambiguates, so that editor tabs, search results, and stack traces identify a file unambiguously without its path.
-- Files within a sub-slice import each other by relative path. A sub-slice that needs something from the shared kernel imports it through that context's barrel, never by reaching into one of its sub-slice folders.
+- Files within a sub-slice import each other directly, never through the barrel. A sub-slice that needs something from the shared kernel imports it through that context's barrel, never by reaching into one of its sub-slice folders.
 
 ## The barrel is the only public surface
 
-- Each bounded context has an `index.ts` at its own root, acting as its single public entry point: it re-exports every file of every sub-slice via `export * from "./<subslice>/<file>"` — one line per file that exports at least one symbol. Nothing outside the bounded context imports from a sub-slice folder directly, because that would let other contexts (or the application layer) couple to internal file tenant that is free to change without notice.
-- The `export` keyword inside a concrete file is the public/private gate, not the barrel — a symbol that must stay internal to the bounded context simply isn't exported from its own file, rather than being filtered out by hand in `index.ts`. This trades barrel-level curation for trusting that gate: once a file exports something, it flows through `export *` automatically, so `index.ts` only changes when a file is added or removed, never because a file gained a new export.
+- Each bounded context has a public entry point at its own root (its barrel), acting as its single way in: it re-exports the public symbols of every file of every sub-slice. How the entry point is written comes from the language idioms rule. Nothing outside the bounded context imports from a sub-slice folder directly, because that would let other contexts (or the application layer) couple to internal file tenant that is free to change without notice.
+- The language's own visibility mechanism is the public/private gate: a symbol that must stay internal to the bounded context isn't made public in its own file, rather than being filtered out by hand at the barrel. Whether a new public symbol also needs an edit at the barrel depends on the language, and the language idioms rule says which.
 - Because every sub-slice's exports land in one flat namespace at the barrel, exported symbol names must be unique across the whole bounded context. Names carry their full domain noun (e.g. a definition sub-slice's id type is named after the full concept, not a bare `Id`) rather than relying on the folder for disambiguation, since the folder is invisible to importers.
 
 ## Repositories and role contracts
 
 - A `repository` or role file declares one contract the domain needs from outside, and lives in the sub-slice it serves. A contract every bounded context shares (such as the outbox writer) lives in the shared-kernel bounded context's own sub-slice. Every contract stays in core, including ones only the application layer calls (a scheduler, a lock, a cache), because a contract belongs to the side that depends on it. Declaring it in core keeps every dependency pointing inward.
-- A contract interface's name starts with `I` followed by its role (`I<Entity>Repository`, `I<Role>` such as `INotifier`), matching the file it lives in. Its implementation drops the `I`. A persistence implementation takes no technology prefix, because the project has exactly one persistence technology and a prefix would only repeat it. An infrastructure implementation ends in `Adapter`. The contract and its implementation then never collide in a flat namespace, and an injection site reads as "depends on the interface", not on the concrete class.
+- A contract interface's name marks it as an interface (by a prefix, a suffix, or nothing where the language names an interface by its behavior) and carries its role, matching the file it lives in; the language idioms rule says which. Its implementation is named so the two never collide. A persistence implementation takes no technology prefix, because the project has exactly one persistence technology and a prefix would only repeat it. An infrastructure implementation ends in `Adapter`. The contract and its implementation then never collide in a flat namespace, and an injection site reads as "depends on the interface", not on the concrete class.
 - Mapping between a persisted row and a domain object belongs to the persistence layer, in a mapper beside the repository. The mapper serves the entity only; each query maps its own rows inside its own file, so changing one query's joins or columns never touches another. The mapper builds the entity's state with the same value-object parsers the domain uses, so a row that drifted from the domain's rules fails on read instead of flowing in. Columns that hold a closed set take their allowed values from the core literal sets, so the row type and the domain type are the same literal union.
 - A contract is written in the domain's language (a report, a version, a fencing token), never a technology's (a connection, a queue option, a script). The test for where an interface belongs is who consumes it. If core or the application layer consumes it, it is a contract and gets its own file. If only adapters consume it and it speaks a technology's vocabulary, it is not a contract: it lives beside those adapters, and core never declares it. Declaring it in core would make core depend on a technology.
 - When a contract's signature starts needing a technology's vocabulary, split it into a domain-language contract file in core and an adapter-internal interface in infrastructure, instead of letting the technology leak inward.
