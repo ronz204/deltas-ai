@@ -1,0 +1,327 @@
+# Evals plan — `bench/` (Sentinel by mutation)
+
+A planning document. **Nothing in here is implemented yet.** It exists so the folder structure, the experiment design, and the open risks can be reviewed before any code is written. Once approved, each phase below is implemented and committed separately.
+
+Origin: `NEXT.md` section 4.A ("Measure before building") and the decision to start with the Sentinel family because it has exact ground truth.
+
+---
+
+## 1. Goal and the one question it answers
+
+> **Does the Sentinel skill find real drift between a spec and its code better than an agent given no skill and a plain prompt — and at what token cost?**
+
+Not in scope for this first round: Surveyor quality, implementation-with-context tasks, trimmed-KB experiments. Those are later families on the same skeleton.
+
+Why Sentinel first:
+
+- **Exact ground truth.** We break an invariant on purpose, so we know the right answer. No judge model, no opinions.
+- **It is Delta's differentiator.** Drift detection is the niche nobody else covers (see `NEXT.md` section 3).
+- **It is cheap to make deterministic.** A verdict table is machine-checkable.
+
+## 2. Vocabulary
+
+| Term | Meaning here |
+|---|---|
+| **Repo** | A small TypeScript project used as the environment. Healthy by default: tests pass, every spec invariant holds. |
+| **Case** | One scenario: a repo plus one *mutation* (a patch that breaks, or deliberately does not break, something) plus the truth about what the right verdict is. |
+| **Mode** | How the agent is equipped: which files are overlaid on the repo and which prompt it receives. This is the thing being compared. |
+| **Run** | One execution of one case under one mode. Every run is repeated several times because the model is not deterministic. |
+| **Stats** | Results of runs: raw transcripts, one line of metrics per run, an aggregated report. |
+| **Mutation** | A patch applied to the healthy repo before the run. |
+| **Truth** | For each numbered invariant of each spec, the set of verdicts that count as correct. |
+
+## 3. Folder structure
+
+Every direct subfolder of `bench/` has a five-letter name, so the tree reads evenly.
+
+```
+bench/
+├── README.md                     how to run, how to read results (written in phase 3)
+├── .gitignore                    ignores stats/**/raw/ and scratch work dirs
+├── repos/                        ENVIRONMENTS (copied, never edited in place)
+│   └── shop/                     fixture #1: a tiny TypeScript shop backend
+│       ├── package.json          no dependencies; `npm test` runs node's built-in test runner
+│       ├── tsconfig.json
+│       ├── CLAUDE.md             minimal router, as a real Delta project would have
+│       ├── src/
+│       │   ├── pricing/          slice: money, discounts, tax
+│       │   ├── stock/            slice: inventory and reservations
+│       │   └── checkout/         slice: orchestrates pricing + stock + payment
+│       ├── tests/                tests for behavior-style invariants (some invariants intentionally have none)
+│       └── deltas/
+│           ├── pricing.spec.md   numbered invariants, healthy
+│           ├── stock.spec.md
+│           └── checkout.spec.md
+├── cases/                        SCENARIOS (mutation + truth)
+│   ├── shop.base.json            truth for the healthy repo: acceptable verdicts per invariant
+│   ├── 01-ctrl-checkout/
+│   │   └── case.json             no mutation file: a control
+│   ├── 03-pres-stockevent/
+│   │   ├── case.json             metadata + truth overrides
+│   │   └── patch.diff            the mutation
+│   └── ...                       12 cases in total (section 6)
+├── modes/                        THE VARIABLE BEING COMPARED
+│   ├── plain/
+│   │   ├── mode.json             name, whether the skill is overlaid, tools allowed
+│   │   ├── prompt.md             generic "verify this spec against the code" prompt
+│   │   └── files/                (empty) overlay copied onto the repo
+│   └── skill/
+│       ├── mode.json
+│       ├── prompt.md             natural-language "check the <slice> slice for drift"
+│       └── files/                overlay: .claude/skills/sentinel is copied here at run time
+├── tools/                        RUNNER (TypeScript, zero dependencies, run with node)
+│   ├── check.ts                  validates that every case is sound (phase 2 gate)
+│   ├── prep.ts                   builds a clean working copy for one run
+│   ├── exec.ts                   launches the agent headless and captures output
+│   ├── grade.ts                  compares the agent's verdicts against truth
+│   ├── sums.ts                   aggregates runs into a markdown report
+│   └── main.ts                   entry point: loops cases x modes x repetitions
+└── stats/                        RESULTS
+    ├── .gitkeep
+    └── 2026-11-02-1530/          one folder per batch
+        ├── runs.jsonl            one line of metrics per run (resumable: finished runs are skipped)
+        ├── report.md             aggregated tables, safe to commit
+        └── raw/                  full transcripts (git-ignored)
+```
+
+Naming rules:
+
+- Top-level subfolders: `repos`, `cases`, `modes`, `tools`, `stats` (all five letters).
+- Case folders: `NN-kind-short` (e.g. `06-beht-rounding`), where `kind` is one of the four-letter category codes in section 6.
+- Nothing under `bench/` is ever copied into a user's project. A project adopting Delta copies `.claude/` (and `.cursor/`) only; `bench/` is development tooling for Delta itself.
+
+### Why `repos` and `cases` are separate
+
+A repo is the expensive thing to build and must be reusable; a case is a cheap patch plus a few lines of truth. Many cases hang off one repo. (This is the correction to the earlier "one folder per project" idea.)
+
+## 4. How one run works
+
+For every combination of case, mode, and repetition:
+
+1. **Prepare.** Copy `repos/<repo>` to a fresh temporary directory *outside* the Delta repository (so no parent `CLAUDE.md` can leak in).
+2. **Mutate.** Apply `cases/<id>/patch.diff` if it exists.
+3. **Overlay.** Copy `modes/<mode>/files/` on top (for `skill`, this includes the current `.claude/skills/sentinel/` copied from this repository, so every run tests the skill as it is today).
+4. **Seal.** `git init` and make a **single commit** that includes the mutation. This is deliberate: if the mutation sat in the working tree, the agent could find it with `git diff` and the test would measure nothing.
+5. **Ask.** Launch the agent headless in that directory with the mode's prompt plus a fixed output-format suffix (section 5).
+6. **Capture.** Save the transcript, token usage, turn count, wall time, whether the Sentinel skill was invoked, and how many subagents ran.
+7. **Grade.** Parse the verdict block and compare to truth (section 7).
+8. **Record.** Append one line to `runs.jsonl`.
+
+Truth files and patches are never inside the working copy. The agent sees only the sealed repo.
+
+## 5. The two modes (first round)
+
+| | `plain` | `skill` |
+|---|---|---|
+| Sentinel skill present | no | yes (current version) |
+| Prompt style | "Read `deltas/<slice>.spec.md` and check each invariant against the code. Report the result for each one." | "Check the `<slice>` slice for drift." (natural trigger; the skill must be chosen and followed by the agent) |
+| Specs and code | identical | identical |
+| Output suffix | identical | identical |
+
+Fixed output suffix appended to both prompts, so grading is deterministic:
+
+> End your answer with a fenced `json` block of the form `{"verdicts":[{"spec":"deltas/<slice>.spec.md","n":3,"verdict":"Holds"}]}`, one entry for every item under each scoped spec's **Invariants** heading, where `n` is the item's 1-based position and `verdict` is one of `Holds`, `Violated`, `Unverified`, `Gone`, `Conflict`.
+
+Because this suffix changes how Sentinel reports, it is listed as a threat to validity (section 10). Invariants in the fixture specs are numbered lists so `n` is unambiguous.
+
+Possible later modes (not in round one): `forced` (explicit `/sentinel` invocation, to separate "did it trigger" from "does it work"), `lite` (the deterministic-checks variant from `NEXT.md` B2), a trimmed-instructions variant.
+
+## 6. The fixture and the cases
+
+### 6.1 Fixture `shop`
+
+A deliberately small TypeScript backend with three slices. Invariant types are mixed on purpose so Sentinel's different paths are exercised: *presence* (a grep settles it), *behavior with an existing test* (Sentinel may escalate to run that test), and *behavior with no test* (the honest answer is `Unverified` or a clear read of the code).
+
+Sketch of the specs (final wording is written in phase 1):
+
+| Slice | # | Invariant (sketch) | Type |
+|---|---|---|---|
+| pricing | 1 | Money is integer cents; no floating point in price arithmetic | presence |
+| pricing | 2 | Percentage discounts round half up to the nearest cent | behavior, test |
+| pricing | 3 | A total is never negative; a discount is capped at the subtotal | behavior, test |
+| pricing | 4 | Tax is computed on the discounted subtotal | behavior, test |
+| pricing | 5 | The pricing module is pure: no I/O, no clock reads | presence |
+| pricing | 6 | Mixing currencies throws | behavior, test |
+| stock | 1 | Reservations are idempotent per `orderId` | behavior, test |
+| stock | 2 | Available = on hand − reserved and is never negative | behavior, test |
+| stock | 3 | Every stock mutation emits a `StockChanged` event | presence |
+| stock | 4 | Reservations expire after 15 minutes (`RESERVATION_TTL_MS`) | behavior, **no test** |
+| stock | 5 | Stock never imports from checkout (dependency direction) | presence |
+| checkout | 1 | Checkout of an empty cart throws `EmptyCartError` | behavior, test |
+| checkout | 2 | Stock is reserved before charging and released if payment fails | behavior, test |
+| checkout | 3 | Payment is attempted at most once per `orderId` | behavior, test |
+| checkout | 4 | Order totals come only from the pricing module (no inline arithmetic) | presence |
+| checkout | 5 | An order is persisted only after successful payment | behavior, test |
+
+Technical constraints:
+
+- **Zero dependencies.** Tests use `node:test`; TypeScript runs through Node's native type stripping, so the fixture may only use erasable syntax (no `enum`, no `namespace`, no parameter properties). The required Node version is confirmed in the phase 0 spike.
+- **Healthy baseline is enforced.** `npm test` must pass on the untouched repo, and `cases/shop.base.json` records that every invariant is in an acceptable state.
+- The fixture's `deltas/*.spec.md` are **test data hand-written to control the invariants exactly**, so they are exempt from the "route through `archivist`" rule that governs this project's own knowledge base. The plan's phase 1 should state this exemption where it is created so it is not mistaken for drift.
+
+### 6.2 The twelve cases
+
+| # | Id | Category | Mutation | Expected verdict for the touched claim |
+|---|---|---|---|---|
+| 01 | `01-ctrl-checkout` | `ctrl` control | none | all `Holds` (or `Unverified` where no test exists) |
+| 02 | `02-ctrl-pricing` | `ctrl` control | none | same |
+| 03 | `03-pres-stockevent` | `pres` presence | remove one `StockChanged` emit | stock 3 `Violated` |
+| 04 | `04-pres-inlinemath` | `pres` presence | checkout computes a total inline instead of via pricing | checkout 4 `Violated` |
+| 05 | `05-pres-floatmoney` | `pres` presence | introduce a float multiplication in pricing | pricing 1 `Violated` |
+| 06 | `06-beht-rounding` | `beht` behavior, test | half-up rounding becomes floor | pricing 2 `Violated` |
+| 07 | `07-beht-retrypay` | `beht` behavior, test | payment is retried a second time | checkout 3 `Violated` |
+| 08 | `08-bent-ttl` | `bent` behavior, no test | TTL changed from 15 to 60 minutes | stock 4 `Violated` (only; `Unverified` counts as a miss) |
+| 09 | `09-gone-stock` | `gone` retired | the stock implementation and its tests are deleted, spec left behind | every stock claim `Gone` |
+| 10 | `10-beni-rename` | `beni` benign | behavior-preserving rename and file move in pricing | all `Holds` (tests the false-alarm rate) |
+| 11 | `11-beni-extract` | `beni` benign | extract a helper in checkout, same behavior | all `Holds` |
+| 12 | `12-spec-rounding` | `spec` spec-side | the spec is edited to claim half-even rounding; the code is unchanged | pricing 2 `Violated` |
+
+Mix: 2 controls, 3 presence, 2 behavior-with-test, 1 behavior-without-test, 1 retired, 2 benign, 1 spec-side. Controls and benign cases (4 of 12) exist to catch an agent that cries wolf, which matters as much as catching real drift.
+
+A `Conflict` case (two slices contradicting each other) is deferred to round two because it needs a multi-slice scope.
+
+### 6.3 Case and truth file shapes
+
+`cases/shop.base.json` records what is acceptable on the healthy repo:
+
+```json
+{
+  "repo": "shop",
+  "claims": [
+    { "spec": "deltas/pricing.spec.md", "n": 1, "ok": ["Holds"] },
+    { "spec": "deltas/stock.spec.md",   "n": 4, "ok": ["Holds", "Unverified"] }
+  ]
+}
+```
+
+`cases/06-beht-rounding/case.json` records only what changes:
+
+```json
+{
+  "id": "06-beht-rounding",
+  "repo": "shop",
+  "category": "beht",
+  "slice": "pricing",
+  "patch": "patch.diff",
+  "overrides": [
+    { "spec": "deltas/pricing.spec.md", "n": 2, "ok": ["Violated"] }
+  ]
+}
+```
+
+`slice` is what the prompt names, which keeps Sentinel's scope narrow (its own Step 0). `ok` is a set, not a single value, because honest uncertainty (`Unverified`) is a legitimate answer for some claims.
+
+## 7. Grading and metrics
+
+Grading is pure code, with no model judging.
+
+Per run:
+
+- **Parse.** Extract the final JSON block. If it is missing or malformed, the run is a *format failure* (counted, not hidden).
+- **Claim check.** For each claim in the scoped spec, is the reported verdict in that claim's `ok` set?
+- **Clean run.** True if every claim in the scoped spec is within its `ok` set.
+
+Aggregated, per mode and per category:
+
+| Metric | Definition | What it tells us |
+|---|---|---|
+| **Catch rate** | Of claims whose `ok` is `Violated`/`Gone`, share reported correctly | Does it find real drift? |
+| **False-alarm rate** | Of claims whose `ok` excludes `Violated`/`Gone`, share reported as `Violated`/`Gone` | Does it cry wolf? |
+| **Claim accuracy** | Share of all claims reported within `ok` | Overall correctness |
+| **Clean-run rate** | Share of runs that are fully correct | The strict, easy-to-explain number |
+| **Unverified rate** | Share of claims answered `Unverified` | Honesty versus dodging |
+| **Format failures** | Runs with no parseable block | Prompt/skill robustness |
+| **Skill invoked** | In `skill` mode, share of runs where the skill was actually used | Triggering reliability |
+| **Cost** | Input and output tokens, turns, wall time, subagent count (median and spread) | The price of the result |
+
+Because the plan is run on a subscription, **dollar cost is not the metric**. Tokens, turns, and time are.
+
+Reporting rule: always show counts next to percentages (e.g. `8/9`), because there are few runs.
+
+## 8. Run matrix and budget
+
+- Round one: **12 cases × 2 modes × 3 repetitions = 72 runs.**
+- Order is interleaved (not all `plain` then all `skill`) so that drift over time or rate-limiting does not bias one mode.
+- Runs are **resumable**: `runs.jsonl` is read first and finished combinations are skipped, so a rate-limit stop on the subscription costs nothing.
+- Token use per run is unknown until the pilot (phase 4). A `skill` run may spawn subagents and can be several times more expensive than a `plain` run; the pilot measures this before the full batch is committed to.
+
+## 9. Interpreting results
+
+Decide the reading rules *before* seeing data:
+
+| Outcome | Reading | Next step |
+|---|---|---|
+| `skill` clearly better on catch rate, equal or better false alarms | Sentinel adds value | Invest in `NEXT.md` B1/B2 |
+| `skill` and `plain` about equal | The skill's structure matters less than expected; a plain prompt does the same job | Question the skill's complexity; prioritize the deterministic checks (B2/B4) |
+| `skill` better only on behavior-with-test | The escalation to run tests is the valuable part | Strengthen and cheapen that path |
+| `skill` catches more but false alarms rise | It over-reports | Tighten the verdict rules |
+| `skill` rarely invoked | The description does not trigger | Fix the trigger before judging the content |
+| `skill` equal but far more tokens | Cost without benefit | Reduce its procedure |
+
+With 72 runs this is a signal detector, not a statistical proof. A gap of less than about 15 percentage points should be treated as noise; the pilot's variance sets the real threshold.
+
+## 10. Risks and threats to validity
+
+| Risk | Why it matters | Mitigation |
+|---|---|---|
+| **Environment leakage** | The headless agent may still load the user's global skills, settings, or memory, contaminating `plain` mode or helping it. | Phase 0 spike must prove isolation (how to detect: ask the plain agent to list its available skills). The difficulty: isolating the config directory must not lose the subscription login. If isolation cannot be achieved, the limitation is written into the report instead of hidden. |
+| **Mutation visible in git** | `git diff` or history would reveal it. | Single sealed commit (section 4, step 4). |
+| **Truth or patch visible to the agent** | Would void the experiment. | Both live outside the working copy. |
+| **Output suffix changes Sentinel** | The skill's own report format is a table; we ask for JSON as well. | The suffix is identical across modes and appended after the report; noted in every report. |
+| **Author bias** | One person designs the fixture and the mutations. | Keep two or three cases unseen by the skill's author, and add a second fixture in round two, ideally a real open source repo. |
+| **Small fixture** | A tiny repo flatters any approach. | Treat results as relative (`plain` vs `skill`), not absolute; add a bigger repo later. |
+| **Nondeterminism** | One run proves nothing. | Three repetitions minimum, spread reported. |
+| **Overfitting** | Tuning Sentinel until these 12 cases pass. | Hold-out cases `05`, `07`, `11` (section 12) are never inspected while tuning. |
+| **Native TypeScript on Node** | Version-dependent. | Pinned and verified in phase 0; fixture restricted to erasable syntax. |
+| **Cases that are not actually sound** | A "behavior" mutation that does not fail its test makes truth wrong. | `tools/check.ts` is a mandatory gate (phase 2): it applies each patch, runs the fixture tests, and asserts the expected pass or fail. |
+| **Windows paths and shells** | Development happens on Windows. | Use Node path APIs, `git apply` for patches, and no shell-specific scripts. |
+
+## 11. Implementation phases
+
+Each phase ends in a checked state and its own commit, per `commit-conventions`. Suggested commit types are in parentheses.
+
+**Phase 0 — Spike (answers the unknowns; throwaway findings recorded here, no bench code yet)**
+- Run the agent headless once and confirm the exact command-line flags for non-interactive use, structured output, tool restriction, and model selection.
+- Confirm what the output reports: tokens, turns, tool calls, how a skill invocation shows up.
+- Test environment isolation (section 10, first risk).
+- Confirm the Node version with native TypeScript support on this machine.
+- Output: a short findings block appended to this file.
+
+**Phase 1 — Fixture** (`test(bench)`)
+- Build `bench/repos/shop`, its three specs with numbered invariants, its tests, and `shop.base.json`.
+- Gate: `npm test` green on the untouched repo; a manual read confirms each invariant genuinely holds.
+
+**Phase 2 — Cases and the soundness checker** (`test(bench)`)
+- Write the 12 mutations and their `case.json` files, plus `tools/check.ts`.
+- Gate: `check.ts` passes for all 12 (patches apply, behavior-with-test cases really fail the right test, benign cases still pass everything, controls untouched).
+
+**Phase 3 — Runner, grader, report** (`feat(bench)`)
+- `prep`, `exec`, `grade`, `sums`, `main`, plus `bench/README.md` and `.gitignore`.
+- Gate: a dry run on one control case produces a well-formed `runs.jsonl` line and report.
+
+**Phase 4 — Pilot** (no commit until reviewed)
+- One case in each category, both modes, three repetitions.
+- Look at variance, token use, and read several raw transcripts by hand to confirm grading matches reality. Adjust prompts or truth if the experiment itself is flawed.
+
+**Phase 5 — Full batch and write-up** (`docs(bench)`)
+- Run the full matrix, commit `report.md`, and record conclusions and the decision (section 9) in `NEXT.md`.
+
+## 12. Decisions
+
+Settled:
+
+1. **Model: Sonnet 5.5** (`claude-sonnet-5-5`), fixed for every run in every mode. Changing the model starts a new, non-comparable batch.
+2. **Only `report.md` is committed.** `raw/` transcripts stay git-ignored.
+3. **Case 08 demands `Violated`.** The TTL constant is readable in code, so reading it against the spec settles the claim; answering `Unverified` counts as a miss. (The healthy-repo baseline for stock 4 still accepts `Holds` or `Unverified`, since the untouched repo has no test for it.)
+4. **Round two uses a new repository**, ideally a real open source project pinned to a commit, chosen after round one's results.
+5. **Hold-out cases: `05`, `07`, `11`** (one presence, one behavior-with-test, one benign). While tuning Sentinel or the prompts, their per-case results are not looked at; they are read only in the final batch. The reason: with only 12 cases, tuning against all of them can fit the skill to those cases without improving it in general, and the hold-outs are the check that the improvement is real. Proposed by Claude; change freely.
+
+Still open: none for round one.
+
+## 13. Non-goals
+
+- Not a general agent benchmark; it measures Delta's own skills only.
+- No LLM judge anywhere in grading.
+- Does not evaluate Surveyor, Specifier, Archivist, or implementation tasks in round one.
+- Does not change `.claude/skills/sentinel` or any harness file; the benchmark only reads the current skill.
+- Not shipped to projects that adopt Delta.
