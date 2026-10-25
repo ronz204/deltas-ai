@@ -95,7 +95,7 @@ Lead with anything `Violated`, `Gone`, or `Conflict` — a clean bill of health 
 
 This skill's job ends at the report. What happens next depends on which side is wrong, and that's the user's call, not this skill's to assume:
 
-- **If the code is wrong** (implementation drifted from a still-desired invariant or design claim), that's a bug — say so plainly, don't touch the code.
+- **If the code is wrong** (implementation drifted from a still-desired invariant or design claim), that's a bug — say so plainly, don't touch the code. If the user wants it fixed, that's `executor`'s job.
 - **If the spec/design is wrong** (the invariant or design claim no longer applies), hand off to `archivist` to correct the file in place — same as `specifier`'s Step 3, don't pick a side quietly, surface it and let the user confirm which one wins before anything gets edited. If the drift is a `design.md` claim restating something that actually belongs in `spec.md` (or vice versa), flag that shape problem too, not just the factual one.
 - **If the verdict is `Gone`** (the implementation is confirmed intentionally removed), hand off to `archivist` to delete the slice's `spec.md`/`design.md` outright — not correct them, not archive them. This system keeps no history layer; git history is already the record of what the contract used to say.
 - **If the verdict is `Conflict`**, neither slice is automatically wrong — flag it for the user to decide whether the two slices should be reconciled (two slices whose contracts keep contradicting or changing together are often one bounded context, not two) or whether the overlap is intentional and one claim just needs its scope language tightened.

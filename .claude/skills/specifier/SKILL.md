@@ -66,7 +66,7 @@ Any rule candidate flagged in Step 1 gets confirmed here too — ask the user wh
 
 Once the relevant fields (spec: intent, scope, contract, invariants, deferred questions, acceptance criteria, optional context — or design: scope, layout, states, interactions, consumes, deferred questions, acceptance criteria, optional context) are each either confirmed from code/mockup or answered by the user, package the result (including each invariant's and acceptance criterion's verification tag) and invoke `archivist` to write it: a new or updated `<slice>.spec.md` via `.claude/skills/archivist/references/spec.template.md`, a new or updated `<slice>.design.md` via `.claude/skills/archivist/references/design.template.md` if the slice has a UI-facing surface in scope, and any rule candidate confirmed in Step 3 for `archivist` to write separately as its own `.claude/rules/<topic>.md` — a cross-cutting convention doesn't belong inside a slice's own files. This skill's job ends at producing that material — it never writes into `deltas/` or `.claude/rules/` itself, even when the answer seems obvious enough to just write down directly.
 
-If the resulting spec/design implies nontrivial implementation work, that's ordinary next-step coding work, not a deliverable this skill (or `archivist`) produces — sequencing it is left entirely to however the session gets implementation done.
+If the resulting spec/design implies nontrivial implementation work, that's the `executor` skill's job (or ordinary coding), not a deliverable this skill or `archivist` produces.
 
 ---
 
