@@ -40,7 +40,7 @@ bench/
 ├── .gitignore                    ignores stats/**/raw/ and scratch work dirs
 ├── repos/                        ENVIRONMENTS (copied, never edited in place)
 │   └── shop/                     fixture #1: a tiny TypeScript shop backend
-│       ├── package.json          no dependencies; `npm test` runs node's built-in test runner
+│       ├── package.json          no dependencies; `bun test` runs bun's built-in test runner
 │       ├── tsconfig.json
 │       ├── CLAUDE.md             minimal router, as a real Delta project would have
 │       ├── src/
@@ -69,7 +69,7 @@ bench/
 │       ├── mode.json
 │       ├── prompt.md             natural-language "check the <slice> slice for drift"
 │       └── files/                overlay: .claude/skills/sentinel is copied here at run time
-├── tools/                        RUNNER (TypeScript, zero dependencies, run with node)
+├── tools/                        RUNNER (TypeScript, zero dependencies, run with bun)
 │   ├── check.ts                  validates that every case is sound (phase 2 gate)
 │   ├── prep.ts                   builds a clean working copy for one run
 │   ├── exec.ts                   launches the agent headless and captures output
@@ -132,7 +132,7 @@ Possible later modes (not in round one): `forced` (explicit `/sentinel` invocati
 
 A deliberately small TypeScript backend with three slices. Invariant types are mixed on purpose so Sentinel's different paths are exercised: *presence* (a grep settles it), *behavior with an existing test* (Sentinel may escalate to run that test), and *behavior with no test* (the honest answer is `Unverified` or a clear read of the code).
 
-Sketch of the specs (final wording is written in phase 1):
+Sketch of the specs. The final wording lives in `bench/repos/shop/deltas/*.spec.md` (written in phase 1) and is authoritative; where this sketch differs (for example stock 1 is "per order and SKU", and unit prices must be non-negative so that "a total is never negative" truly holds), the files win:
 
 | Slice | # | Invariant (sketch) | Type |
 |---|---|---|---|
@@ -155,7 +155,7 @@ Sketch of the specs (final wording is written in phase 1):
 
 Technical constraints:
 
-- **Zero dependencies.** Tests use `node:test`; TypeScript runs through Node's native type stripping, so the fixture may only use erasable syntax (no `enum`, no `namespace`, no parameter properties). The required Node version is confirmed in the phase 0 spike.
+- **Zero dependencies.** The project's runtime is Bun: tests use `bun:test` and run with `bun test`, TypeScript needs no build step. The fixture is written as plain, portable TypeScript (no `enum`, no `namespace`, no parameter properties) so it would also read naturally in other runtimes.
 - **Healthy baseline is enforced.** `npm test` must pass on the untouched repo, and `cases/shop.base.json` records that every invariant is in an acceptable state.
 - The fixture's `deltas/*.spec.md` are **test data hand-written to control the invariants exactly**, so they are exempt from the "route through `archivist`" rule that governs this project's own knowledge base. The plan's phase 1 should state this exemption where it is created so it is not mistaken for drift.
 
@@ -272,9 +272,9 @@ With 72 runs this is a signal detector, not a statistical proof. A gap of less t
 | **Small fixture** | A tiny repo flatters any approach. | Treat results as relative (`plain` vs `skill`), not absolute; add a bigger repo later. |
 | **Nondeterminism** | One run proves nothing. | Three repetitions minimum, spread reported. |
 | **Overfitting** | Tuning Sentinel until these 12 cases pass. | Hold-out cases `05`, `07`, `11` (section 12) are never inspected while tuning. |
-| **Native TypeScript on Node** | Version-dependent. | Pinned and verified in phase 0; fixture restricted to erasable syntax. |
+| **Bun version drift** | Behavior of `bun test` can change between versions. | Record the Bun version in each batch's report; round one was built on Bun 1.3.14. |
 | **Cases that are not actually sound** | A "behavior" mutation that does not fail its test makes truth wrong. | `tools/check.ts` is a mandatory gate (phase 2): it applies each patch, runs the fixture tests, and asserts the expected pass or fail. |
-| **Windows paths and shells** | Development happens on Windows. | Use Node path APIs, `git apply` for patches, and no shell-specific scripts. |
+| **Windows paths and shells** | Development happens on Windows. | Use path APIs (`node:path` works under Bun), `git apply` for patches, and no shell-specific scripts. |
 
 ## 11. Implementation phases
 
@@ -284,7 +284,7 @@ Each phase ends in a checked state and its own commit, per `commit-conventions`.
 - Run the agent headless once and confirm the exact command-line flags for non-interactive use, structured output, tool restriction, and model selection.
 - Confirm what the output reports: tokens, turns, tool calls, how a skill invocation shows up.
 - Test environment isolation (section 10, first risk).
-- Confirm the Node version with native TypeScript support on this machine.
+- Confirm the TypeScript runtime on this machine (Bun; see section 14).
 - Output: a short findings block appended to this file.
 
 **Phase 1 — Fixture** (`test(bench)`)
@@ -332,7 +332,7 @@ Still open: none for round one.
 
 Spike done on Windows, Claude Code 2.1.300, Node v24.11.1, git 2.53.0.
 
-**Node.** Native TypeScript works with no flags: `node --test file.test.ts` ran a `.ts` test importing a `.ts` file with an explicit `.ts` extension. The fixture must therefore write imports with the `.ts` extension and use erasable syntax only. No `package.json` dependency is needed.
+**Runtime: Bun, not Node (correction).** The spike checked Node 24 (native TypeScript works there), but this project works with Bun 1.3.14, so the fixture and the runner use Bun: `bun test` with `bun:test`, `bun run tools/main.ts`. No `package.json` dependency is needed. Imports inside the fixture use the `.ts` extension.
 
 **Headless command shape.** `claude -p "<prompt>" --model claude-sonnet-5-5 --output-format stream-json --verbose --no-session-persistence --setting-sources project --strict-mcp-config --permission-mode dontAsk --allowedTools "<list>"`, run with the sealed working copy as the current directory and stdin redirected from `/dev/null` (otherwise a 3-second "no stdin data" warning appears).
 
@@ -347,7 +347,7 @@ Spike done on Windows, Claude Code 2.1.300, Node v24.11.1, git 2.53.0.
 
 The login keeps working with `--setting-sources project --strict-mcp-config`. There is no user-level `CLAUDE.md` on this machine; `~/.claude/skills` holds only a `synced` folder, which did not appear in the listing. Decision: both modes use `--setting-sources project --strict-mcp-config`. The 13 built-in skills are present in both modes and are not under test; to keep the comparison symmetric, `plain` mode's allowed tools exclude `Skill`, so it cannot invoke any of them.
 
-**Permissions.** `--permission-mode dontAsk` with an explicit allow list worked: a full Sentinel run finished with no permission denials. Allow list for both modes: `Read Grep Glob Agent Bash(git status:*) Bash(git diff:*) Bash(node --test:*)`, plus `Skill` in `skill` mode only. Nothing that writes files is allowed.
+**Permissions.** `--permission-mode dontAsk` with an explicit allow list worked: a full Sentinel run finished with no permission denials. Allow list for both modes: `Read Grep Glob Agent Bash(git status:*) Bash(git diff:*) Bash(bun test:*)`, plus `Skill` in `skill` mode only. Nothing that writes files is allowed.
 
 **What the JSON output gives us** (`result` event): `usage` (input, output, cache read and cache creation tokens), `num_turns`, `duration_ms`, `subagent_stats.spawned`, `permission_denials`, `total_cost_usd` (a list-price figure, notional on a subscription), and the final `result` text. With `stream-json`, each tool call is an event, so **skill invocation is detected** by a `tool_use` named `Skill` whose input is `sentinel`.
 
@@ -355,7 +355,7 @@ The login keeps working with `--setting-sources project --strict-mcp-config`. Th
 
 **Consequences for later phases.**
 
-- Phase 1: imports use the `.ts` extension; tests run with `node --test`.
+- Phase 1: imports use the `.ts` extension; tests run with `bun test`.
 - Phase 3: `exec.ts` parses `stream-json`; the allow list above is part of `modes/*/mode.json`.
 - Cost is small for a trivial slice (about 20 s); the full cost per run is still to be measured in the phase 4 pilot.
-- Not yet verified: how much a run costs when Sentinel delegates to subagents or runs a test; whether `dontAsk` blocks the `node --test` escalation path as intended (verify in the pilot).
+- Not yet verified: how much a run costs when Sentinel delegates to subagents or runs a test; whether `dontAsk` blocks the `bun test` escalation path as intended (verify in the pilot).
