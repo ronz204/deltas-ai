@@ -70,12 +70,12 @@ These apply to `.claude/docs/*.md` and `.claude/rules/*.md`. They exist because 
 - **`.claude/docs/*.md` gets one carve-out from the rule above: durable architecture vocabulary.** A schema/table name, a named infrastructure role, a module boundary, a security invariant — these describe the system's actual shape and only change via a deliberate architecture decision, which is exactly what a docs file exists to capture. What still doesn't belong, even in docs, is *where in the source tree* that shape is implemented — a specific file path stays off-limits there too. `.claude/rules/*.md` and `.claude/skills/*` don't get this carve-out — they describe process/convention, not the system's architecture, so they stay fully agnostic to implementation nouns as well as locations.
 - **English**, regardless of what the source material or conversation was in.
 - **Pure technical POV.** Strip product pitch, ROI framing, competitive positioning, sales language, business/legal framing — even if the source had it. If a business fact drives an engineering decision (e.g. a data-protection law shaping a storage choice), state the *engineering implication*, not the business rationale.
-- **Self-contained files.** Docs in `.claude/docs/` don't reference each other ("see X.md") — each should stand alone. Rules may reference a doc once if the split genuinely creates a dependency — keep it to the minimum, prefer restating a short fact over adding a pointer. `CLAUDE.md` is the deliberate exception on the other end — its entire job is pointing to everything else, so cross-references there are expected, not a violation.
+- **Self-contained files.** Docs in `.claude/docs/` don't reference each other ("see X.md") — each should stand alone. The one exception is a doc split to fit its context budget: the entry doc points to its own detail files (Step 8), and those detail files still stand alone. Rules may reference a doc once if the split genuinely creates a dependency — keep it to the minimum, prefer restating a short fact over adding a pointer. `CLAUDE.md` is the deliberate exception on the other end — its entire job is pointing to everything else, so cross-references there are expected, not a violation.
 - **Plain section headers**, no emoji.
 - **Tables** for comparisons, stack choices with rationale, risk/complexity summaries.
 - **Fenced code blocks** for SQL, JSON, config snippets, ASCII diagrams — never describe a schema or query in prose when a code block says it exactly.
 - **Explain why, not just what.** A convention stated without its reasoning gets silently violated the first time someone doesn't see why it matters.
-- **Length:** docs stay ~100–200 lines — a section growing past that is a sign it belongs in a more specific file. Rules can run longer since they only load conditionally, but stay scoped to one concern.
+- **Length:** every artifact has a ceiling set by how often it loads, kept in the project's context-budget config (Step 8) — a doc growing past its ceiling is a sign it needs splitting, and a rule stays scoped to one concern.
 - **Non-goals sections earn their place** when a scope boundary is easy to violate by accident.
 
 ### Rule mechanics
@@ -174,3 +174,12 @@ A slice is a cohesive capability (e.g. a `checkout-flow` slice), not one source 
 - If you wrote or edited a `<slice>.spec.md`, confirm the file itself reads as complete and current — there's no history entry to fall back on, so a claim left implicit or half-updated stays that way until the next edit.
 - If you wrote or edited a `<slice>.design.md`, apply the same completeness check, plus confirm it didn't restate an invariant or business rule that already lives in `<slice>.spec.md` — it should reference that contract, not duplicate it.
 - If Step 0 turned up a conflict between artifacts, or between an artifact and the code, lead with that when presenting the draft — don't bury it at the end.
+---
+
+## Step 8 — Check the context budget
+
+Every artifact has a ceiling on how much context it may cost, set by how often it loads — see the context budget rule. After writing or editing anything in the knowledge base, run `sh .claude/skills/archivist/codebase/budget.sh` (read-only, costs no model tokens) and read only its "over a ceiling" and "broken pointers" sections.
+
+- If what you touched is over its ceiling, don't trim it to fit and don't ship it over: fit it by splitting. Read `references/split.guide.md`, show the user the split plan (what stays, what moves where, which pointer replaces it), and apply it only once they confirm.
+- If a pointer is reported broken, fix it before presenting.
+- If `sh` isn't available here, compare the file's line count against the ceilings in `.claude/context-budget.conf` and say the check was approximate.
