@@ -1,5 +1,5 @@
 ---
-globs: "**/source/core/**"
+globs: "**/source/core/**,**/source/repos/**"
 alwaysApply: false
 ---
 

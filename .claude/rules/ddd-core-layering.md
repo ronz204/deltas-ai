@@ -1,6 +1,7 @@
 ---
 paths:
   - "**/source/core/**"
+  - "**/source/repos/**"
 ---
 
 # Bounded Context Layering Conventions
