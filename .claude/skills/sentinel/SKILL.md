@@ -30,11 +30,19 @@ Read the scoped `<slice>.spec.md` (and `<slice>.design.md`, if in scope) in full
 
 A claim that isn't falsifiable by reading code/behavior isn't something this skill can check — flag it back to the user as unverifiable-as-written rather than forcing a verdict.
 
+Also read each claim's verification tag, if it has one, in `spec.md`'s Invariants and Acceptance criteria: `[test: path "name"]`, `[check: command]`, `[manual: step]` or `[none]`. It says how the claim is meant to be checked, so Step 2 doesn't have to rediscover it.
+
 ## Step 2 — Verify against the real implementation, cheaply
 
 For each claim:
 
-- **Try a targeted check first.** Grep for the specific mechanism the claim names (a check, a guard, a config value) rather than reading whole files end to end — most invariants are mechanically checkable once you know what pattern to look for.
+- **Use the claim's verification tag first.** It was written down so this step doesn't have to search:
+  - `test` → run that test, and only that test, through the execution path below. Pass → `Holds`; fail → `Violated`, unless it fails for a reason unrelated to the claim, per the execution rules. If the test's file or name no longer exists the link is broken: `Unverified` with "link broken", and Step 4 hands it to `archivist` as drift in the spec itself, not as a code bug.
+  - `check` → run the command through the same read-only execution path; its result is the verdict. Never run one that writes, installs or deletes: `Unverified`, and say why.
+  - `manual` → `Unverified`: "declared manual, not run by this skill".
+  - `none` → `Unverified`: "no verification declared". Don't search for a test to substitute; if one exists the tag is stale, and that goes to `archivist`.
+  - No tag (an older spec) → continue with the bullets below.
+- **Without a tag, try a targeted check first.** Grep for the specific mechanism the claim names (a check, a guard, a config value) rather than reading whole files end to end — most invariants are mechanically checkable once you know what pattern to look for.
 - **Delegate the expensive reading, don't inline it.** If confirming a claim needs broader reading/judgment (not just a grep hit), dispatch it to a subagent instead of pulling that source into the main session's context:
   - If a matching `.claude/agents/*` subagent already exists for this kind of check (e.g. a spec-invariant-checker scoped to this slice), use it — that's exactly what it's for.
   - Otherwise use the `Agent` tool per slice (or per cluster of related claims), so the reading happens in a disposable context and only the verdict comes back. Run independent slices' checks in parallel rather than sequentially.
@@ -45,7 +53,7 @@ For each claim:
 
 A targeted grep confirms a mechanism is *present*; it can't confirm a mechanism *behaves* a certain way under real input. Most invariants are about presence and the grep above settles them — but a claim stated as behavior ("always validates X", "requires auth", "returns 404 if not found") isn't actually checked by finding the word "validate" in the file. Reporting a Holds on that from grep alone would be trading real confirmation for something that only looks like it.
 
-**When it escalates.** All three have to hold — this is an escalation from the targeted grep above, never a first resort:
+**When it escalates.** A claim tagged `test` or `check` goes straight here, since its tag already names what to run. For an untagged claim all three have to hold — this is an escalation from the targeted grep above, never a first resort:
 
 - The claim is behavioral/testable, not just the presence of a mechanism.
 - The targeted grep was already tried for this specific claim and was inconclusive — it neither confirmed nor contradicted it.
@@ -57,7 +65,7 @@ A targeted grep confirms a mechanism is *present*; it can't confirm a mechanism 
 - It returns only the command it ran, the pass/fail result, and the relevant fragment of the output — not the full log; that's what keeps this cheaper than pulling the source into the main session directly.
 - If the run fails for a reason unrelated to the claim (a missing env var, broken local setup), the verdict is `Unverified` with that reason. A run that didn't actually exercise what it was meant to test can't be forced into a `Holds` or `Violated` — that would report confidence the check never earned.
 
-**Cost — this is the exception, not the default.** It only triggers when the conditions above are met; it never replaces the targeted grep as the first move, never runs the full test suite (only the specific test or test file tied to the escalated claim), and never changes Step 0's scope — still bounded to the slice(s) already in scope, never a reason to sweep wider on its own.
+**Cost — this is the exception, not the default.** For an untagged claim it only triggers when the conditions above are met and never replaces the targeted grep as the first move; a tagged claim runs just its one linked test or command. Either way it never runs the full test suite (only the specific test or test file tied to the escalated claim), and never changes Step 0's scope — still bounded to the slice(s) already in scope, never a reason to sweep wider on its own.
 
 **When scope spans more than one slice** (a named multi-slice check or a full sweep), do one additional pass after verifying each slice's own claims: compare the Invariants (and, for `design.md`, Interactions/Consumes) already read across those slices — free, since the content is already loaded, no extra reads — for a direct contradiction between two slices' own stated claims on the same domain object. Report only an actual stated contradiction, never an inferred or weak overlap; that becomes a `Conflict` verdict in Step 3.
 
@@ -70,6 +78,8 @@ Report as a compact table, not prose per finding — a verbose report defeats a 
 | `<slice>` | spec / design | `<the claim, restated short>` | Holds / Violated / Unverified / Gone / Conflict | `<what was actually checked — the pattern found or not found>` |
 
 **Evidence must name its own strength.** State plainly whether a verdict came from Step 2's targeted grep or from an escalated execution run — for an execution-backed verdict, name the command and its pass/fail result, not just "test passed." A reader can't judge how much a `Holds` is worth without knowing which kind of check produced it.
+
+End the table with one line counting the claims by how they were checked, for example `11 claims: 6 verified by execution, 2 by reading, 3 unverified (1 manual, 2 no verification declared)`, so the report doubles as a coverage summary.
 
 - **Holds** — confirmed true against the real implementation.
 - **Violated** — confirmed false; the implementation exists and contradicts the claim.
@@ -87,6 +97,7 @@ This skill's job ends at the report. What happens next depends on which side is 
 - **If the spec/design is wrong** (the invariant or design claim no longer applies), hand off to `archivist` to correct the file in place — same as `specifier`'s Step 3, don't pick a side quietly, surface it and let the user confirm which one wins before anything gets edited. If the drift is a `design.md` claim restating something that actually belongs in `spec.md` (or vice versa), flag that shape problem too, not just the factual one.
 - **If the verdict is `Gone`** (the implementation is confirmed intentionally removed), hand off to `archivist` to delete the slice's `spec.md`/`design.md` outright — not correct them, not archive them. This system keeps no history layer; git history is already the record of what the contract used to say.
 - **If the verdict is `Conflict`**, neither slice is automatically wrong — flag it for the user to decide whether the two slices should be reconciled (two slices whose contracts keep contradicting or changing together are often one bounded context, not two) or whether the overlap is intentional and one claim just needs its scope language tightened.
+- **If a link is broken** (a tagged test or file no longer exists) or a `none` tag looks stale, that is drift in the spec, not in the code: hand off to `archivist` to fix the tag.
 
 ---
 
@@ -96,7 +107,7 @@ This skill's job ends at the report. What happens next depends on which side is 
 - Doesn't check a spec's or design's optional Context section — it's free-form theory, not a falsifiable contract, so there's nothing to verify it against.
 - Doesn't write or edit `spec.md`, `design.md`, or source code — verification only, always handed off.
 - Doesn't write or modify tests to make a claim checkable — an escalated execution check only ever runs a test that already exists; if none exists, the claim stays `Unverified`, not a reason to author one.
-- Doesn't run the full test suite, even when escalating to execution — only the specific test or test file tied to the claim being escalated. Never a default, always tied to a claim the targeted grep already failed to settle.
+- Doesn't run the full test suite, even when escalating to execution — only the specific test or test file tied to the claim being escalated. Never a default: either a claim whose tag names the test or command, or one the targeted grep already failed to settle.
 - Doesn't sweep every slice in the project by default — see Step 0.
 - Doesn't force a Holds/Violated verdict when the evidence genuinely doesn't settle it — `Unverified` is a legitimate, honest outcome, not a failure to try harder.
 - Doesn't hunt for cross-slice conflicts when scope is a single slice — the `Conflict` check only runs as a free byproduct of a multi-slice sweep already in scope, never triggers pulling in extra slices or extra reads on its own.

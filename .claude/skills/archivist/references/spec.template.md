@@ -40,15 +40,18 @@ fields, a permission matrix).
 
 ## Invariants
 
-<!-- What must always hold regardless of implementation changes — the things a future change to this slice must never break. This is usually the highest-value section: it's what actually gets checked later. -->
+<!--
+What must always hold regardless of implementation changes — the things a future change to this slice must never break. This is usually the highest-value section: it's what actually gets checked later.
+Every invariant ends with a verification tag in square brackets saying how it is checked: `[test: <path> "<test name>"]` for an automated test that exists, `[check: <read-only command>]` for a command whose result proves it (for example a grep that must find nothing), `[manual: <step>]` for a hand check, or `[none]` when nothing verifies it yet. Confirm a cited test's file and name exist before writing the tag.
+-->
 
 ## Deferred / Open questions
 
-<!-- Decisions intentionally not made yet, and what would trigger making them. An honest open question is a valid entry — don't force a premature decision just to fill this section. -->
+<!-- Decisions intentionally not made yet, and what would trigger making them. An honest open question is a valid entry — don't force a premature decision just to fill this section. An invariant tagged `[none]` is a testing gap: list it here, with what would trigger writing its test. -->
 
 ## Acceptance criteria
 
-<!-- How to verify this spec is satisfied: specific tests, or a concrete manual check, or both. If this can't be falsified by reading the resulting code/behavior, it isn't specific enough yet. -->
+<!-- How to verify this spec is satisfied: specific tests, or a concrete manual check, or both. If this can't be falsified by reading the resulting code/behavior, it isn't specific enough yet. Each criterion carries the same verification tag as an invariant. List here only what the invariants don't already cover (for example the whole suite passing, or an end-to-end flow); don't restate an invariant. -->
 
 ## Context (optional)
 
