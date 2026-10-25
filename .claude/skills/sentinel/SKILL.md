@@ -28,7 +28,7 @@ Read the scoped `<slice>.spec.md` (and `<slice>.design.md`, if in scope) in full
 - Every line in `spec.md`'s **Invariants** (and any hard guarantee stated in its **Contract**) as one falsifiable claim to check.
 - Every line in `design.md`'s **States**, **Interactions**, and **Consumes** (and any hard guarantee stated in **Layout**) as one falsifiable claim to check — e.g. "the empty state shows X," "this action requires confirmation before firing," "this field is sourced from `spec.md`'s Y."
 
-A claim that isn't falsifiable by reading code/behavior isn't something this skill can check — flag it back to the user as unverifiable-as-written rather than forcing a verdict.
+A claim that isn't falsifiable by reading code/behavior isn't something this skill can check — flag it back to the user as unverifiable-as-written rather than forcing a verdict. A claim written in an EARS form (When / While / If / Where, or always/never) tells you what to exercise and what to observe: the trigger or state is the setup and the response is what to look for. One that names no observable response is exactly this kind of claim, and it goes back to `specifier`.
 
 Also read each claim's verification tag, if it has one, in `spec.md`'s Invariants and Acceptance criteria: `[test: path "name"]`, `[check: command]`, `[manual: step]` or `[none]`. It says how the claim is meant to be checked, so Step 2 doesn't have to rediscover it.
 

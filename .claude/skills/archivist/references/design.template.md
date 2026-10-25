@@ -34,11 +34,11 @@ memory.
 
 ## States
 
-<!-- Every state the surface must handle explicitly: loading, empty, error, success, and any domain-specific state (partially filled, pending confirmation, etc.). What each one shows, not just that it exists. -->
+<!-- Every state the surface must handle explicitly: loading, empty, error, success, and any domain-specific state (partially filled, pending confirmation, etc.). What each one shows, not just that it exists. Write each as one line, e.g. "While loading, the list shows a skeleton." -->
 
 ## Interactions
 
-<!-- What the user can do here and what happens: actions, navigation, confirmations required before a consequential action fires. Where an interaction has a logic-layer consequence, point at the relevant part of spec.md's Contract/Invariants rather than restating the rule here. -->
+<!-- What the user can do here and what happens: actions, navigation, confirmations required before a consequential action fires. Where an interaction has a logic-layer consequence, point at the relevant part of spec.md's Contract/Invariants rather than restating the rule here. Write each as one line, e.g. "When the user clicks Delete, the app asks for confirmation before deleting." -->
 
 ## Consumes
 

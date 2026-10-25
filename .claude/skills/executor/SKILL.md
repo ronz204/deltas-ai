@@ -42,6 +42,7 @@ Show a short ordered list, one item per claim or tight group of claims: what cha
 For each task:
 
 - Write or adjust the test and run it, and confirm it fails for the right reason. Skip this when the test already exists and passes.
+- A claim in an EARS or Given/When/Then form maps straight onto the test: its state or context is the setup, its trigger the action, its response the assertion.
 - Write the least code that makes it pass, then run that test again.
 - Stay inside the slice: its source and its tests. A change to shared code outside it, a new dependency, or a refactor of unrelated code gets asked about first.
 - Follow the project's own rules and conventions; they load by path as files are touched.

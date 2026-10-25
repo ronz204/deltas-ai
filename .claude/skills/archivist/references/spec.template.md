@@ -43,6 +43,13 @@ fields, a permission matrix).
 <!--
 What must always hold regardless of implementation changes — the things a future change to this slice must never break. This is usually the highest-value section: it's what actually gets checked later.
 Every invariant ends with a verification tag in square brackets saying how it is checked: `[test: <path> "<test name>"]` for an automated test that exists, `[check: <read-only command>]` for a command whose result proves it (for example a grep that must find nothing), `[manual: <step>]` for a hand check, or `[none]` when nothing verifies it yet. Confirm a cited test's file and name exist before writing the tag.
+Write each invariant as ONE claim in one of the five EARS forms, in plain language (no "shall"):
+- always/never: "<subject> <response>", e.g. "Stock never imports from checkout."
+- event: "When <trigger>, <subject> <response>", e.g. "When a percentage discount is applied, the amount rounds half up to the nearest cent."
+- state: "While <state>, <subject> <response>", e.g. "While a reservation is older than 15 minutes, it does not count as reserved."
+- unwanted case: "If <condition>, then <subject> <response>", e.g. "If payment fails, the stock reservation is released."
+- optional feature: "Where <feature is present>, <subject> <response>", e.g. "Where a tax rate is set, tax is computed on the discounted subtotal."
+The response must be something a test or a grep can observe (a returned value, an error, an emitted event, a state change, the absence of an import). If a line needs "and" to join two outcomes, split it into two invariants.
 -->
 
 ## Deferred / Open questions
@@ -51,7 +58,7 @@ Every invariant ends with a verification tag in square brackets saying how it is
 
 ## Acceptance criteria
 
-<!-- How to verify this spec is satisfied: specific tests, or a concrete manual check, or both. If this can't be falsified by reading the resulting code/behavior, it isn't specific enough yet. Each criterion carries the same verification tag as an invariant. List here only what the invariants don't already cover (for example the whole suite passing, or an end-to-end flow); don't restate an invariant. -->
+<!-- How to verify this spec is satisfied: specific tests, or a concrete manual check, or both. If this can't be falsified by reading the resulting code/behavior, it isn't specific enough yet. Each criterion carries the same verification tag as an invariant. List here only what the invariants don't already cover (for example the whole suite passing, or an end-to-end flow); don't restate an invariant. Write each as one Given/When/Then line, e.g. "Given a cart with two items, when checkout runs with a failing card, then no order is saved." -->
 
 ## Context (optional)
 
