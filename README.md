@@ -105,15 +105,13 @@ This repo has no application source of its own — it *is* the reusable harness.
 ```
 
 1. **Copy** `.claude/` (for Claude Code) and/or `.cursor/` (for Cursor) into the target repo.
-2. **Bootstrap** — *"bootstrap this repo with Delta"* / *"arranca el harness aquí"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and fills in the six `.claude/docs/*` files from what it finds in the codebase (or from a short interview, if the repo is greenfield).
+2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and fills in the six `.claude/docs/*` files from what it finds in the codebase (or from a short interview, if the repo is greenfield).
 3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
 4. **Verify** after implementing — invokes 🛡️ **Sentinel**, which checks the spec's invariants against the real code and reports drift as a compact table:
 
    `Holds` · `Violated` · `Unverified` · `Gone` · `Conflict`
 
 5. **Anything else** — a convention, a subagent, an update to `CLAUDE.md` — ask directly; that routes to 🗂️ **Archivist**.
-
-Both English and Spanish trigger phrases are recognized by the skills' own descriptions.
 
 ---
 
