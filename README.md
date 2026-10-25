@@ -18,11 +18,40 @@ This repository *is* the harness: the skills, rules, and templates that implemen
 
 ## Contents
 
+- [Delta in plain words](#delta-in-plain-words)
 - [The five-role pipeline](#the-five-role-pipeline)
 - [What the knowledge base looks like](#what-the-knowledge-base-looks-like)
 - [Using this repo](#using-this-repo)
 - [Repository layout](#repository-layout)
 - [Non-goals](#non-goals)
+
+---
+
+## Delta in plain words
+
+Think of Delta as a small team of assistants that keep a project's notes honest, so the agent never has to guess how your project works.
+
+- **You talk, they do the paperwork.** You say what you want in normal sentences ("spec out checkout", "implement it", "is it still accurate?"). The right assistant picks it up; you never have to remember file names or formats.
+- **One note per feature.** Each feature gets a short *contract* (its `spec.md`) that says what it must do and what must always be true. It describes the present, not the history: when things change, the contract is edited, not appended to.
+- **The contract drives the code.** The agent reads the contract before touching a feature, writes tests from its claims, then writes the code to satisfy them.
+- **Drift gets caught.** After the code changes, a check compares the contract to what the code really does and tells you where they disagree.
+
+### A typical week
+
+1. **Day one, once per project:** *"bootstrap this repo with Delta"*. The agent reads your codebase (or asks a few questions if it's empty) and writes the project's overview and a `CLAUDE.md` that points to everything.
+2. **New feature:** *"let's spec out invoices"*. You get asked a handful of targeted questions: what it's for, what must never break, what's still undecided. The answers become `invoices.spec.md`.
+3. **Build it:** *"implement the invoices slice"*. The agent shows a plan built from the claims not yet proven. You approve it, and it writes the tests first, then the code.
+4. **Later, after changes:** *"check invoices for drift"*. You get a short table: what still holds, what was broken, what can't be verified.
+5. **Anything else worth remembering:** *"we decided to always use UTC, write that down"*. It lands in the right place, in the right shape.
+
+You decide at every step that matters: the plan is yours to approve, and nothing in the knowledge base is changed behind your back.
+
+### Required and optional rules
+
+Delta splits its rules in two:
+
+- **Required** (`.claude/rules/`): the ones Delta itself needs to work, such as how the knowledge base is edited, when something deserves a spec, how much context it may cost, and the lean-change rule that keeps code changes small.
+- **Optional** (`context/rules/`): conventions that depend on your language or team habits, such as DDD layering, Python and TypeScript idioms, English-only code and commit messages. Copy the ones you want into your project's `.claude/rules/`; the rest cost you nothing.
 
 ---
 
@@ -125,7 +154,8 @@ This repo has no application source of its own — it *is* the reusable harness.
 | Path | Purpose |
 |---|---|
 | `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`) |
-| `.claude/rules/` | Editing conventions for the knowledge base itself — route through the matching skill, don't hand-edit |
+| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes |
+| `context/rules/` | Optional rules (DDD layering, language idioms, English-only code, commit messages), copied into a project's `.claude/rules/` when wanted |
 | `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
 
