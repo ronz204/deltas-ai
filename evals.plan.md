@@ -325,3 +325,37 @@ Still open: none for round one.
 - Does not evaluate Surveyor, Specifier, Archivist, or implementation tasks in round one.
 - Does not change `.claude/skills/sentinel` or any harness file; the benchmark only reads the current skill.
 - Not shipped to projects that adopt Delta.
+
+---
+
+## 14. Phase 0 findings (2026-10-25)
+
+Spike done on Windows, Claude Code 2.1.300, Node v24.11.1, git 2.53.0.
+
+**Node.** Native TypeScript works with no flags: `node --test file.test.ts` ran a `.ts` test importing a `.ts` file with an explicit `.ts` extension. The fixture must therefore write imports with the `.ts` extension and use erasable syntax only. No `package.json` dependency is needed.
+
+**Headless command shape.** `claude -p "<prompt>" --model claude-sonnet-5-5 --output-format stream-json --verbose --no-session-persistence --setting-sources project --strict-mcp-config --permission-mode dontAsk --allowedTools "<list>"`, run with the sealed working copy as the current directory and stdin redirected from `/dev/null` (otherwise a 3-second "no stdin data" warning appears).
+
+**Isolation (the first risk in section 10), resolved for round one.**
+
+| Flags | What the agent can see |
+|---|---|
+| none | 41 skills, commands and MCP tools: the account's plugins and connectors leak in |
+| `--setting-sources project --strict-mcp-config` | 13 items, all skills built into Claude Code itself (`code-review`, `init`, `loop`...), plus the project's own `.claude/skills` |
+| `--safe-mode` | the same 13, but it also hides the project's skill, so it cannot be used for the `skill` mode |
+| `--bare` | not usable: it never reads the subscription login |
+
+The login keeps working with `--setting-sources project --strict-mcp-config`. There is no user-level `CLAUDE.md` on this machine; `~/.claude/skills` holds only a `synced` folder, which did not appear in the listing. Decision: both modes use `--setting-sources project --strict-mcp-config`. The 13 built-in skills are present in both modes and are not under test; to keep the comparison symmetric, `plain` mode's allowed tools exclude `Skill`, so it cannot invoke any of them.
+
+**Permissions.** `--permission-mode dontAsk` with an explicit allow list worked: a full Sentinel run finished with no permission denials. Allow list for both modes: `Read Grep Glob Agent Bash(git status:*) Bash(git diff:*) Bash(node --test:*)`, plus `Skill` in `skill` mode only. Nothing that writes files is allowed.
+
+**What the JSON output gives us** (`result` event): `usage` (input, output, cache read and cache creation tokens), `num_turns`, `duration_ms`, `subagent_stats.spawned`, `permission_denials`, `total_cost_usd` (a list-price figure, notional on a subscription), and the final `result` text. With `stream-json`, each tool call is an event, so **skill invocation is detected** by a `tool_use` named `Skill` whose input is `sentinel`.
+
+**Smoke test.** A two-invariant spec over a 6-line module (one rounding bug planted: `Math.floor` where the spec says half up) ran in 7 turns and 20 seconds with no subagents. The skill was invoked, the planted bug was reported as `Violated`, the other invariant as `Holds`, and the closing JSON block was well-formed. So the output suffix in section 5 is parseable in practice.
+
+**Consequences for later phases.**
+
+- Phase 1: imports use the `.ts` extension; tests run with `node --test`.
+- Phase 3: `exec.ts` parses `stream-json`; the allow list above is part of `modes/*/mode.json`.
+- Cost is small for a trivial slice (about 20 s); the full cost per run is still to be measured in the phase 4 pilot.
+- Not yet verified: how much a run costs when Sentinel delegates to subagents or runs a test; whether `dontAsk` blocks the `node --test` escalation path as intended (verify in the pilot).
