@@ -1,5 +1,7 @@
 {
   "id": "skill",
-  "skills": ["sentinel"],
-  "tools": "Read Grep Glob Skill Agent Bash(git status:*) Bash(git diff:*) Bash(bun test:*)"
+  "skills": [
+    "sentinel"
+  ],
+  "tools": "Read Grep Glob Skill Agent Bash(git status:*) Bash(git diff:*) Bash(bun test:*) PowerShell(bun test:*) PowerShell(git status:*) PowerShell(git diff:*) PowerShell(Select-Object:*)"
 }

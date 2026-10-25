@@ -44,4 +44,5 @@ Runs are resumable: finished runs are skipped, errored runs are retried. The run
 - **Hold-out cases are never run in a tuning batch.** `main.ts` refuses them without `--final`, so Sentinel and the prompts are not tuned against them.
 - **Run `check.ts` after touching any case, patch, spec or fixture file.** An unsound case gives a wrong truth and a meaningless result.
 - **Changing the model, the fixture or a prompt starts a new batch.** Results from different setups are not comparable.
+- On Windows the agent runs commands through the `PowerShell` tool, so every allowed command needs a `PowerShell(...)` rule next to its `Bash(...)` rule in `modes/*/mode.json`; otherwise `dontAsk` silently denies it.
 - Read the "runs worth reading by hand" section of a report and open a few transcripts in `raw/`: the grader can be wrong about the experiment even when it is right about the code.

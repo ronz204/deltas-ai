@@ -104,6 +104,7 @@ for (const [index, { c, mode, rep }] of jobs.entries()) {
       continue;
     }
 
+    console.log(`${label}: running...`);
     const started = Date.now();
     const exec = await execute(workdir, prompt, mode.tools, args.model);
     await Bun.write(`${dir}/raw/${c.id}.${mode.id}.${rep}.jsonl`, exec.raw);
