@@ -1,1 +1,16 @@
-*.sh text eol=lf
+# Let git detect text files and normalize them to LF in the repository.
+* text=auto
+
+# The harness is read by Claude Code and run by POSIX sh, so these stay LF
+# in the working copy on every platform, never CRLF.
+*.sh   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.conf text eol=lf
+
+# Binary files git must not touch.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
