@@ -51,7 +51,7 @@ You decide at every step that matters: the plan is yours to approve, and nothing
 Delta splits its rules in two:
 
 - **Required** (`.claude/rules/`): the ones Delta itself needs to work, such as how the knowledge base is edited, when something deserves a spec, how much context it may cost, and the lean-change rule that keeps code changes small.
-- **Optional** (`context/rules/`): conventions that depend on your language or team habits, such as DDD layering, Python and TypeScript idioms, English-only code and commit messages. Copy the ones you want into your project's `.claude/rules/`; the rest cost you nothing.
+- **Optional** (the surveyor's rule catalog): conventions that depend on your language or team habits, such as DDD layering, Python and TypeScript idioms, and English-only code. When you bootstrap a project, the surveyor proposes the ones that match your repo and writes only the ones you confirm into your project's `.claude/rules/`; the rest cost you nothing.
 
 ---
 
@@ -153,9 +153,8 @@ This repo has no application source of its own — it *is* the reusable harness.
 
 | Path | Purpose |
 |---|---|
-| `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`) |
+| `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`), including the surveyor's optional rule catalog (`references/catalog/`) |
 | `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes |
-| `context/rules/` | Optional rules (DDD layering, language idioms, English-only code, commit messages), copied into a project's `.claude/rules/` when wanted |
 | `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
 
