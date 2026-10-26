@@ -28,6 +28,7 @@ Unlike `specifier` (which goes deep on one slice) or `archivist`'s own Step 0 (d
 - **Separate what you observed from what you inferred.** What the code and config actually say, once it passes the filter, is fine to pass on. A claim about *why* something is the way it is, or what the project *means* to do, that you only inferred from the code isn't a fact: carry it into Step 2 as a question, or drop it.
 - Natural bounded contexts visible in the repo's structure — note them as slice candidates for Step 4's report, don't investigate any one of them deeply; that depth is `specifier`'s job, later, on demand.
 - Cross-cutting conventions the codebase already follows consistently that aren't caught by a linter/type-checker/CI check — rule candidates, per `archivist`'s "Spotting a rule candidate" check (cross-cutting, not tool-enforced, applies every time, would be silently violated otherwise). Note them; don't write them yet, and don't mistake incidental consistency (only happens to look the same so far) for a deliberate convention.
+- **Catalog match.** Read `references/catalog/index.md` and note which entries' "adopt when" the repo satisfies (language, a domain/application split, bounded contexts). Don't open an entry yet. An entry is a rule candidate that is already written, so the same confirmation applies to it.
 - **Don't invent a project's internal directory layout beyond what this step actually found on disk, or what Step 2 gets the user to state explicitly.** This is the step most likely to produce a rule candidate whose natural `paths:` scoping wants a subfolder split (e.g. domain vs. application vs. infrastructure) that hasn't actually been created or decided yet — a scaffolded skeleton isn't a decided layout, and neither is a plausible-looking convention borrowed from how similar projects are usually structured. When that happens, either scope the candidate to the nearest boundary that genuinely is settled (e.g. a named service directory already recorded in `CLAUDE.md`'s repo layout) or ask the user directly in Step 2 rather than guessing — a rule scoped to a folder that doesn't exist yet silently never fires, which is worse than not having the rule.
 - Evidence relevant to `references/baseline-checklist.md` (auth middleware, input validation, caching, queues, rate limiting, pagination) — enough that Step 2's questions on this can be confirmations of what was found, not blind asks.
 
@@ -42,7 +43,7 @@ Same discipline as `specifier`: confirm from Step 1 where possible, ask where it
 - **Infrastructure** — whether the project has static infrastructure/provisioning facts (hosting, environments, provisioned resources) worth capturing in `.claude/docs/structure.md`'s topology/cross-cutting content, if Step 1 couldn't tell from config alone.
 - **Rationale and pitfalls** — for the notable choices Step 1 found (stack, structure, a surprising pattern), why they were made and what must not be broken. This is what the code can't tell, and it is what `structure.md`, `expertise.md` and the cross-component behavior doc exist to hold.
 - For greenfield repos specifically: intended stack and repo layout, since there's no code yet to read it from.
-- **Rule candidates** — for each pattern Step 1 flagged, confirm with the user it's a deliberate convention worth enforcing on every future touch of matching files, not just how the code happens to look so far. Drop anything unconfirmed rather than creating it as a guess.
+- **Rule candidates** — for each pattern Step 1 flagged, confirm with the user it's a deliberate convention worth enforcing on every future touch of matching files, not just how the code happens to look so far. Drop anything unconfirmed rather than creating it as a guess. For a catalog match, name the entry, what it enforces in one line, and the folders it would be scoped to: its `paths-default` are only a hint, so confirm the real folders or leave the entry out.
 - **Security, performance, and scalability baseline** — walk `references/baseline-checklist.md` in this same batch. Every project has to satisfy these three in some form, even when the honest answer is "not applicable here" — the checklist is a fixed set of questions, not prewritten answers; route each confirmed one per its own routing rules (a `structure.md` note, a rule candidate, or a consideration flagged for a future slice's `spec.md`) rather than writing it down verbatim.
 
 ## Step 3 — Hand off to archivist
@@ -52,6 +53,7 @@ Package the investigation and interview results and invoke `archivist` to write,
 - `CLAUDE.md` via `.claude/skills/archivist/references/claude.template.md` — project description, a "where to look" index, only the commands and structure the code doesn't make obvious, conventions.
 - `overview.md`, `modules.md`, `structure.md`, `database.md`, `expertise.md`, and `approach.md` — these already exist as shipped skeletons under `.claude/docs/`; fill each in place with what Step 1/Step 2 found rather than creating a new file from `.claude/skills/archivist/references/docs.template.md`. Where nothing passed the filter, state "not applicable here" in one line — never leave an unfilled skeleton, and never pad a doc with what the code already shows.
 - Each rule candidate confirmed in Step 2, as its own `.claude/rules/<topic>.md` via `.claude/skills/archivist/references/rules.template.md` — one file per concern, same as any other rule.
+- Each catalog entry confirmed in Step 2: read the entry, then hand over everything above its `<!-- rationale -->` line verbatim, with a `paths:` frontmatter of the confirmed folders, under the entry's own file name. It already follows `rules.template.md`, so it is not re-derived, and the rationale below the line stays in the catalog.
 
 This skill never writes any of these itself, same separation `specifier` keeps from `archivist` — it produces grounded material, `archivist` still does the write and still applies its own Step 0 discipline against what was found.
 
@@ -59,7 +61,7 @@ This skill never writes any of these itself, same separation `specifier` keeps f
 
 Close by naming, explicitly:
 
-- What got created, including which rules were written and why each earned one.
+- What got created, including which rules were written and why each earned one, and which catalog entries were adopted.
 - The slice candidates noted in Step 1, as a short list — not specced, just surfaced, so the user knows what exists to spec later via `specifier` when they're ready to work on one.
 - Any security/performance/scalability consideration from the baseline checklist that was confirmed but scoped to a specific slice rather than the whole project — flagged here, not written anywhere yet, for `specifier` to fold into that slice's `spec.md` Invariants once it gets specced.
 
@@ -70,6 +72,7 @@ Close by naming, explicitly:
 - Never copies what the code already shows (a component's behavior, a schema, a dependency list, a directory map) into a doc — it notes where that lives and spends its effort on what only a person can tell it.
 - Never creates a `deltas/*` slice file — bootstrapping a project's context and specifying one of its slices are different jobs; a slice gets specced later, one at a time, via `specifier`.
 - Never creates a `.claude/rules/*.md` without the user confirming the pattern is deliberate and worth enforcing every time — unlike `CLAUDE.md`/docs content, a false-positive rule actively injects wrong guidance into every future session that touches a matching file, not just a passive gap.
+- Never rewords a catalog entry to fit a project, and never copies its rationale into one. A project whose convention differs from an entry doesn't adopt it: the difference is a new rule candidate.
 - Never overwrites an existing `CLAUDE.md`/`.claude/docs/*` that already has real content without the user confirming a deliberate refresh — see Step 0.
 - Doesn't write `CLAUDE.md` or any doc file itself — always hands off to `archivist`.
 - Doesn't attempt exhaustive documentation of every module or subsystem in this one pass — a lean, accurate first cut is the goal; depth accrues afterward through normal `archivist` and `specifier` use as the project is actually worked on.
