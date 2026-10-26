@@ -1,5 +1,6 @@
 ---
 id: ddd-core
+installs-as: code-domain-layer
 applies-when: the project keeps a domain layer split into bounded contexts, with persistence code that maps to it
 paths-default:
   - "**/source/core/**"

@@ -12,6 +12,6 @@ Conventions a project may adopt as `.claude/rules/*.md`. The surveyor reads this
 
 ## Format of an entry
 
-- The frontmatter holds `id`, `applies-when`, and `paths-default`: the layout the entry was written against. It is a hint to propose from, never a decision.
+- The frontmatter holds `id`, `installs-as` (the rule's file name in a project), `applies-when`, and `paths-default`: the layout the entry was written against. The last is a hint to propose from, never a decision.
 - Everything above the `<!-- rationale -->` line is the rule, written without folder names. Everything below it is the reasoning, for people and for tuning the rule; it is never copied into a project.
-- To instantiate: copy the rule verbatim, replace the frontmatter with a `paths:` list of folders that exist or that the user stated, and keep the entry's file name.
+- To instantiate: copy the rule verbatim, replace the frontmatter with a `paths:` list of folders that exist or that the user stated, and name the file `installs-as` plus `.md`. Those names follow the shape of the project's other rules: an area word, then one or two topic words, hyphenated, about 14 to 18 characters.

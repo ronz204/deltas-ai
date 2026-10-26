@@ -1,5 +1,6 @@
 ---
 id: lang-ts
+installs-as: code-ts-idioms
 applies-when: the project's source is TypeScript under a DDD layout
 paths-default:
   - "**/source/**/*.ts"
