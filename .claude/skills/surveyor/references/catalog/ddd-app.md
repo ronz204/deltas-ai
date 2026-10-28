@@ -1,6 +1,6 @@
 ---
 id: ddd-app
-installs-as: code-app-layer
+installs-as: code-app-usecases
 applies-when: an application layer orchestrates use cases over the domain's bounded contexts
 paths-default:
   - "**/source/app/**"
