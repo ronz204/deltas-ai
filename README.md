@@ -154,7 +154,7 @@ This repo has no application source of its own — it *is* the reusable harness.
 | Path | Purpose |
 |---|---|
 | `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`), including the surveyor's optional rule catalog (`references/catalog/`) |
-| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (global, with its detail in the Executor's references) || `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
+| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (applied to every source change, spec or not) || `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
 
 ## Non-goals
