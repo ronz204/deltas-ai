@@ -1,7 +1,8 @@
 #!/bin/sh
 # Context budget report for the Claude Code knowledge base (POSIX sh and awk, read-only).
 # Classes every knowledge-base file by how often it is loaded and compares it with the
-# ceilings in .claude/budget.conf.
+# ceilings in .claude/budget.conf. It also warns, without failing --check, about rules whose
+# `paths:` match no file and about shipped git hooks that git is not pointed at.
 #
 # Usage: sh budget.sh [--root DIR] [--all] [--check]
 #   --root DIR  project root (default: the git top level, else the current directory)
@@ -96,6 +97,49 @@ pointers() {
   done
 }
 
+# Prints one regex for all of a rule's `paths:` globs (empty when it has none). Approximate:
+# `*` stays inside one folder, `**` crosses folders, `{a,b}` is an alternation.
+rule_re() {
+  awk '
+    { sub(/\r$/, "") }
+    NR == 1 && $0 == "---" { fm = 1; next }
+    fm && $0 == "---" { exit }
+    fm && /^paths:/ { inp = 1; next }
+    fm && inp && /^[ \t]*-[ \t]/ {
+      g = $0; sub(/^[ \t]*-[ \t]*/, "", g); gsub(/^["\047]|["\047]$/, "", g)
+      gsub(/\./, "\\.", g); gsub(/\*\*\//, "\001", g); gsub(/\*\*/, "\002", g)
+      gsub(/\*/, "[^/]*", g); gsub(/\?/, "[^/]", g)
+      gsub(/\001/, "(.*/)?", g); gsub(/\002/, ".*", g)
+      gsub(/\{/, "(", g); gsub(/\}/, ")", g); gsub(/,/, "|", g)
+      re = re (re == "" ? "" : "|") "^(" g ")$"; next
+    }
+    fm && inp { inp = 0 }
+    END { print re }' "$1"
+}
+
+# A rule whose `paths:` match no existing file never loads. Warns only: a greenfield folder
+# may not exist yet.
+dead_globs() {
+  files=$(git ls-files -co --exclude-standard 2>/dev/null || find . -type f -not -path './.git/*')
+  for f in .claude/rules/*.md; do
+    [ -f "$f" ] || continue
+    re=$(rule_re "$f")
+    [ -n "$re" ] || continue
+    echo "$files" | grep -Eq "$re" || echo "$f"
+  done
+}
+
+# The shipped git hooks only run once git is pointed at them. Warns only.
+hooks() {
+  [ -d .githooks ] || return 0
+  cur=$(git config core.hooksPath 2>/dev/null)
+  case $cur in
+    .githooks) ;;
+    "") echo "inactive: run  git config core.hooksPath .githooks" ;;
+    *) echo "other: core.hooksPath is $cur, so .githooks does not run" ;;
+  esac
+}
+
 ROWS=$(rows | sort -t'|' -k1,1 -k6,6nr)
 [ -n "$ROWS" ] || { echo "nothing to measure"; exit 0; }
 POINTERS=$(pointers)
@@ -119,6 +163,12 @@ echo; echo "OVER A CEILING"; table over
 echo; echo "POINTERS"
 [ -n "$POINTERS" ] || echo "  all resolve"
 echo "$POINTERS" | sed -n 's/^broken|/  broken: /p; s/^ambiguous|/  ambiguous: /p'
+echo; echo "DEAD GLOBS (warning: the rule never loads)"
+DEAD=$(dead_globs)
+[ -n "$DEAD" ] && echo "$DEAD" | sed 's/^/  /' || echo "  none"
+echo; echo "HOOKS (warning)"
+HK=$(hooks)
+[ -n "$HK" ] && echo "  $HK" || echo "  ok"
 [ "$ALL" = 1 ] && { echo; echo "EVERYTHING MEASURED"; table all; }
 
 [ "$CHECK" = 1 ] && [ $(( OVER + TOTAL_OVER + BROKEN )) -gt 0 ] && exit 1
