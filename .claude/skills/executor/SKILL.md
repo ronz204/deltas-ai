@@ -39,6 +39,8 @@ Show a short ordered list, one item per claim or tight group of claims: what cha
 
 ## Step 3 — Build, test first
 
+Before the first task, read `references/lean.md`: the always-loaded lean-change rule holds the core, and this holds the detail that only matters while writing code.
+
 For each task:
 
 - Write or adjust the test and run it, and confirm it fails for the right reason. Skip this when the test already exists and passes.
