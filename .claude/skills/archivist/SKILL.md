@@ -91,7 +91,7 @@ paths:
 ```
 
 - Quote every glob pattern (YAML requires it for patterns starting with `*` or `{`).
-- Omit `paths:` entirely only for a rule meant to apply globally — this should be rare.
+- Omit `paths:` entirely only for a rule meant to apply globally — this should be rare. A rule about how to work (the size of a change, a process) applies whatever file is open, so it is global and stays under the always-loaded rule ceiling, with detail only some uses need moved to a reference that a pointer step loads; scoping it by `paths:` would leave it dead in any layout it didn't guess.
 - One rule file per concern — a new convention with different trigger paths is a new rule, not an addition to an unrelated one.
 
 ---
@@ -130,4 +130,5 @@ Every artifact has a ceiling on how much context it may cost, set by how often i
 
 - If what you touched is over its ceiling, don't trim it to fit and don't ship it over: fit it by splitting. Read `references/split.guide.md`, show the user the split plan (what stays, what moves where, which pointer replaces it), and apply it only once they confirm.
 - If a pointer is reported broken, fix it before presenting.
+- If a rule you wrote or edited is listed under dead globs, its `paths:` match no file and it never loads: fix the globs against a real directory listing, or ask the user.
 - If `sh` isn't available here, compare the file's line count against the ceilings in `.claude/budget.conf` and say the check was approximate.

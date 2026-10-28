@@ -44,6 +44,7 @@ Same discipline as `specifier`: confirm from Step 1 where possible, ask where it
 - **Rationale and pitfalls** — for the notable choices Step 1 found (stack, structure, a surprising pattern), why they were made and what must not be broken. This is what the code can't tell, and it is what `structure.md`, `expertise.md` and the cross-component behavior doc exist to hold.
 - For greenfield repos specifically: intended stack and repo layout, since there's no code yet to read it from.
 - **Rule candidates** — for each pattern Step 1 flagged, confirm with the user it's a deliberate convention worth enforcing on every future touch of matching files, not just how the code happens to look so far. Drop anything unconfirmed rather than creating it as a guess. For a catalog match, name the entry, what it enforces in one line, and the folders it would be scoped to: its `paths-default` are only a hint, so confirm the real folders or leave the entry out.
+- **Commit hook** — the harness ships a `commit-msg` git hook that git only runs once pointed at it. Check first whether the repo already sets `core.hooksPath` or uses a hook manager (husky, lefthook or similar): if so, leave it alone and say that only the commit rule applies there. If not, propose running `git config core.hooksPath .githooks` once per clone; the user runs it, this skill doesn't change git config.
 - **Security, performance, and scalability baseline** — walk `references/checklist.md` in this same batch. Every project has to satisfy these three in some form, even when the honest answer is "not applicable here" — the checklist is a fixed set of questions, not prewritten answers; route each confirmed one per its own routing rules (a `structure.md` note, a rule candidate, or a consideration flagged for a future slice's `spec.md`) rather than writing it down verbatim.
 
 ## Step 3 — Hand off to archivist
@@ -58,6 +59,8 @@ Package the investigation and interview results and invoke `archivist` to write,
 This skill never writes any of these itself, same separation `specifier` keeps from `archivist` — it produces grounded material, `archivist` still does the write and still applies its own Step 0 discipline against what was found.
 
 ## Step 4 — Report what's next
+
+First run `sh .claude/skills/archivist/codebase/budget.sh` (read-only, no model tokens) and read its dead globs and hooks sections. A rule listed under dead globs never loads, so ask the user for the real folder or drop the rule before reporting. A hooks warning is reported as is, since activating the hook is the user's step.
 
 Close by naming, explicitly:
 
