@@ -18,7 +18,11 @@
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
       "Bash(git push *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git add -A)",
+      "Bash(git add -A *)",
+      "Bash(git add .)",
+      "Bash(git commit -a*)"
     ]
   }
 }

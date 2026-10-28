@@ -1,0 +1,46 @@
+#!/bin/sh
+# Checks the commit subject against the commit-conventions rule: only what a script can see.
+# Whether the change is one phase, grouped by concern and staged by path stays judgment.
+# Git runs this with the path of the message file as $1. Enable it once per clone:
+#   git config core.hooksPath .githooks
+
+msg=$(grep -v '^#' "$1" | tr -d '\r' | sed '/./,$!d')
+subject=$(printf '%s\n' "$msg" | sed -n 1p)
+second=$(printf '%s\n' "$msg" | sed -n 2p)
+
+# Messages git writes itself are not ours to judge.
+case $subject in
+  "Merge "*|'Revert "'*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
+esac
+
+problems=""
+add() { problems="$problems
+  - $1"; }
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+if ! printf '%s\n' "$subject" | grep -Eq "^($types)(\([a-z0-9._/-]+\))?: .+"; then
+  add "Use 'type(scope): subject' with type one of ${types}. A fixed vocabulary keeps history greppable and lets tooling derive changelogs."
+else
+  rest=${subject#*: }
+  case $rest in
+    [A-Z]*) add "Start the subject in lowercase after the colon, in the imperative ('add', not 'added' or 'adds'): it reads as what applying the commit does." ;;
+  esac
+fi
+
+len=${#subject}
+if [ "$len" -lt 40 ] || [ "$len" -gt 50 ]; then
+  add "The subject is $len characters; keep the whole line, type and scope included, between 40 and 50. Under 40 says too little to be useful, over 50 gets truncated in common git UIs."
+fi
+
+case $subject in
+  *.) add "Drop the trailing period from the subject." ;;
+esac
+
+if [ -n "$second" ]; then
+  add "Leave a blank line between the subject and the body."
+fi
+
+if [ -n "$problems" ]; then
+  printf 'commit-msg: the subject needs fixing:%s\n\nSubject was: %s\n' "$problems" "$subject" >&2
+  exit 1
+fi
