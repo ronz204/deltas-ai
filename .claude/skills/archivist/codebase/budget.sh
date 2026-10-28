@@ -2,7 +2,7 @@
 # Context budget report for the Claude Code knowledge base (POSIX sh and awk, read-only).
 # Classes every knowledge-base file by how often it is loaded and compares it with the
 # ceilings in .claude/budget.conf. It also warns, without failing --check, about rules whose
-# `paths:` match no file and about shipped git hooks that git is not pointed at.
+# `paths:` match no file.
 #
 # Usage: sh budget.sh [--root DIR] [--all] [--check]
 #   --root DIR  project root (default: the git top level, else the current directory)
@@ -129,17 +129,6 @@ dead_globs() {
   done
 }
 
-# The shipped git hooks only run once git is pointed at them. Warns only.
-hooks() {
-  [ -d .githooks ] || return 0
-  cur=$(git config core.hooksPath 2>/dev/null)
-  case $cur in
-    .githooks) ;;
-    "") echo "inactive: run  git config core.hooksPath .githooks" ;;
-    *) echo "other: core.hooksPath is $cur, so .githooks does not run" ;;
-  esac
-}
-
 ROWS=$(rows | sort -t'|' -k1,1 -k6,6nr)
 [ -n "$ROWS" ] || { echo "nothing to measure"; exit 0; }
 POINTERS=$(pointers)
@@ -166,9 +155,6 @@ echo "$POINTERS" | sed -n 's/^broken|/  broken: /p; s/^ambiguous|/  ambiguous: /
 echo; echo "DEAD GLOBS (warning: the rule never loads)"
 DEAD=$(dead_globs)
 [ -n "$DEAD" ] && echo "$DEAD" | sed 's/^/  /' || echo "  none"
-echo; echo "HOOKS (warning)"
-HK=$(hooks)
-[ -n "$HK" ] && echo "  $HK" || echo "  ok"
 [ "$ALL" = 1 ] && { echo; echo "EVERYTHING MEASURED"; table all; }
 
 [ "$CHECK" = 1 ] && [ $(( OVER + TOTAL_OVER + BROKEN )) -gt 0 ] && exit 1
