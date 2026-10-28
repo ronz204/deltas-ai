@@ -137,7 +137,7 @@ This repo has no application source of its own — it *is* the reusable harness.
 6. anything else worth documenting         → Archivist, directly
 ```
 
-1. **Copy** `.claude/` into the target repo.
+1. **Copy** `.claude/` and `.githooks/` into the target repo. The commit hook only runs once git is pointed at it, with `git config core.hooksPath .githooks` once per clone; the Surveyor checks for an existing hooks setup first, and the budget report warns when the hook is inactive.
 2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and fills in the six `.claude/docs/*` files from what it finds in the codebase (or from a short interview, if the repo is greenfield).
 3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
 4. **Build** — *"implement the checkout slice"* — invokes 🔨 **Executor**, which computes the work from the spec's claims that aren't verified yet, proposes the plan for your approval, then writes tests first and the code. It edits source and tests only, never the knowledge base.
@@ -154,7 +154,8 @@ This repo has no application source of its own — it *is* the reusable harness.
 | Path | Purpose |
 |---|---|
 | `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`), including the surveyor's optional rule catalog (`references/catalog/`) |
-| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes |
+| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (global, with its detail in the Executor's references) |
+| `.githooks/` | A `commit-msg` git hook that checks the commit subject format and explains each failure, so the commit rule only carries the judgment calls |
 | `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
 
