@@ -38,7 +38,7 @@ Think of Delta as a small team of assistants that keep a project's notes honest,
 
 ### A typical week
 
-1. **Day one, once per project:** *"bootstrap this repo with Delta"*. The agent reads your codebase (or asks a few questions if it's empty) and writes the project's overview and a `CLAUDE.md` that points to everything.
+1. **Day one, once per project:** *"bootstrap this repo with Delta"*. The agent reads your codebase (or asks a few questions if it's empty) and writes a `CLAUDE.md` that points to everything, plus the few docs that hold something the code doesn't show.
 2. **New feature:** *"let's spec out invoices"*. You get asked a handful of targeted questions: what it's for, what must never break, what's still undecided. The answers become `invoices.spec.md`.
 3. **Build it:** *"implement the invoices slice"*. The agent shows a plan built from the claims not yet proven. You approve it, and it writes the tests first, then the code.
 4. **Later, after changes:** *"check invoices for drift"*. You get a short table: what still holds, what was broken, what can't be verified.
@@ -50,7 +50,7 @@ You decide at every step that matters: the plan is yours to approve, and nothing
 
 Delta splits its rules in two:
 
-- **Required** (`.claude/rules/`): the ones Delta itself needs to work, such as how the knowledge base is edited, when something deserves a spec, how much context it may cost, and the lean-change rule that keeps code changes small.
+- **Required** (`.claude/rules/`): the ones Delta itself needs to work, such as how the knowledge base is edited, when something deserves a spec, how much context it may cost, the lean-change rule that keeps code changes small, and the commit message format.
 - **Optional** (the surveyor's rule catalog): conventions that depend on your language or team habits, such as DDD layering, Python and TypeScript idioms, and English-only code. When you bootstrap a project, the surveyor proposes the ones that match your repo and writes only the ones you confirm into your project's `.claude/rules/`; the rest cost you nothing.
 
 ---
@@ -112,7 +112,7 @@ CLAUDE.md                      router — orients a session fast, points at ever
    └─ expertise.md                non-obvious mechanisms/concepts the project leans on
 .claude/rules/<topic>.md       conventions auto-loaded when matching files are touched
 .claude/agents/<name>.md       bounded, repeatable subagents with their own tools/context
-services/<service>/deltas/     per-feature living contracts ("slices")
+deltas/                        per-feature living contracts ("slices"); <service>/deltas/ in a repo split into services
    ├─ <slice>.spec.md             logic-layer contract: intent, invariants, acceptance criteria
    └─ <slice>.design.md           presentation-layer contract (only if the slice has a UI)
 ```
@@ -152,9 +152,12 @@ This repo has no application source of its own — it *is* the reusable harness.
 
 | Path | Purpose |
 |---|---|
-| `.claude/skills/` | The five skills' instructions (`SKILL.md`) and their fill-in templates (`references/`), including the surveyor's optional rule catalog (`references/catalog/`) |
-| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (applied to every source change, spec or not) || `.claude/agents/`, `.claude/docs/` | Empty/skeleton here — populated per-project once bootstrapped, not part of the harness itself |
+| `.claude/skills/` | The five skills' instructions (`SKILL.md`) their bundled read-only scripts (`codebase/`) and their `references/`: artifact templates, doc skeletons and guides, plus the surveyor's optional rule catalog (`references/catalog/`) |
+| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (applied to every source change, spec or not) and commit messages |
+| `.claude/agents/`, `.claude/docs/` | Empty here — populated per project once bootstrapped, not part of the harness itself |
+| `.claude/budget.conf` | Context-budget ceilings, read by the budget script |
 | `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
+| `ROADMAP.md` | Fill-in template for a project's progress tracker, copied to the project root; outside the knowledge base, and no skill reads it |
 
 ## Non-goals
 
