@@ -85,7 +85,7 @@ rows() {
 # another skill resolves, but is ambiguous; a full path from the project root is unambiguous.
 pointers() {
   for d in .claude/skills/*/; do
-    for f in "$d"SKILL.md "$d"references/*.md; do
+    for f in "$d"SKILL.md "$d"references/*.md "$d"references/*/*.md; do
       [ -f "$f" ] || continue
       for p in $(grep -o '[A-Za-z0-9._/-]*references/[A-Za-z0-9._/-]*\.md' "$f" | sort -u); do
         case $p in
