@@ -3,6 +3,7 @@ paths:
   - ".claude/**"
   - "CLAUDE.md"
   - "deltas/**"
+  - "*/deltas/**"
 ---
 
 # Context Budget Conventions

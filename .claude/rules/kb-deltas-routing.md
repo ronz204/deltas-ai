@@ -1,10 +1,12 @@
 ---
 paths:
+  - "CLAUDE.md"
   - ".claude/CLAUDE.md"
   - ".claude/docs/**"
   - ".claude/rules/**"
   - ".claude/agents/**"
   - ".claude/skills/**"
+  - "deltas/**"
   - "*/deltas/**"
 ---
 
