@@ -8,11 +8,8 @@ always current truth, not a log of how it got there. Never restate an
 invariant or business rule that already lives in spec.md — reference the
 part of its contract that's relevant to rendering this surface instead of
 duplicating it, or the two files will drift against each other.
-In a repo genuinely split across multiple services, this file lives under
-whichever service actually renders the UI, in that service's own
-deltas/ — which may not be the same service <slice>.spec.md lives under. If
-so, name that other service explicitly wherever this file points at the
-logic contract, since a reader won't have both files in the same directory.
+In a repo split across multiple services, where this file lives and how it
+names its sibling spec is in references/spec.services.md.
 Fill every section; delete guidance comments before presenting the draft.
 Ground every claim in the actual source implementing the slice's UI once it
 exists, and in the project's design-system reference if one exists — never
