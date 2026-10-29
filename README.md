@@ -137,7 +137,7 @@ This repo has no application source of its own — it *is* the reusable harness.
 ```
 
 1. **Copy** `.claude/` into the target repo.
-2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and fills in the six `.claude/docs/*` files from what it finds in the codebase (or from a short interview, if the repo is greenfield).
+2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and creates the `.claude/docs/*` files that hold something the code doesn't show, from what it finds in the codebase (or from a short interview, if the repo is greenfield).
 3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
 4. **Build** — *"implement the checkout slice"* — invokes 🔨 **Executor**, which computes the work from the spec's claims that aren't verified yet, proposes the plan for your approval, then writes tests first and the code. It edits source and tests only, never the knowledge base.
 5. **Verify** after implementing — invokes 🛡️ **Sentinel**, which checks the spec's invariants against the real code — running the test each one links to, when it has one — and reports drift as a compact table:
