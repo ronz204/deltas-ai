@@ -50,9 +50,9 @@ Same discipline as `specifier`: confirm from Step 1 where possible, ask where it
 
 Package the investigation and interview results and invoke `archivist` to write, in one batch:
 
-- `CLAUDE.md` via `.claude/skills/archivist/references/claude.template.md` — project description, a "where to look" index, only the commands and structure the code doesn't make obvious, conventions.
+- `CLAUDE.md` via `.claude/skills/archivist/references/artifacts/claude.template.md` — project description, a "where to look" index, only the commands and structure the code doesn't make obvious, conventions.
 - `overview.md`, `modules.md`, `structure.md`, `database.md` and `expertise.md` — each created from its skeleton in `.claude/skills/archivist/references/skeleton/` only where Step 1/Step 2 found something that passed the filter. Where nothing passed, that doc is not created and gets no row in the `CLAUDE.md` index: never an unfilled skeleton, never a one-line "not applicable" file, and never padding with what the code already shows.
-- Each rule candidate confirmed in Step 2, as its own `.claude/rules/<topic>.md` via `.claude/skills/archivist/references/rules.template.md` — one file per concern, same as any other rule. Name each one like the rules already in `.claude/rules/`: an area word, then one or two topic words, hyphenated, similar in length to its neighbors, so the folder reads as a uniform list.
+- Each rule candidate confirmed in Step 2, as its own `.claude/rules/<topic>.md` via `.claude/skills/archivist/references/artifacts/rules.template.md` — one file per concern, same as any other rule. Name each one like the rules already in `.claude/rules/`: an area word, then one or two topic words, hyphenated, similar in length to its neighbors, so the folder reads as a uniform list.
 - Each catalog entry confirmed in Step 2: read the entry, then hand over everything above its `<!-- rationale -->` line verbatim, with a `paths:` frontmatter of the confirmed folders, under the entry's `installs-as` file name. It already follows `rules.template.md`, so it is not re-derived, and the rationale below the line stays in the catalog.
 
 This skill never writes any of these itself, same separation `specifier` keeps from `archivist` — it produces grounded material, `archivist` still does the write and still applies its own Step 0 discipline against what was found.

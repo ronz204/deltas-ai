@@ -9,7 +9,7 @@ invariant or business rule that already lives in spec.md — reference the
 part of its contract that's relevant to rendering this surface instead of
 duplicating it, or the two files will drift against each other.
 In a repo split across multiple services, where this file lives and how it
-names its sibling spec is in references/spec.services.md.
+names its sibling spec is in references/spec.layout.md.
 Fill every section; delete guidance comments before presenting the draft.
 Ground every claim in the actual source implementing the slice's UI once it
 exists, and in the project's design-system reference if one exists — never
