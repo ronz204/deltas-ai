@@ -63,7 +63,7 @@ Every artifact kind above has a fill-in skeleton. Most live in `references/`: `c
 
 ## Step 2 — Writing conventions for docs and rules
 
-These apply to `.claude/docs/*.md` and `.claude/rules/*.md`. They exist because earlier drafts got corrected for violating them. The volatile-vs-durable reference rule below also governs `.claude/skills/*` and `.claude/agents/*` — see `references/agents.guide.md` and `references/skills.guide.md`:
+These apply to `.claude/docs/*.md` and `.claude/rules/*.md`. They exist because earlier drafts got corrected for violating them. The volatile-vs-durable reference rule below also governs `.claude/skills/*` and `.claude/agents/*` — see `references/agents.template.md` and `references/skills.template.md`:
 
 - **No references to volatile implementation artifacts.** Never cite a specific file path, filename, or function/class/variable name as proof a convention exists, and never copy a table that already lives in a config file (e.g. a path-alias list belongs in the project's own config file alone — point at it, don't duplicate it). These break the moment the artifact moves or gets renamed, and nothing forces the doc to notice. Describe the *pattern*, not *where it currently lives*. Exception: a single-instance, tool-mandated config filename (`package.json`, `tsconfig.json`, `pyproject.toml`, `Dockerfile`, `compose.yml`) is safe to name — renaming one breaks the tool itself, so it isn't actually volatile.
 - **`.claude/docs/*.md` gets one carve-out from the rule above: durable architecture vocabulary.** A schema/table name, a named infrastructure role, a module boundary, a security invariant — these describe the system's actual shape and only change via a deliberate architecture decision, which is exactly what a docs file exists to capture. What still doesn't belong, even in docs, is *where in the source tree* that shape is implemented — a specific file path stays off-limits there too. `.claude/rules/*.md` and `.claude/skills/*` don't get this carve-out — they describe process/convention, not the system's architecture, so they stay fully agnostic to implementation nouns as well as locations.
@@ -97,14 +97,14 @@ paths:
 
 ## Steps 3–6 — Type-specific guides
 
-Conventions that apply to only one kind of artifact live in a guide beside its template, so they load only when that kind is being written. Before writing, read the guide for the kind you're writing:
+Conventions that apply to only one kind of artifact live in its template's header comment (a spec also has a guide), so they load only when that kind is being written. Before writing, read the file for the kind you're writing:
 
 | Writing | Read first |
 |---|---|
-| A subagent (`.claude/agents/`) | `references/agents.guide.md` |
-| A skill (`.claude/skills/<name>/SKILL.md`) | `references/skills.guide.md` |
+| A subagent (`.claude/agents/`) | `references/agents.template.md` |
+| A skill (`.claude/skills/<name>/SKILL.md`) | `references/skills.template.md` |
 | A spec or design (`deltas/`) | `references/spec.guide.md` |
-| `CLAUDE.md` | `references/claude.guide.md` |
+| `CLAUDE.md` | `references/claude.template.md` |
 
 Docs and rules need no extra guide: Step 2 covers them.
 

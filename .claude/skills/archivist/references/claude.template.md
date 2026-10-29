@@ -1,20 +1,19 @@
 <!--
-Template for CLAUDE.md — the project's root orientation file, loaded into
-every Claude Code session automatically. This is the one artifact in this
-system that's allowed — expected — to reference other files by path; its
-entire job is routing to where the real content lives, not holding that
-content itself. Keep it short: every line here costs context on every
-single turn, and Claude Code itself warns past 200 lines.
-Write it as an index of questions ("if you need X, read Y"), not as an
-inventory of what exists. Leave out anything the agent can derive from the
-code or the tool config — directory listings, dependency lists, commands a
-package manifest already makes obvious — because that is exactly the content
-that drifts and that distracts. Don't use `@path` imports to organize it:
-imported files load together with this one, so they add context instead of
-saving it.
-Fill every section; delete guidance comments before presenting the draft.
-Ground every claim the same as any other artifact — read the actual package
-manifest / build config / CI files and the real tree, don't guess.
+Template for CLAUDE.md — the project's root orientation file, loaded into every
+session automatically. Locate the existing file before assuming a path (repo
+root or .claude/) so a second one isn't created elsewhere.
+It is a router, not a reference: its job is to get a session oriented and point
+to the right deeper file, never to hold a second copy of what it points to. It
+is the one artifact allowed (expected) to reference other files by path.
+Keep it short: every line costs context on every turn. Claude Code itself warns
+past 200 lines; this project's ceiling is in the context-budget config.
+- Write the index as questions ("if you need X, read Y"), not an inventory.
+- Leave out what the code or tool config already shows (directory listings,
+  dependency lists, obvious commands): that is the content that drifts.
+- Don't use `@path` imports to organize it: imported files load together with
+  this one, so they add context instead of saving it.
+Fill every section; delete guidance comments before presenting the draft. Ground
+every claim in the real package manifest, build config, CI files and tree.
 -->
 
 # <Project name>
