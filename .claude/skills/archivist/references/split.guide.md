@@ -34,8 +34,7 @@ An agent that is not told to read a moved file will often not read it. Write eac
 | `CLAUDE.md` | Reduce it to a router: orientation, layout, commands, pointers. Move durable content into the matching doc and leave a pointer behind. | It is the one file allowed to point at everything. |
 | A doc | Evaluate which sections stand alone. Keep the doc as the entry point holding the overview and an index, and move the detailed sections into files inside a folder named after the doc. Each detail file stands alone and does not point to its siblings; only the entry doc points to its own details. | Keep file and folder names short and in the same length band as the existing doc names, one topic word each. The doc set stays the same size at the top level. |
 | Subagent body | Replace restated boilerplate with pointers to the rules and docs that already hold it. | A subagent runs in its own context, so anything it needs must be reachable from there. |
-| Description of a skill or subagent | Do not split. See the context budget rule. | Shortening can stop it triggering. |
-| Spec or design | Do not split mechanically. Hand the question to the specifier skill: does this slice span more than one capability? An optional context section that is large can move out of the spec. | Never split a slice by layer. |
+| Description of a skill or subagent, spec or design | Never split mechanically; the context budget rule says what to do instead. A large optional context section can move out of a spec. | Shortening a description can stop it triggering. Never split a slice by layer. |
 
 ## Naming
 

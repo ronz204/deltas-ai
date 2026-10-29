@@ -1,7 +1,15 @@
 <!--
-Template for .claude/rules/<name>.md — a convention auto-loaded when a matching
-file is opened/edited. Fill every section; delete guidance comments before
-presenting the draft.
+Template for .claude/rules/<name>.md — a convention auto-loaded when Claude Code
+reads a file matching the `paths:` globs below (same priority as CLAUDE.md).
+Fill every section; delete guidance comments before presenting the draft.
+- Quote every glob (YAML requires it for patterns starting with * or {).
+- One rule file per concern: a convention with different trigger paths is a new
+  rule, not an addition to an unrelated one.
+- Omit `paths:` only for a rule meant to apply globally (rare). A rule about how
+  to work (the size of a change, a process) applies whatever file is open, so it
+  is global and stays under the always-loaded rule ceiling, with detail only some
+  uses need moved to a reference that a pointer step loads. Scoping it by
+  `paths:` would leave it dead in any layout it didn't guess.
 -->
 ---
 paths:
@@ -13,9 +21,7 @@ paths:
 <!--
 One short paragraph: what this covers, what runtime/toolchain it targets, and
 what's explicitly out of scope for now (library-specific conventions not yet
-decided, forward-looking vs. descriptive-of-current-code, etc). Omit the
-`paths:` frontmatter entirely only if this rule is meant to be global (rare —
-most rules are scoped to specific paths).
+decided, forward-looking vs. descriptive-of-current-code, etc).
 -->
 
 ---

@@ -55,9 +55,7 @@ If content doesn't cleanly fit an existing file, propose either a new section in
 
 ## Use the matching template
 
-Every artifact kind above has a fill-in skeleton in `references/`: `claude.template.md` (CLAUDE.md), `rules.template.md`, `agents.template.md`, `skills.template.md`, `spec.template.md`, `design.template.md`. The five fixed `.claude/docs/*.md` categories — `overview.md`, `modules.md`, `structure.md`, `database.md`, `expertise.md` — have theirs in `references/skeleton/<name>.md`. `.claude/docs/` starts empty: a doc is created from its skeleton only when something passes the Step 2 filter. A category with nothing to say is not created (no one-line "not applicable" file) and gets no row in `CLAUDE.md`. A genuinely new doc category with no skeleton is modeled on the closest one. Read the matching skeleton before writing, and fill it in rather than re-deriving the shape from the prose in the steps below each time — the skeletons carry the structure, the steps below carry the reasoning behind that structure.
-
-**`spec.template.md` and `design.template.md` each carry one deliberate exception to their own fixed shape: an optional Context section.** It's meant to stay a loose, improvised write-up shaped by whatever the slice actually needs (a table here, a diagram there, a couple of paragraphs of explanation) rather than forcing supplementary theory into the same sections as the rest of the contract. Still ground it in the real source/technology per Step 0, and still keep it out of decision-log territory (see `references/spec.template.md`) — just don't reach for a fixed skeleton to structure it, and leave it out entirely for the common case where a slice doesn't need it.
+Every artifact kind above has a fill-in skeleton in `references/`, listed in the table under Steps 3–6. The five fixed doc categories (overview, modules, structure, database, expertise) have theirs in `references/skeleton/<name>.md`. `.claude/docs/` starts empty: a doc is created from its skeleton only when something passes the Step 2 filter. A category with nothing to say is not created (no one-line "not applicable" file) and gets no row in `CLAUDE.md`. A genuinely new doc category with no skeleton is modeled on the closest one. Read the matching skeleton before writing, and fill it in rather than re-deriving the shape from the prose in the steps below each time — the skeletons carry the structure, the steps below carry the reasoning behind that structure.
 
 ---
 
@@ -78,35 +76,20 @@ These apply to `.claude/docs/*.md` and `.claude/rules/*.md`. They exist because 
 - **Length:** every artifact has a ceiling set by how often it loads, kept in the project's context-budget config (Step 8) — a doc growing past its ceiling is a sign it needs splitting, and a rule stays scoped to one concern.
 - **Non-goals sections earn their place** when a scope boundary is easy to violate by accident.
 
-### Rule mechanics
-
-`.claude/rules/<name>.md` loads automatically when Claude Code reads a file matching the `paths:` glob patterns in the frontmatter — same priority as `CLAUDE.md`.
-
-```yaml
----
-paths:
-  - "<glob pattern, quoted — YAML requires it for patterns starting with * or {>"
----
-```
-
-- Quote every glob pattern (YAML requires it for patterns starting with `*` or `{`).
-- Omit `paths:` entirely only for a rule meant to apply globally — this should be rare. A rule about how to work (the size of a change, a process) applies whatever file is open, so it is global and stays under the always-loaded rule ceiling, with detail only some uses need moved to a reference that a pointer step loads; scoping it by `paths:` would leave it dead in any layout it didn't guess.
-- One rule file per concern — a new convention with different trigger paths is a new rule, not an addition to an unrelated one.
-
 ---
 
-## Steps 3–6 — Type-specific guides
+## Steps 3–6 — Type-specific skeletons
 
-Conventions that apply to only one kind of artifact live in its template's header comment (a spec also has a guide), so they load only when that kind is being written. Before writing, read the file for the kind you're writing:
+Conventions that apply to only one kind of artifact live in its skeleton's header comment (a spec also has a guide), so they load only when that kind is being written. Before writing, read the file for the kind you're writing. Step 2 applies on top of it to docs and rules:
 
 | Writing | Read first |
 |---|---|
+| A doc (`.claude/docs/`) | `references/skeleton/<name>.md` for its category |
+| A rule (`.claude/rules/`) | `references/rules.template.md` |
 | A subagent (`.claude/agents/`) | `references/agents.template.md` |
 | A skill (`.claude/skills/<name>/SKILL.md`) | `references/skills.template.md` |
-| A spec or design (`deltas/`) | `references/spec.guide.md` |
+| A spec or design (`deltas/`) | `references/spec.template.md` or `references/design.template.md`, plus `references/spec.guide.md` |
 | `CLAUDE.md` | `references/claude.template.md` |
-
-Docs and rules need no extra guide: Step 2 covers them.
 
 ---
 
