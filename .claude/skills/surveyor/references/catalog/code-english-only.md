@@ -1,5 +1,4 @@
 ---
-id: lang-en
 installs-as: code-english-only
 applies-when: identifiers and runtime strings must be English whatever language the team speaks
 paths-default:

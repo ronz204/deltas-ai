@@ -1,5 +1,4 @@
 ---
-id: lang-py
 installs-as: code-py-idiomatic
 applies-when: the project's source is Python under a DDD layout
 paths-default:
