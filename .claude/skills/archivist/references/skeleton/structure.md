@@ -1,7 +1,8 @@
 <!--
-Fill-in skeleton shipped with the harness: copy it into a project and fill it in
-place (surveyor to bootstrap, archivist to update). Delete these comments once
-every section holds real, grounded content. Ground every claim in the actual
+Skeleton for a .claude/docs doc. Create the doc from it only when something
+passes the filter (what the code and README don't show); a category with nothing
+to say is not created. Delete these comments once every section holds real,
+grounded content. Ground every claim in the actual
 stack and config, never in what a similar project usually looks like.
 Record the reasoning and the facts the code doesn't show. A technology list, a
 dependency map or a request flow that manifests and imports already state is

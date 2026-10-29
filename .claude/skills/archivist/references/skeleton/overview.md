@@ -1,7 +1,8 @@
 <!--
-Fill-in skeleton shipped with the harness: copy it into a project and fill it in
-place (surveyor to bootstrap, archivist to update). Delete these comments once
-every section holds real, grounded content.
+Skeleton for a .claude/docs doc. Create the doc from it only when something
+passes the filter (what the code and README don't show); a category with nothing
+to say is not created. Delete these comments once every section holds real,
+grounded content.
 Keep only what the code and the README don't tell: where the project's boundary
 sits, the few things it deliberately builds together, and domain terms a reader
 can't infer. The vision for newcomers lives in the project's README, not here.

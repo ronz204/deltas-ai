@@ -1,7 +1,8 @@
 <!--
-Fill-in skeleton shipped with the harness: copy it into a project and fill it in
-place (surveyor to bootstrap, archivist to update). Delete these comments once
-every section holds real, grounded content. Ground every claim in the real
+Skeleton for a .claude/docs doc. Create the doc from it only when something
+passes the filter (what the code and README don't show); a category with nothing
+to say is not created. Delete these comments once every section holds real,
+grounded content. Ground every claim in the real
 source, never infer behavior from a filename or from what a similar project does.
 It holds only what reading one component doesn't reveal: a component's own
 behavior and data shape are in its code, and a capability's contract is its

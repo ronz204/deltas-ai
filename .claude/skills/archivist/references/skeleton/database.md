@@ -1,7 +1,8 @@
 <!--
-Fill-in skeleton shipped with the harness: copy it into a project and fill it in
-place (surveyor to bootstrap, archivist to update). Delete these comments once
-every section holds real, grounded content. Ground every claim in the real
+Skeleton for a .claude/docs doc. Create the doc from it only when something
+passes the filter (what the code and README don't show); a project with no
+persistent store gets no file. Delete these comments once every section holds
+real, grounded content. Ground every claim in the real
 schema, migrations and provisioning config, never in what a similar stack
 usually looks like.
 Record what the schema files don't say on their own: rationale, invariants,

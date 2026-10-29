@@ -104,7 +104,7 @@ Once bootstrapped, a project's Delta knowledge base has three layers — a route
 
 ```
 CLAUDE.md                      router — orients a session fast, points at everything else
-.claude/docs/                  curated, project-wide reference (up to 5 files)
+.claude/docs/                  curated, project-wide reference (up to 5 files, each created only if it holds what the code doesn't show)
    ├─ overview.md                 scope, non-goals, pillars, domain vocabulary
    ├─ modules.md                  cross-component flows and non-obvious behavior
    ├─ structure.md                architecture decisions and rationale, infrastructure, cross-cutting patterns

@@ -28,8 +28,8 @@ every claim in the real package manifest, build config, CI files and tree.
 The index. One row per question a session actually has; the second column is a
 trigger ("read X when you need Y"), not a description of the folder. List only
 what actually exists in this project — no row for a directory that doesn't
-exist yet, none for a convention this project hasn't adopted — and adapt the
-doc rows to the docs the project really has. The `deltas/` row is the default
+exist yet, none for a convention this project hasn't adopted — and keep a
+doc row only for a doc that exists (a category with nothing to say isn't created). The `deltas/` row is the default
 for a project with one root; if this repo is genuinely split into multiple
 independently-deployable services, replace it with one row per service's own
 `<service>/deltas/`. Don't list the slices themselves: the session finds them
