@@ -104,13 +104,12 @@ Once bootstrapped, a project's Delta knowledge base has three layers — a route
 
 ```
 CLAUDE.md                      router — orients a session fast, points at everything else
-.claude/docs/                  curated, project-wide reference (always 6 files)
-   ├─ overview.md                 vision, scope, domain concepts
+.claude/docs/                  curated, project-wide reference (up to 5 files)
+   ├─ overview.md                 scope, non-goals, pillars, domain vocabulary
    ├─ modules.md                  cross-component flows and non-obvious behavior
-   ├─ structure.md                stack, topology, infrastructure, cross-cutting patterns
-   ├─ database.md                 data model + persistence infrastructure
-   ├─ expertise.md                non-obvious mechanisms/concepts the project leans on
-   └─ approach.md                 build philosophy, roadmap, done criteria
+   ├─ structure.md                architecture decisions and rationale, infrastructure, cross-cutting patterns
+   ├─ database.md                 persistence invariants, access control, data model where the schema is silent
+   └─ expertise.md                non-obvious mechanisms/concepts the project leans on
 .claude/rules/<topic>.md       conventions auto-loaded when matching files are touched
 .claude/agents/<name>.md       bounded, repeatable subagents with their own tools/context
 services/<service>/deltas/     per-feature living contracts ("slices")

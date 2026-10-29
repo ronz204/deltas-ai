@@ -40,12 +40,11 @@ by listing the folder, so adding one never means editing this file.
 | If you need... | Read |
 |---|---|
 | The contract of a capability before changing its behavior | `deltas/` — list the folder and open the spec that matches (and its design file for UI work) |
-| What the system is, its scope and vocabulary | `.claude/docs/overview.md` |
+| The project's scope, non-goals and domain vocabulary | `.claude/docs/overview.md` |
 | Behavior that spans components or isn't evident from one | `.claude/docs/modules.md` |
-| The stack, topology, how the parts communicate | `.claude/docs/structure.md` |
+| Why the architecture is the way it is: decisions, infrastructure, cross-cutting patterns | `.claude/docs/structure.md` |
 | The data model and persistence | `.claude/docs/database.md` |
 | How a non-trivial mechanism works | `.claude/docs/expertise.md` |
-| The build order, roadmap and done criteria | `.claude/docs/approach.md` |
 | A repeatable task or capability | `.claude/agents/` and `.claude/skills/` |
 | What the agent may or may not run | `.claude/settings.json` — <one sentence on the reasoning only if the file doesn't make it obvious> |
 | A convention for the files you're editing | Nothing to do: `.claude/rules/` loads by itself when a matching file is read |
