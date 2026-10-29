@@ -104,11 +104,12 @@ Conventions that apply to only one kind of artifact live in its skeleton's heade
 - If you wrote or edited a `<slice>.spec.md`, confirm the file itself reads as complete and current — there's no history entry to fall back on, so a claim left implicit or half-updated stays that way until the next edit. Also confirm every invariant and acceptance criterion carries a verification tag, and that each `test` tag's file and name were confirmed to exist. Also confirm every new or revised invariant is one claim in an EARS form with an observable response, and every acceptance criterion is a Given/When/Then line.
 - If you wrote or edited a `<slice>.design.md`, apply the same completeness check, plus confirm it didn't restate an invariant or business rule that already lives in `<slice>.spec.md` — it should reference that contract, not duplicate it.
 - If Step 0 turned up a conflict between artifacts, or between an artifact and the code, lead with that when presenting the draft — don't bury it at the end.
+
 ---
 
 ## Step 8 — Check the context budget
 
-Every artifact has a ceiling on how much context it may cost, set by how often it loads — see the context budget rule. After writing or editing anything in the knowledge base, run `sh .claude/skills/archivist/codebase/budget.sh` (read-only, costs no model tokens) and read only its "over a ceiling" and "broken pointers" sections.
+Every artifact has a ceiling on how much context it may cost, set by how often it loads — see the context budget rule. After writing or editing anything in the knowledge base, run `sh .claude/skills/archivist/codebase/budget.sh` (read-only, costs no model tokens) and read only its "over a ceiling" and "pointers" sections.
 
 - If what you touched is over its ceiling, don't trim it to fit and don't ship it over: fit it by splitting. Read `references/fitting.md`, show the user the split plan (what stays, what moves where, which pointer replaces it), and apply it only once they confirm.
 - If a pointer is reported broken, fix it before presenting.
