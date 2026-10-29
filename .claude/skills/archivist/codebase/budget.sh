@@ -61,6 +61,9 @@ measure() {
     skill|agent)
       emit always "$1-desc" chars "$5" "$1_desc_chars" "$2" "$(est "$5")"
       emit invoke "$1" lines "$3" "$1_body_lines" "$2" ;;
+    reference)   # also by characters: a few very long lines pass a line ceiling
+      emit demand reference lines "$3" reference_lines "$2"
+      emit demand ref-chars chars "$(( $(wc -c < "$2") ))" reference_chars "$2" ;;
     *) emit demand "$1" lines "$3" "$1_lines" "$2" ;;
   esac
 }
