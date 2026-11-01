@@ -154,7 +154,7 @@ type Runner interface {
 | `findings` | El hallazgo que todo validador reporta | `Diagnostic` (archivo, línea, código estable, mensaje) |
 | `assertion` | El átomo del contrato | `ID`, `ParseID(string) (ID, error)`, `Kind` (`Invariant`, `Acceptance`), `Method` (`Test`, `Manual`, `None`: cómo se verifica un claim), `Tag` (método y argumento), `Claim` (ID, tag, texto, línea), `CheckStatement(kind, texto) error` |
 | `specfile` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
-| `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool` |
+| `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool`: el ciclo, y la vuelta a `draft` desde cualquier otro estado |
 | `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome`; `Mark` (el árbol que vio un `delta check` y si hubo violación) y `Mark.At(tree)`, que dice si es `Unchecked`, `Failing` o `Passing` para el árbol de ahora |
 | `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs. `Scope` es la parte del proyecto de la que depende un slice: todos los archivos de código, o solo las rutas que `delta.conf` declare para él, más su propio spec; el Markdown no cuenta. `TestMatcher` dice qué archivos son tests, con los patrones de `delta.conf` o con la regla propia de Delta |
@@ -177,9 +177,9 @@ Observaciones:
 | Paquete | Comandos | Qué orquesta |
 |---|---|---|
 | `setup` | `delta init`, y el aviso de `status` y `SessionStart` | `Run` escribe el esqueleto, instala el harness desde `bundle` y fija `core.hooksPath` sin pisar uno ajeno; es idempotente. `Check` lista los problemas de instalación, sin fallar. `Check` incluye también los problemas de `delta.conf` y las herramientas que pide y no están en el `PATH` |
-| `author` | `delta spec new`, `spec write`, `link`, `approve` | Valida con `domain` y escribe con `vaults`. Es el único camino de escritura de la KB |
+| `author` | `delta spec new`, `spec write`, `link`, `approve`, `built` | Valida con `domain` y escribe con `vaults`. Es el único camino de escritura de la KB, y aplica las reglas de estado de `spec write` (sección 7.2) |
 | `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `judgment.Judge` y anota qué slices revisó y si hubo violación (`ledger`) |
-| `status` | `delta status`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git` |
+| `status` | `delta status`, `ready`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git`. `Ready` dice si un slice puede construirse |
 | `guard` | `delta hook` | Responde "¿se permite esto?" para cada evento: editar la KB, commitear, empezar la sesión y terminar el turno (`Stop`) |
 | `measure` | `delta budget` | Lee los archivos que se cargan siempre y los pesa contra los techos que le da `delta.conf` (o los valores por defecto) |
 
@@ -221,6 +221,8 @@ Observaciones:
 | `delta version` | `cmd` | (ninguno) | (ninguno) |
 | `delta commit-msg <archivo>` | `cmd` | (ninguno: `cmd` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
 | `delta approve <slice>` | `cmd` | `author` | `lifecycle` |
+| `delta built <slice>` | `cmd` | `author` | `lifecycle` |
+| `delta ready <slice>` | `cmd` | `status` | `lifecycle` |
 | `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
 | `delta hook` | `hook` | `guard` | `knowledge`, `commits` |
 
@@ -251,7 +253,19 @@ draft  ->  approved  ->  built  ->  verified
                            +-- stale <-+
 ```
 
-`slice.Can(from, to)` es la única fuente de qué transiciones son legales. Solo el CLI modifica el estado.
+`lifecycle.Can(from, to)` es la única fuente de qué transiciones son legales. Solo el CLI modifica el estado, y cada cambio edita únicamente la línea `status:` (`specfile.SetStatus`).
+
+| Transición | Quién la dispara |
+|---|---|
+| `draft → approved` | `delta approve <slice>`, una persona. Exige un spec sin problemas y con claims; `settings.json` obliga a Claude Code a pedir confirmación a la persona |
+| `approved → built` y `stale → built` | `delta built <slice>`, que ejecuta Forge al cerrar su trabajo |
+| `built → verified` | `delta check`, cuando todos los claims `test` del slice se cumplen y hay al menos uno; los `manual` y `none` quedan visibles como deuda. *Se pide uno como mínimo para que un slice sin nada ejecutado no figure como verificado* |
+| `verified → stale` | `delta stale`, en la Fase 5 |
+| cualquiera `→ draft` | `spec write`, cuando cambia el contenido de un spec que ya pasó de `draft` (aviso `AUTHOR-REAPPROVE`): un contrato distinto necesita otra aprobación |
+
+`spec write` no puede mover un spec hacia delante: uno nuevo solo puede escribirse como `draft` (`AUTHOR-NEW-STATUS`) y uno existente no puede declarar un estado que no tiene (`AUTHOR-SET-STATUS`). Cambiar solo los tags con `delta link` no cambia el estado.
+
+`delta ready <slice>` es la compuerta de Forge: sale con 0 solo si el spec no tiene problemas y está `approved` o `stale`; si no, sale con 1 y dice qué falta.
 
 ### 7.3 Diagnósticos y códigos de salida
 
@@ -505,8 +519,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 
 **Abiertos**
 
-1. **Quién dispara `approved → built` y `built → verified`.** *Aprobado para la Fase 3:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando.
-2. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. *Espera a la Fase 3:* un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado.
+*Ninguno por ahora.*
 
 **Decididos, por implementar**
 
@@ -518,6 +531,8 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 
 **Resueltos**
 
+- **Quién dispara `approved → built` y `built → verified`.** `delta built` (Forge) y `delta check`; tabla en la sección 7.2.
+- **`spec write` y el estado.** Un spec nuevo solo nace `draft`, y solo los comandos de estado lo mueven hacia delante (sección 7.2).
 - **Formato del JSON de los hooks.** Verificado en la documentación de Claude Code; el contrato y sus límites están en la sección 8.5.
 - **Versión de Go y ruta del módulo.** Fijadas en `go.mod`: `github.com/ronz204/deltas-ai`, Go 1.27.
 - **Configuración de `golangci-lint`.** `.golangci.yml` activa `errcheck`, `govet`, `ineffassign`, `staticcheck` y `unused`, y un trabajo `lint` de CI la corre. `errcheck` ignora las escrituras con `fmt.Fprint*`, `Flush` de `tabwriter` y `os.Remove`, que no tienen nada útil que manejar. Ya encontró una constante muerta en un test y un `Close` sin comprobar.

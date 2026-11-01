@@ -10,14 +10,14 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 39 de 71 tareas, 55 %**
+**Avance total: 43 de 71 tareas, 61 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
 | 2 | Hooks | ✅ Terminada | 16/16, 100 % |
-| 3 | Estados y Forge | 🔲 Pendiente | 0/10, 0 % |
+| 3 | Estados y Forge | 🔄 En progreso | 4/10, 40 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
 | 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
@@ -138,15 +138,15 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 3: estados y Forge
 
-**Estado: 🔲 Pendiente, 0/10.**
+**Estado: 🔄 En progreso, 4/10.**
 
 *Prerrequisito de las reglas de generación (§6.3, §6.6).*
 
 **Entregables**
-- [ ] Máquina de estados `draft → approved → built → verified`, con `stale` como retorno, guardada en el frontmatter y modificada solo por el CLI. Decidir aquí qué comando dispara `approved → built` y `built → verified` (`blueprint.md`, §16).
-- [ ] `delta approve <slice>` (lo ejecuta la persona).
-- [ ] Forge con entrada explícita (`/forge <slice>`) y sin arrancar si el spec no está `approved` y limpio.
-- [ ] Forge usa `delta link` para enlazar los tests que escribe, sin editar la KB.
+- [x] Máquina de estados `draft → approved → built → verified`, con `stale` como retorno, guardada en el frontmatter y modificada solo por el CLI. *`lifecycle.Can` es la única fuente de transiciones y `specfile.SetStatus` edita solo esa línea. `delta built <slice>` hace `approved → built` (lo ejecuta Forge) y `delta check` hace `built → verified` cuando todos los claims `test` se cumplen y hay al menos uno. `spec write` ya no cambia el estado: un spec nuevo nace `draft`, y uno aprobado que cambia de contenido vuelve a `draft` con un aviso (`AUTHOR-REAPPROVE`). `stale` solo se alcanza en la Fase 5 (`blueprint.md`, §7.2 y §16).*
+- [x] `delta approve <slice>` (lo ejecuta la persona). *Exige un spec sin problemas, en `draft` y con al menos un claim. El fragmento de `settings.json` hace que Claude Code pida confirmación a la persona (`ask` sobre `Bash(delta approve *)`).*
+- [x] Forge con entrada explícita (`/forge <slice>`) y sin arrancar si el spec no está `approved` y limpio. *El skill lleva `disable-model-invocation` y `argument-hint`, y su paso 0 corre `delta ready <slice>`: sale con 1 y dice por qué si el spec tiene problemas, es un borrador o ya está construido. Pasa `approved` y `stale`. Que el skill se dispare de verdad queda para el criterio de cierre (corrida headless).*
+- [x] Forge usa `delta link` para enlazar los tests que escribe, sin editar la KB. *Ya no depende de `links.sh` ni pide la etiqueta a `archivist`: usa `delta check`, `delta lint`, `delta link`, `delta built`. Lo único que cambia en el spec son tags (con `link`) y estado (con `built`).*
 - [ ] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `source/harness/`.
 - [ ] El hook `Stop` señala el trabajo pendiente si Forge no corrió.
 - [ ] Varios `deltas/` por proyecto: descubrimiento de scopes, slices `servicio/slice` y comandos desde la carpeta del scope (`blueprint.md`, §16).
