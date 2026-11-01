@@ -34,7 +34,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 2 | Tres carpetas de código: `entries`, `internal`, `harness` | Decidido |
 | 3 | `go.mod` en la raíz del repo | Decidido |
 | 4 | Cuatro capas dentro de `internal`: `domain`, `usecase`, `gateway`, `adapter` | Decidido |
-| 5 | Nombres de paquete de una palabra, de longitud pareja: 8 a 9 letras en `domain`, 5 a 6 en las demás capas | Decidido |
+| 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en las demás capas | Decidido |
 | 6 | CLI con `spf13/cobra` | Decidido |
 | 7 | Se añade el comando `delta hook <evento>` | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`redirection.md`, 6.4) |
@@ -61,7 +61,7 @@ deltas-ai/
 │   │   ├── judgment/            # Verdict (Holds, Violated, Unverified) y la regla de evidencia
 │   │   ├── drift/               # regla de stale: archivos cambiados vs referenciados
 │   │   ├── linkcheck/           # reglas de coherencia entre specs y tests
-│   │   ├── messages/            # validador de Conventional Commits
+│   │   ├── commits/             # validador de Conventional Commits
 │   │   └── budget/              # conteo de caracteres y techo
 │   ├── usecase/                 # orquestación; declara los puertos (interfaces) que necesita
 │   │   ├── setup/               # delta init
@@ -146,7 +146,7 @@ type Runner interface {
 | `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome` |
 | `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs |
-| `messages` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
+| `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
 | `budget` | Presupuesto de contexto | `Count(text) int` (caracteres entre 4), `Check(total, ceiling) Outcome` |
 
 Observaciones:
@@ -156,7 +156,7 @@ Observaciones:
 - **`linkcheck` reconoce el ID con coincidencia tolerante** (`INV-01`, `INV_01`, `INV01`, sin distinguir mayúsculas, con un límite al final para que `INV01` no coincida con `INV011`), porque en Go los nombres de función no admiten guiones.
 - **`linkcheck.Cited` acota la cita a las rutas del comando.** Los IDs son únicos solo por spec, así que un test de `facturacion` no puede dar `Holds` al `INV-01` de `pagos`. Una ruta es un argumento que empieza por `./`, `../` o es `.`, o que lleva una barra y termina en un archivo de script; los flags y sus valores no cuentan. *Shortcut: no se interpretan comillas ni rutas con espacios; si ningún argumento parece ruta, vale cualquier test.*
 - **`linkcheck.Check` emite avisos además de errores.** Un claim `test` que nadie cita es un error (`LINT-NO-CITE`). Un test que cita un ID que ningún spec define (`LINT-UNKNOWN-ID`, solo en mayúsculas para no confundirlo con una variable `inv1`) y un archivo que cita IDs y salta o enfoca un test (`LINT-SKIP`) son avisos (`Diagnostic.Warn`): se imprimen pero no fallan la ejecución.
-- **`messages.Validate` ignora las líneas `#`** (git las quita), deja pasar los mensajes que git genera (`Merge `, `Revert "`, `fixup! `, `squash! `) y no comprueba el modo imperativo, porque ninguna regla distingue "embed" de "embedded" sin un diccionario.
+- **`commits.Validate` ignora las líneas `#`** (git las quita), deja pasar los mensajes que git genera (`Merge `, `Revert "`, `fixup! `, `squash! `) y no comprueba el modo imperativo, porque ninguna regla distingue "embed" de "embedded" sin un diccionario.
 
 ### 5.2 `usecase`
 
@@ -202,10 +202,10 @@ Observaciones:
 | `delta status` | `cli` | `status` | `lifecycle`, `judgment`, `drift` |
 | `delta stale` | `cli` | `status` | `drift` |
 | `delta budget` | `cli` | `guard` | `budget` |
-| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/messages`; `guard` nace en la Fase 2, cuando decida algo propio) | `messages` |
+| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
 | `delta approve <slice>` | `cli` | `author` | `lifecycle` |
 | `delta context <slice>` | `cli` | `status` | `specfile`, `assertion` |
-| `delta hook <evento>` | `hook` | `guard` | `lifecycle`, `messages`, `budget`, `judgment` |
+| `delta hook <evento>` | `hook` | `guard` | `lifecycle`, `commits`, `budget`, `judgment` |
 
 `delta hook` se invoca desde `.claude/settings.json` con un evento (`session-start`, `pre-edit`, `pre-commit`, `post-edit`, `stop`). *Propuesta de nombres; se fijan al implementarlo.*
 
@@ -279,7 +279,7 @@ Cada evento sigue el mismo camino: `hook` lee el JSON, `guard` decide, `hook` tr
 |---|---|
 | `session-start` | Qué slices están `stale` o sin verificar; avisa si falta `core.hooksPath` o el binario |
 | `pre-edit` | Bloquea la edición directa de la KB por el agente |
-| `pre-commit` | Valida el mensaje con `messages.Validate`; bloquea con 2 si no cumple |
+| `pre-commit` | Valida el mensaje con `commits.Validate`; bloquea con 2 si no cumple |
 | `post-edit` | Dispara el linter del proyecto y `stale` |
 | `stop` | Exige evidencia de que `delta check` corrió tras el último cambio |
 
@@ -392,7 +392,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 3. `domain/linkcheck`, `domain/judgment` y los casos de uso `verify` para `delta spec lint` y `delta lint`.
 4. `gateway/runner`, `gateway/files` y `delta check`.
 5. `domain/drift` no entra aquí: es de la Fase 5.
-6. `gateway/gitcli`, `domain/messages`, `domain/budget` y sus comandos.
+6. `gateway/gitcli`, `domain/commits`, `domain/budget` y sus comandos.
 7. La suite de compatibilidad con proyectos reales de Go y TypeScript.
 
 `adapter/hook`, `usecase/guard` y `setup` pertenecen a la Fase 2; `author` con `approve` y las transiciones, a la Fase 3.
@@ -420,7 +420,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 3. **Formato del JSON de los hooks** y nombres definitivos de los eventos de `delta hook` (*a verificar*, sección 8.5).
 4. **Versión de Go y ruta del módulo** (`github.com/ronz204/deltas-ai` es la ruta natural del repositorio actual; la versión de Go se fija al crear `go.mod`).
 5. **Configuración de `golangci-lint`**: qué linters se activan.
-6. **Códigos de diagnóstico**: ya existen los de `specfile` (`SPEC-*`), `linkcheck` (`LINT-*`) y `messages` (`COMMIT-*`); se completan con cada comando nuevo.
+6. **Códigos de diagnóstico**: ya existen los de `specfile` (`SPEC-*`), `linkcheck` (`LINT-*`) y `commits` (`COMMIT-*`); se completan con cada comando nuevo.
 7. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. Cerrar ese hueco (un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado) es parte de la máquina de estados de la Fase 3.
 8. **Repos con servicios.** Los contratos se leen solo de `<raíz>/deltas`. Un repo partido en servicios, con un `deltas/` por servicio, no está soportado todavía.
 9. **Separar `Kind` y `TagKind` en `assertion`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.
