@@ -36,11 +36,11 @@ type Outcome struct {
 // Judge decides a claim; exit and cited only matter for a Test tag.
 func Judge(tag assertion.Tag, exit int, cited bool) Outcome {
 	switch {
-	case tag.Kind == assertion.Manual && tag.Arg != "":
+	case tag.Method == assertion.Manual && tag.Arg != "":
 		return Outcome{Unverified, "checked by hand: " + tag.Arg}
-	case tag.Kind == assertion.Manual:
+	case tag.Method == assertion.Manual:
 		return Outcome{Unverified, "checked by hand"}
-	case tag.Kind != assertion.Test:
+	case tag.Method != assertion.Test:
 		return Outcome{Unverified, "nothing verifies this claim yet"}
 	case exit != 0:
 		return Outcome{Violated, fmt.Sprintf("the command exited %d", exit)}

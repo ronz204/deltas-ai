@@ -44,7 +44,7 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		sp, ds := specfile.ParseSlice(r.specs.Path(name), name, src)
 		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds)}
 		for _, c := range sp.Claims {
-			switch c.Tag.Kind {
+			switch c.Tag.Method {
 			case assertion.Test:
 				row.Test++
 			case assertion.Manual:

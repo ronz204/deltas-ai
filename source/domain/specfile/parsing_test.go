@@ -53,10 +53,10 @@ func TestParseValid(t *testing.T) {
 		return v
 	}
 	want := []assertion.Claim{
-		{ID: id("INV-01"), Tag: assertion.Tag{Kind: assertion.Test, Arg: "go test ./invoicing"}, Text: "When an invoice is issued, the system shall round each line to 2 decimals before summing.", Line: 10},
-		{ID: id("INV-02"), Tag: assertion.Tag{Kind: assertion.None}, Text: "The system never issues two invoices with the same sequence number.", Line: 13},
-		{ID: id("INV-03"), Tag: assertion.Tag{Kind: assertion.Manual, Arg: "read the PDF of a sample invoice"}, Text: "Where a tax rate is set, tax is computed on the discounted subtotal.", Line: 15},
-		{ID: id("ACC-01"), Tag: assertion.Tag{Kind: assertion.Test, Arg: "go test ./e2e/sequence"}, Text: "Given invoice 1001 exists, when another is issued with 1001, then it is rejected.", Line: 19},
+		{ID: id("INV-01"), Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./invoicing"}, Text: "When an invoice is issued, the system shall round each line to 2 decimals before summing.", Line: 10},
+		{ID: id("INV-02"), Tag: assertion.Tag{Method: assertion.None}, Text: "The system never issues two invoices with the same sequence number.", Line: 13},
+		{ID: id("INV-03"), Tag: assertion.Tag{Method: assertion.Manual, Arg: "read the PDF of a sample invoice"}, Text: "Where a tax rate is set, tax is computed on the discounted subtotal.", Line: 15},
+		{ID: id("ACC-01"), Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./e2e/sequence"}, Text: "Given invoice 1001 exists, when another is issued with 1001, then it is rejected.", Line: 19},
 	}
 	if !reflect.DeepEqual(sp.Claims, want) {
 		t.Fatalf("claims:\n got %+v\nwant %+v", sp.Claims, want)

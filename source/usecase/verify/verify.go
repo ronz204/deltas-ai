@@ -143,7 +143,7 @@ func hasTestClaims(ls []loaded) bool {
 			continue
 		}
 		for _, c := range l.spec.Claims {
-			if c.Tag.Kind == assertion.Test {
+			if c.Tag.Method == assertion.Test {
 				return true
 			}
 		}
@@ -152,7 +152,7 @@ func hasTestClaims(ls []loaded) bool {
 }
 
 func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File) judgment.Outcome {
-	if c.Tag.Kind != assertion.Test {
+	if c.Tag.Method != assertion.Test {
 		return judgment.Judge(c.Tag, 0, false)
 	}
 	exit, err := v.run.Run(ctx, c.Tag.Arg)

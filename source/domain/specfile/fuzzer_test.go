@@ -27,7 +27,7 @@ func FuzzParse(f *testing.F) {
 				t.Fatalf("claim %s returned twice", c.ID)
 			}
 			seen[c.ID] = true
-			if c.Text == "" || c.Tag.Kind == 0 {
+			if c.Text == "" || c.Tag.Method == 0 {
 				t.Fatalf("claim %s returned half-parsed: %+v", c.ID, c)
 			}
 		}

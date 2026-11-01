@@ -17,7 +17,7 @@ func mustID(t *testing.T, s string) assertion.ID {
 }
 
 func TestSetTagChangesOnlyThatLine(t *testing.T) {
-	tag := assertion.Tag{Kind: assertion.Test, Arg: "go test ./invoicing"}
+	tag := assertion.Tag{Method: assertion.Test, Arg: "go test ./invoicing"}
 	got, err := SetTag([]byte(validSpec), mustID(t, "INV-02"), tag)
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestSetTagChangesOnlyThatLine(t *testing.T) {
 
 func TestSetTagKeepsCRLFAndBOM(t *testing.T) {
 	src := "\xef\xbb\xbf" + strings.ReplaceAll(validSpec, "\n", "\r\n")
-	got, err := SetTag([]byte(src), mustID(t, "INV-02"), assertion.Tag{Kind: assertion.Manual, Arg: "read it"})
+	got, err := SetTag([]byte(src), mustID(t, "INV-02"), assertion.Tag{Method: assertion.Manual, Arg: "read it"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,11 +45,11 @@ func TestSetTagKeepsCRLFAndBOM(t *testing.T) {
 }
 
 func TestSetTagUnknownClaim(t *testing.T) {
-	if _, err := SetTag([]byte(validSpec), mustID(t, "INV-99"), assertion.Tag{Kind: assertion.None}); err == nil {
+	if _, err := SetTag([]byte(validSpec), mustID(t, "INV-99"), assertion.Tag{Method: assertion.None}); err == nil {
 		t.Fatal("an unknown claim was accepted")
 	}
 	broken := head + "- INV-01 [bogus]\n  When x, y.\n"
-	if _, err := SetTag([]byte(broken), mustID(t, "INV-01"), assertion.Tag{Kind: assertion.None}); err == nil {
+	if _, err := SetTag([]byte(broken), mustID(t, "INV-01"), assertion.Tag{Method: assertion.None}); err == nil {
 		t.Fatal("a claim with problems must not be editable")
 	}
 }

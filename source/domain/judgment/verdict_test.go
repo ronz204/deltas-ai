@@ -7,7 +7,7 @@ import (
 )
 
 func TestJudge(t *testing.T) {
-	test := assertion.Tag{Kind: assertion.Test, Arg: "go test ./x"}
+	test := assertion.Tag{Method: assertion.Test, Arg: "go test ./x"}
 	cases := []struct {
 		name  string
 		tag   assertion.Tag
@@ -19,9 +19,9 @@ func TestJudge(t *testing.T) {
 		{"passes but nothing cites it", test, 0, false, Unverified},
 		{"fails", test, 1, true, Violated},
 		{"fails and nothing cites it", test, 2, false, Violated},
-		{"manual", assertion.Tag{Kind: assertion.Manual}, 0, true, Unverified},
-		{"manual with a step", assertion.Tag{Kind: assertion.Manual, Arg: "open it"}, 0, true, Unverified},
-		{"none", assertion.Tag{Kind: assertion.None}, 0, true, Unverified},
+		{"manual", assertion.Tag{Method: assertion.Manual}, 0, true, Unverified},
+		{"manual with a step", assertion.Tag{Method: assertion.Manual, Arg: "open it"}, 0, true, Unverified},
+		{"none", assertion.Tag{Method: assertion.None}, 0, true, Unverified},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

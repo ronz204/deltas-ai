@@ -93,12 +93,12 @@ func slice(t *testing.T, file string, claims ...assertion.Claim) Slice {
 }
 
 func TestCheck(t *testing.T) {
-	test := func(cmd string) assertion.Tag { return assertion.Tag{Kind: assertion.Test, Arg: cmd} }
+	test := func(cmd string) assertion.Tag { return assertion.Tag{Method: assertion.Test, Arg: cmd} }
 	slices := []Slice{
 		slice(t, "deltas/billing.spec.md",
 			assertion.Claim{ID: id(t, "INV-01"), Tag: test("go test ./billing"), Line: 7},
 			assertion.Claim{ID: id(t, "INV-02"), Tag: test("go test ./billing"), Line: 9},
-			assertion.Claim{ID: id(t, "INV-03"), Tag: assertion.Tag{Kind: assertion.None}, Line: 11}),
+			assertion.Claim{ID: id(t, "INV-03"), Tag: assertion.Tag{Method: assertion.None}, Line: 11}),
 		slice(t, "deltas/payments.spec.md",
 			assertion.Claim{ID: id(t, "INV-01"), Tag: test("go test ./payments"), Line: 7}),
 	}
@@ -131,7 +131,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestCheckAcceptsACleanProject(t *testing.T) {
-	slices := []Slice{slice(t, "deltas/a.spec.md", assertion.Claim{ID: id(t, "ACC-01"), Tag: assertion.Tag{Kind: assertion.Test, Arg: "go test ./a"}, Line: 6})}
+	slices := []Slice{slice(t, "deltas/a.spec.md", assertion.Claim{ID: id(t, "ACC-01"), Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./a"}, Line: 6})}
 	files := []File{{Path: "a/a_test.go", Text: "func TestACC01(t *testing.T) {}\n"}}
 	if got := Check(slices, files); len(got) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", got)
