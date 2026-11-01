@@ -10,12 +10,12 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 14 de 64 tareas, 22 %**
+**Avance total: 17 de 64 tareas, 27 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
-| 1 | Núcleo del CLI | 🔄 En progreso | 3/11, 27 % |
+| 1 | Núcleo del CLI | 🔄 En progreso | 6/11, 55 % |
 | 2 | Hooks | 🔲 Pendiente | 0/11, 0 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/9, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
@@ -84,7 +84,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 1: núcleo del CLI
 
-**Estado: 🔄 En progreso, 3/11.**
+**Estado: 🔄 En progreso, 6/11.**
 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
@@ -92,9 +92,9 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Esqueleto del proyecto Go: `go.mod` en la raíz, `entries/`, `internal/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `harness/` con su `harness.go` y `core/templates/` (spec y `CLAUDE.md`), más el test que hace cumplir la regla de dependencia entre capas. *Hoy solo existe la capa `domain`; las otras tres nacen con su primer paquete, y el test ya las cubre.*
 - [x] Formato de spec con `format: 1`, IDs por claim y tags `test: <comando>`, `manual`, `none`. *`domain/{diag,slice,claim,spec}`, con fuzzing del parser.*
 - [x] Parser EARS y de Given/When/Then. *En `domain/claim`; se ejecuta dentro de `spec.Parse`.*
-- [ ] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`.
-- [ ] `delta check` como en §6.5: ejecución directa con `os/exec` (sin shell), `Holds` solo con exit 0 más un test que cita el ID, `Unverified` si falta el test, `Violated` si falla. No lee la salida del runner.
-- [ ] `delta lint`: coincidencia tolerante del ID (`INV-01`, `INV_01`, `INV01`), aviso de `skip` y `only`.
+- [x] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`. *Con `cobra` en `adapter/cli`. `link` lleva el slice primero (`delta link <slice> <claim-id> <comando>`) porque los IDs solo son únicos por spec; `commit-msg` llama a `domain/commit` sin pasar por `guard`, que nace en la Fase 2.*
+- [x] `delta check` como en §6.5: ejecución directa con `os/exec` (sin shell), `Holds` solo con exit 0 más un test que cita el ID, `Unverified` si falta el test, `Violated` si falla. No lee la salida del runner. *El test debe estar bajo las rutas que el comando nombra: así el `INV-01` de un slice no da `Holds` al de otro.*
+- [x] `delta lint`: coincidencia tolerante del ID (`INV-01`, `INV_01`, `INV01`), aviso de `skip` y `only`. *Además avisa de tests que citan un ID que ningún spec define.*
 - [ ] Tests unitarios del CLI.
 - [ ] Suite de compatibilidad de `delta check`: proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`.
 

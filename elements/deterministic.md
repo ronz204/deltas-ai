@@ -153,7 +153,10 @@ Observaciones:
 
 - **`spec` edita por líneas.** Cambiar el estado o el tag de un claim modifica únicamente esa línea y deja el resto del archivo intacto. Es lo que permite que `delta link` y `delta approve` toquen un solo renglón.
 - **`Judge` es la regla de evidencia en una función:** exit distinto de 0 es `Violated`; exit 0 con un test que cita el ID es `Holds`; exit 0 sin test que cite el ID es `Unverified` con el motivo escrito; `manual` y `none` son `Unverified`. Es la pieza más fácil de probar de todo el proyecto.
-- **`lint` reconoce el ID con coincidencia tolerante** (`INV-01`, `INV_01`, `INV01`, con un límite al final para que `INV01` no coincida con `INV011`), porque en Go los nombres de función no admiten guiones.
+- **`lint` reconoce el ID con coincidencia tolerante** (`INV-01`, `INV_01`, `INV01`, sin distinguir mayúsculas, con un límite al final para que `INV01` no coincida con `INV011`), porque en Go los nombres de función no admiten guiones.
+- **`lint.Cited` acota la cita a las rutas del comando.** Los IDs son únicos solo por spec, así que un test de `facturacion` no puede dar `Holds` al `INV-01` de `pagos`. Una ruta es un argumento que empieza por `./`, `../` o es `.`, o que lleva una barra y termina en un archivo de script; los flags y sus valores no cuentan. *Shortcut: no se interpretan comillas ni rutas con espacios; si ningún argumento parece ruta, vale cualquier test.*
+- **`lint.Check` emite avisos además de errores.** Un claim `test` que nadie cita es un error (`LINT-NO-CITE`). Un test que cita un ID que ningún spec define (`LINT-UNKNOWN-ID`, solo en mayúsculas para no confundirlo con una variable `inv1`) y un archivo que cita IDs y salta o enfoca un test (`LINT-SKIP`) son avisos (`Diagnostic.Warn`): se imprimen pero no fallan la ejecución.
+- **`commit.Validate` ignora las líneas `#`** (git las quita), deja pasar los mensajes que git genera (`Merge `, `Revert "`, `fixup! `, `squash! `) y no comprueba el modo imperativo, porque ninguna regla distingue "embed" de "embedded" sin un diccionario.
 
 ### 5.2 `usecase`
 
@@ -193,13 +196,13 @@ Observaciones:
 | `delta spec new <slice>` | `cli` | `author` | `spec`, `slice` |
 | `delta spec lint [slice]` | `cli` | `verify` | `spec`, `claim` |
 | `delta spec write` | `cli` | `author` | `spec` |
-| `delta link <claim-id> <comando>` | `cli` | `author` | `spec`, `claim` |
+| `delta link <slice> <claim-id> <comando>` | `cli` | `author` | `spec`, `claim` |
 | `delta lint` | `cli` | `verify` | `lint`, `claim` |
 | `delta check [slice]` | `cli` | `verify` | `proof`, `lint` |
 | `delta status` | `cli` | `status` | `slice`, `proof`, `drift` |
 | `delta stale` | `cli` | `status` | `drift` |
 | `delta budget` | `cli` | `guard` | `budget` |
-| `delta commit-msg <archivo>` | `cli` | `guard` | `commit` |
+| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/commit`; `guard` nace en la Fase 2, cuando decida algo propio) | `commit` |
 | `delta approve <slice>` | `cli` | `author` | `slice` |
 | `delta context <slice>` | `cli` | `status` | `spec`, `claim` |
 | `delta hook <evento>` | `hook` | `guard` | `slice`, `commit`, `budget`, `proof` |
@@ -238,6 +241,7 @@ draft  ->  approved  ->  built  ->  verified
 - Un **diagnóstico** lleva archivo, línea, un código estable por tipo (por ejemplo `SPEC-DUP-ID`) y un mensaje. Hooks y CI pueden depender del código, no del texto.
 - **Códigos de salida del CLI:** 0 todo bien, 1 se encontraron violaciones, 2 uso incorrecto.
 - **En `delta hook`:** 0 permite y 2 bloquea, porque eso es lo que Claude Code espera.
+- **Salidas del CLI:** los hallazgos (diagnósticos) van a stderr y los resultados (tablas) a stdout; la salida de los comandos de verificación va a stderr. Los avisos (`Warn`) se imprimen pero no cambian el código de salida.
 - Con `--json` la salida es estable y ordenada, pensada para hooks y CI.
 
 ---
@@ -251,13 +255,13 @@ Es la pieza de la que depende todo lo demás, así que se escribe primero. Traba
 ### 8.2 `delta check <slice>`
 
 1. `verify` carga el spec y lo parsea. Si hay diagnósticos de error, termina con ellos.
-2. Para cada claim con tag `test`, busca en los archivos de tests si alguno cita el ID (`lint`).
+2. Para cada claim con tag `test`, busca en los archivos de tests que el comando ejecuta (por las rutas que nombra) si alguno cita el ID (`lint.Cited`).
 3. `runner` ejecuta el comando desde la raíz del repo y devuelve el código de salida. La salida del comando se muestra a la persona pero **no se interpreta**.
-4. `proof.Judge` combina tag, código de salida y "¿algún test cita el ID?" en un `Outcome`.
+4. `proof.Judge` combina tag, código de salida y "¿algún test cita el ID?" en un `Outcome`. Un comando que no pudo ejecutarse (no existe, o pasó el tiempo límite) deja el claim `Unverified` con el motivo: no dice nada sobre el claim.
 5. Los claims `manual` y `none` se reportan como `Unverified`.
 6. Se imprime la tabla y se sale con 1 si hay algún `Violated`.
 
-Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que existe un test que cita el ID. **No prueba que ese test se ejecutó** (un `skip` o un comando que apunta a otro archivo pasarían). Ese límite está documentado en `redirection.md`, §10, junto con la mejora futura (un archivo de evidencia que cada test escribe).
+Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que existe un test que cita el ID. **No prueba que ese test se ejecutó** (un `skip` pasaría, y un comando que no nombra rutas acepta cualquier test). Ese límite está documentado en `redirection.md`, §10, junto con la mejora futura (un archivo de evidencia que cada test escribe).
 
 ### 8.3 `delta stale`
 
@@ -320,6 +324,9 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 - **Salida determinista.** Nada de recorrer mapas en orden aleatorio; todo se ordena antes de imprimir, para que los golden files sean estables.
 - **Comentarios solo para el porqué**, en una línea. Cuando un atajo tiene un límite conocido: `shortcut: <el límite>, <cuándo mejorarlo>`.
 - **Tamaño.** Cada paquete hace una cosa; si un archivo necesita dos secciones de comentarios para explicarse, son dos paquetes.
+- **Legibilidad antes que brevedad.** Una función cabe en una pantalla (unas 30 líneas) y hace una cosa; un archivo agrupa una responsabilidad (`spec` se lee en `head.go`, `body.go`, `name.go` y `parse.go`); en el adaptador, un comando por archivo. Preferir el flujo plano con retornos tempranos a los `if` anidados, y un `switch` ordenado a una cadena de `else`.
+- **Nombres que no tartamudean ni chocan.** El tipo principal de un paquete no repite su nombre (`verify.Checker`, no `verify.Verify`) y no comparte nombre con un tipo de otro paquete (`status.Reporter`, no `status.Status`, que es `slice.Status`). `New` solo construye: lo que crea un spec se llama `Create`.
+- **Nada que no se use.** Una función exportada que solo llaman los tests se borra, y los tests prueban lo que el código usa de verdad.
 - **Herramientas.** `go vet`, `golangci-lint` y `gofmt` en CI; tests con `-race`.
 
 ---
@@ -413,4 +420,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 3. **Formato del JSON de los hooks** y nombres definitivos de los eventos de `delta hook` (*a verificar*, sección 8.5).
 4. **Versión de Go y ruta del módulo** (`github.com/ronz204/deltas-ai` es la ruta natural del repositorio actual; la versión de Go se fija al crear `go.mod`).
 5. **Configuración de `golangci-lint`**: qué linters se activan.
-6. **Códigos de diagnóstico**: la lista completa se define con el parser y las reglas de `lint`.
+6. **Códigos de diagnóstico**: ya existen los de `spec` (`SPEC-*`), `lint` (`LINT-*`) y `commit` (`COMMIT-*`); se completan con cada comando nuevo.
+7. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. Cerrar ese hueco (un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado) es parte de la máquina de estados de la Fase 3.
+8. **Repos con servicios.** Los contratos se leen solo de `<raíz>/deltas`. Un repo partido en servicios, con un `deltas/` por servicio, no está soportado todavía.
+9. **Separar `Kind` y `TagKind` en `claim`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.

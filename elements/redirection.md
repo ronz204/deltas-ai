@@ -141,13 +141,13 @@ Un binario único, sin runtime. Propuesta de comandos:
 | `delta spec new <slice>` | Crea un spec desde la plantilla con frontmatter y estado `draft` | Parte de Archivist |
 | `delta spec lint [slice]` | Valida estructura, notación EARS, IDs únicos y tags válidos | Revisión manual |
 | `delta spec write` | Único punto de escritura de la KB; valida antes de escribir | Archivist |
-| `delta link <claim-id> <comando>` | Enlaza un claim con el comando de su test (solo toca esa línea) | El paso que nadie podía hacer |
+| `delta link <slice> <claim-id> <comando>` | Enlaza un claim con el comando de su test (solo toca esa línea). Lleva el slice porque los IDs solo son únicos dentro de un spec | El paso que nadie podía hacer |
 | `delta lint` | Cruza specs y tests: claims `test` cuyo ID no aparece en ningún archivo de tests, tests con ID de claim inexistente, claims sin tag; avisa de `skip`/`only` en archivos que citan IDs | Nada (es nuevo; respalda la regla de fidelidad) |
 | `delta check [slice]` | Ejecuta el comando de cada claim `test` y reporta `Holds` / `Violated`; lo no ejecutable, o sin test que cite el ID, queda `Unverified` (ver 6.5) | La parte determinista de Sentinel (hoy Seal) |
 | `delta status` | Tabla de slices: estado, cobertura, si está `stale` | `links.sh` ampliado |
 | `delta stale` | Compara archivos modificados contra los que cada spec referencia y marca slices desactualizados | Nada (es nuevo) |
 | `delta budget` | Mide lo siempre cargado y falla si pasa el techo | `budget.sh` como gate |
-| `delta commit-msg <archivo>` | Valida un mensaje contra Conventional Commits (tipos permitidos, longitud, imperativo). Lo llaman el hook del agente, el git hook y CI | La regla `commit-messages` como texto |
+| `delta commit-msg <archivo>` | Valida un mensaje contra Conventional Commits (tipos permitidos, longitud, minúscula, sin punto final; el imperativo no se puede comprobar). Lo llaman el hook del agente, el git hook y CI | La regla `commit-messages` como texto |
 | `delta hook <evento>` | Adaptador de los hooks de Claude Code: lee el JSON del evento por stdin, consulta la regla y sale con 0 o 2. No lleva lógica propia | Scripts sueltos por hook |
 | `delta context <slice>` | Imprime solo lo necesario para trabajar ese slice | Carga bajo demanda real |
 | `delta approve <slice>` | Pasa el spec a `approved` (lo hace la persona) | Punto de control humano formal |
@@ -241,12 +241,14 @@ status: approved
 - **`test: <comando>`** es cualquier comando que salga con 0 si el claim se cumple. Delta lo ejecuta desde la raíz del repo, directo con `os/exec` y sin pasar por un shell, para que funcione igual en Windows, Mac y Linux. *Shortcut: sin shell, el comando no admite pipes, redirecciones ni `$VAR`; si hace falta algo así, se escribe como programa o como script del proyecto.* Delta no instala ni elige el runner: cada proyecto usa el suyo.
 - **`manual`** (que puede llevar el paso a seguir, `manual: <paso>`) y **`none`** no tienen comando. `none` sigue siendo válido, pero queda visible en `delta status` como deuda de verificación. No hace falta montar un harness de tests el primer día.
 
-**Reglas para que el comando no mienta** (decisión 8): el tag apunta a un archivo, paquete o directorio, **sin filtros por nombre** (`go test ./facturacion`, no `-run`), para eliminar el caso de un filtro que no coincide con nada y sale con 0. Delta no lee la salida del runner, porque ese formato es de un tercero y puede cambiar. Lo que sí hace `delta lint` es comprobar de forma estática que el ID del claim aparece en un archivo de tests (por convención de nombre: `*_test.go`, `*.test.*`, `*.spec.*`, configurable), en el nombre del test o en un comentario. La coincidencia es tolerante a separadores (`INV-01`, `INV_01`, `INV01`, con un límite al final para que `INV01` no coincida con `INV011`), porque algunos lenguajes no admiten guiones en los nombres (`TestINV01_Redondeo` en Go).
+**Reglas para que el comando no mienta** (decisión 8): el tag apunta a un archivo, paquete o directorio, **sin filtros por nombre** (`go test ./facturacion`, no `-run`), para eliminar el caso de un filtro que no coincide con nada y sale con 0. Delta no lee la salida del runner, porque ese formato es de un tercero y puede cambiar. Lo que sí hace `delta lint` es comprobar de forma estática que el ID del claim aparece en un archivo de tests (por convención de nombre: `*_test.go`, `test_*.py`, `*.test.ts`, `*.spec.ts` y similares), en el nombre del test o en un comentario. La coincidencia es tolerante a separadores y a mayúsculas (`INV-01`, `INV_01`, `INV01`, con un límite al final para que `INV01` no coincida con `INV011`), porque algunos lenguajes no admiten guiones en los nombres (`TestINV01_Redondeo` en Go).
+
+**El archivo tiene que estar dentro de lo que el comando ejecuta.** Los IDs son únicos solo dentro de un spec, y todos los specs tienen un `INV-01`; si bastara con que cualquier test los citara, el test de `facturacion` daría `Holds` al `INV-01` de `pagos`. Por eso la cita cuenta únicamente en los archivos bajo las rutas que el comando nombra (`go test ./pagos` mira solo `pagos/`; `./...` y `.` miran todo). Un comando que no nombra ninguna ruta (`npm test`) se toma como si ejecutara todos los tests: nombrar el paquete o el archivo en el tag lo acota.
 
 ### 6.5 Seal partido en dos
 
 - **Parte determinista** (`delta check`): ejecuta el comando de cada claim `test`. Sin modelo. El resultado depende solo del código de salida y del chequeo estático de `delta lint`:
-  - sale con 0 y el ID aparece en un archivo de tests: `Holds`;
+  - sale con 0 y el ID aparece en un archivo de tests dentro de lo que el comando ejecuta: `Holds`;
   - sale con error: `Violated`;
   - sale con 0 pero ningún test cita el ID: `Unverified`, con el motivo escrito;
   - `manual` y `none`: `Unverified`.
@@ -424,7 +426,7 @@ verified   (si el código cambia después -> stale, avisado solo)
 - Que Forge se dispare cuando no se lo invoca explícitamente.
 - La calidad de los claims que redacta Quill.
 - La honestidad: el hook exige evidencia de que se corrieron los checks, pero no que el agente interprete bien el resultado.
-- Que un `Holds` pruebe que el test del claim se ejecutó: prueba que el comando salió con 0 y que existe un test que cita el ID, no que ese test corrió (un `skip` o un comando que apunta a otro archivo pasarían). `delta lint` avisa de `skip`/`only`, pero es una heurística. *Mejora futura si aparece un falso `Holds` real:* un archivo de evidencia, donde cada test avisa a Delta (variable de entorno más un helper de una línea por lenguaje), que depende solo de un protocolo propio.
+- Que un `Holds` pruebe que el test del claim se ejecutó: prueba que el comando salió con 0 y que existe un test, bajo las rutas del comando, que cita el ID, no que ese test corrió (un `skip` pasaría, y un comando que no nombra rutas acepta cualquier test). `delta lint` avisa de `skip`/`only`, pero es una heurística. *Mejora futura si aparece un falso `Holds` real:* un archivo de evidencia, donde cada test avisa a Delta (variable de entorno más un helper de una línea por lenguaje), que depende solo de un protocolo propio.
 - Que el agente no debilite un test para que pase. Se ve en el diff, pero ninguna regla de ruta lo impide, porque cada proyecto ubica sus tests donde quiere.
 - La detección de deriva por archivos referenciados es **heurística**: puede marcar `stale` de más (cambio irrelevante) o no marcarlo de menos (cambio de comportamiento sin tocar los archivos nombrados).
 

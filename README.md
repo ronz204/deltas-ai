@@ -16,7 +16,7 @@ Most project context lives in one of two bad places: a person's head, or an ever
 
 What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
 
-> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is not built yet. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`harness/`](harness) is the renamed source of the new one. The design and the order of work are in [`elements/`](elements).
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status` and `commit-msg` work; the rest is planned. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`harness/`](harness) is the renamed source of the new one. The design and the order of work are in [`elements/`](elements).
 
 ## Contents
 
@@ -68,7 +68,7 @@ flowchart LR
 | 🔨 **Forge** | Plans from the claims not yet verified, you approve the plan, then it writes tests first and the code. Never edits the contract | `approved` → `built` |
 | 🔏 **Seal** | Verifies the contract against the code. The deterministic part runs commands; a model reads only what has no command | `built` → `verified`, or back to `stale` |
 
-The `delta` CLI is what makes the state machine real: it validates specs, is the only writer of the knowledge base, runs verification, tracks drift, measures the context budget, and answers the Claude Code hooks. It does not depend on Claude Code; the hooks are a thin adapter on top. Planned commands: `init`, `spec new|lint|write`, `link`, `lint`, `check`, `status`, `stale`, `approve`, `budget`, `context`, `commit-msg` and `hook`.
+The `delta` CLI is what makes the state machine real: it validates specs, is the only writer of the knowledge base, runs verification, tracks drift, measures the context budget, and answers the Claude Code hooks. It does not depend on Claude Code; the hooks are a thin adapter on top. Working today: `spec new|lint|write`, `link`, `lint`, `check`, `status` and `commit-msg`. Planned: `init`, `approve`, `stale`, `budget`, `context` and `hook`.
 
 ## What a contract looks like
 
@@ -138,7 +138,7 @@ Once the CLI exists, `delta init` replaces steps 1 and 2, `/quill`, `/forge` and
 | `.claude/` | The previous generation of the harness (five skills, rules, budget config). It is also the configuration this repo is worked with, so it stays untouched until `delta init` can regenerate it |
 | `harness/` | Source of the new generation: the same content with the skills renamed Quill, Forge and Seal. It is what `delta init` will install, embedded in the binary |
 | `elements/` | Working documents, in Spanish: `redirection.md` (what Delta becomes and why), `background.md` (context), `deterministic.md` (design of the Go CLI), `roadmap.md` (order of work) |
-| `entries/`, `internal/` | The Go CLI. Planned, not created yet |
+| `entries/`, `internal/` | The Go CLI: `entries/delta` wires it, `internal/` holds the domain, use cases, gateways and adapters |
 
 ## Non-goals
 
