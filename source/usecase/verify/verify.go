@@ -7,6 +7,7 @@ import (
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/findings"
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
+	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
 )
@@ -14,6 +15,7 @@ import (
 type Specs interface {
 	List(ctx context.Context) ([]string, error)
 	Load(ctx context.Context, slice string) ([]byte, error)
+	Save(ctx context.Context, slice string, content []byte) error
 	Path(slice string) string
 }
 
@@ -39,8 +41,11 @@ type Marks interface {
 	Record(ctx context.Context, seen []Seen) error
 }
 
-// CodeRecord is the warning for a check that ran but could not be remembered.
-const CodeRecord = "CHECK-RECORD"
+// Codes of the warnings of a check that ran but could not remember something.
+const (
+	CodeRecord = "CHECK-RECORD"
+	CodeStatus = "CHECK-STATUS"
+)
 
 type Checker struct {
 	specs  Specs
@@ -128,11 +133,13 @@ type Result struct {
 }
 
 type Report struct {
-	Diags   []findings.Diagnostic
-	Results []Result
+	Diags    []findings.Diagnostic
+	Results  []Result
+	Verified []string // slices this check moved from built to verified
 }
 
-// Check judges every claim; a slice whose spec has problems is only reported, not run.
+// Check judges every claim; a slice whose spec has problems is only reported, not run. A built slice whose test
+// claims all hold (and that has at least one) becomes verified; manual and none claims stay visible as debt.
 func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 	ls, err := v.load(ctx, only)
 	if err != nil {
@@ -151,14 +158,9 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 			rep.Diags = append(rep.Diags, l.diags...)
 			continue
 		}
-		s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file, v.scopes[l.slice])}
-		for _, c := range l.spec.Claims {
-			if err := ctx.Err(); err != nil {
-				return rep, err
-			}
-			out := v.judge(ctx, c, files)
-			rep.Results = append(rep.Results, Result{Slice: l.slice, ID: c.ID, Outcome: out})
-			s.Violated = s.Violated || out.Verdict == judgment.Violated
+		s, err := v.checkSlice(ctx, l, files, &rep)
+		if err != nil {
+			return rep, err
 		}
 		seen = append(seen, s)
 	}
@@ -169,6 +171,50 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 		}
 	}
 	return rep, nil
+}
+
+// checkSlice judges the claims of one clean slice into rep, and verifies it if it is built and its test claims all hold.
+func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.File, rep *Report) (Seen, error) {
+	s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file, v.scopes[l.slice])}
+	var held, open int // test claims that hold, and test claims that do not
+	for _, c := range l.spec.Claims {
+		if err := ctx.Err(); err != nil {
+			return s, err
+		}
+		out := v.judge(ctx, c, files)
+		rep.Results = append(rep.Results, Result{Slice: l.slice, ID: c.ID, Outcome: out})
+		s.Violated = s.Violated || out.Verdict == judgment.Violated
+		switch {
+		case c.Tag.Method != assertion.Test:
+		case out.Verdict == judgment.Holds:
+			held++
+		default:
+			open++
+		}
+	}
+	if l.spec.Status != lifecycle.Built || held == 0 || open > 0 {
+		return s, nil
+	}
+	if err := v.verified(ctx, l); err != nil {
+		rep.Diags = append(rep.Diags, findings.Diagnostic{File: l.file, Code: CodeStatus, Warn: true,
+			Message: "every test claim holds, but the slice could not be marked verified: " + err.Error()})
+		return s, nil
+	}
+	rep.Verified = append(rep.Verified, l.slice)
+	return s, nil
+}
+
+// verified moves a built slice to verified. It runs before the check is remembered, so the mark covers the edit.
+func (v *Checker) verified(ctx context.Context, l loaded) error {
+	src, err := v.specs.Load(ctx, l.slice)
+	if err != nil {
+		return err
+	}
+	edited, err := specfile.SetStatus(src, lifecycle.Verified)
+	if err != nil {
+		return err
+	}
+	return v.specs.Save(ctx, l.slice, edited)
 }
 
 func hasTestClaims(ls []loaded) bool {

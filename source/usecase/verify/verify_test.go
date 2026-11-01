@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
@@ -30,6 +31,11 @@ func (f fakeSpecs) Load(_ context.Context, s string) ([]byte, error) {
 		return nil, errors.New("no spec for " + s)
 	}
 	return []byte(src), nil
+}
+
+func (f fakeSpecs) Save(_ context.Context, s string, c []byte) error {
+	f[s] = string(c)
+	return nil
 }
 
 type fakeTests []linkcheck.File
@@ -229,5 +235,39 @@ func TestCheckRecordsTheNarrowScopeDeltaConfDeclares(t *testing.T) {
 	}
 	if s := marks.seen[0].Scope; !s.Covers("shared/money/round.go") || s.Covers("payments/pay.go") {
 		t.Fatalf("scope = %+v, want only billing, shared/money and the spec", s)
+	}
+}
+
+func builtSpec(slice string, claims ...string) string {
+	return strings.Replace(specOf(slice, claims...), "status: approved", "status: built", 1)
+}
+
+func TestCheckVerifiesABuiltSliceWhoseTestClaimsAllHold(t *testing.T) {
+	specs := fakeSpecs{"billing": builtSpec("billing", passing, manual, untagged)}
+	rep, err := newVerify(specs, &fakeRunner{}).Check(ctx, "")
+	if err != nil || !reflect.DeepEqual(rep.Verified, []string{"billing"}) {
+		t.Fatalf("Check = %+v, %v", rep, err)
+	}
+	if want := builtSpec("billing", passing, manual, untagged); specs["billing"] != strings.Replace(want, "status: built", "status: verified", 1) {
+		t.Fatalf("stored %q", specs["billing"])
+	}
+}
+
+func TestCheckLeavesTheStatusAloneUnlessItIsBuiltAndClean(t *testing.T) {
+	cases := map[string]string{
+		"a claim is violated":     builtSpec("billing", passing, failing),
+		"a claim is unverified":   builtSpec("billing", passing, uncited),
+		"no test claim":           builtSpec("billing", manual, untagged),
+		"approved, not built yet": specOf("billing", passing),
+	}
+	for name, spec := range cases {
+		t.Run(name, func(t *testing.T) {
+			specs := fakeSpecs{"billing": spec}
+			run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
+			rep, err := New(specs, tests, run, nil, nil).Check(ctx, "")
+			if err != nil || len(rep.Verified) != 0 || specs["billing"] != spec {
+				t.Fatalf("Check = %+v, %v; stored %q", rep, err, specs["billing"])
+			}
+		})
 	}
 }

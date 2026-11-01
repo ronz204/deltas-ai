@@ -23,6 +23,9 @@ func checkCmd(d Deps) *cobra.Command {
 			}
 			printDiags(cmd.ErrOrStderr(), rep.Diags)
 			count := printResults(cmd.OutOrStdout(), rep.Results)
+			for _, slice := range rep.Verified {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s is verified\n", slice)
+			}
 			if count[judgment.Violated] > 0 {
 				return ErrFound
 			}

@@ -110,7 +110,7 @@ func TestSpecNewLintAndWrite(t *testing.T) {
 		t.Fatalf("the template should lint clean: %d %q", code, errOut)
 	}
 
-	good := spec("billing", claimOf("INV-01", "none"))
+	good := strings.Replace(spec("billing", claimOf("INV-01", "none")), "status: approved", "status: draft", 1)
 	if code, out, _ := p.delta(good, "spec", "write", "billing"); code != 0 || !strings.Contains(out, "wrote") {
 		t.Fatalf("spec write = %d %q", code, out)
 	}
@@ -207,6 +207,44 @@ func TestLinkThenCheckClosesTheLoop(t *testing.T) {
 	}
 	if code, _, _ := p.delta("", "link", "billing", "INV-09", command("pass")); code != 2 {
 		t.Fatalf("linking an unknown claim = %d, want 2", code)
+	}
+}
+
+func TestASliceWalksFromDraftToVerified(t *testing.T) {
+	p := newProject(t)
+	draft := strings.Replace(spec("billing", claimOf("INV-01", "none")), "status: approved", "status: draft", 1)
+	p.delta(draft, "spec", "write", "billing")
+
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 1 || !strings.Contains(errOut, "delta approve billing") {
+		t.Fatalf("a draft is not ready: %d %q", code, errOut)
+	}
+	if code, _, errOut := p.delta("", "built", "billing"); code != 2 {
+		t.Fatalf("a draft cannot be built: %d %q", code, errOut)
+	}
+	if code, out, errOut := p.delta("", "approve", "billing"); code != 0 || out != "billing is approved\n" {
+		t.Fatalf("approve = %d %q %q", code, out, errOut)
+	}
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+		t.Fatalf("an approved slice is ready: %d %q", code, errOut)
+	}
+	if code, _, errOut := p.delta(spec("billing", claimOf("INV-01", "none")), "spec", "write", "billing"); code != 0 || !strings.Contains(p.read("deltas/billing.spec.md"), "status: approved") {
+		t.Fatalf("writing the same contract back must leave the approval: %d %q", code, errOut)
+	}
+
+	p.write("billing/total_test.go", "func TestINV01(t *testing.T) {}\n")
+	if code, _, errOut := p.delta("", "link", "billing", "INV-01", command("pass", "./billing")); code != 0 {
+		t.Fatalf("link = %d %q", code, errOut)
+	}
+	if code, _, _ := p.delta("", "built", "billing"); code != 0 {
+		t.Fatal("an approved slice can be built")
+	}
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") || !strings.Contains(p.read("deltas/billing.spec.md"), "status: verified") {
+		t.Fatalf("check must verify a built slice that holds: %d\n%s", code, out)
+	}
+
+	changed := strings.Replace(p.read("deltas/billing.spec.md"), "When x, y.", "When x, z.", 1)
+	if code, _, errOut := p.delta(changed, "spec", "write", "billing"); code != 0 || !strings.Contains(errOut, "AUTHOR-REAPPROVE") || !strings.Contains(p.read("deltas/billing.spec.md"), "status: draft") {
+		t.Fatalf("a changed contract is a draft again: %d %q", code, errOut)
 	}
 }
 

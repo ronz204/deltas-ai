@@ -59,8 +59,8 @@ func specWriteCmd(d Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if len(ds) > 0 {
-				printDiags(cmd.ErrOrStderr(), ds)
+			printDiags(cmd.ErrOrStderr(), ds)
+			if foundIn(ds) != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "nothing was written")
 				return ErrFound
 			}

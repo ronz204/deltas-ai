@@ -10,7 +10,15 @@ import (
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/findings"
+	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
+)
+
+// Diagnostic codes of the status rules of Write.
+const (
+	CodeNewStatus  = "AUTHOR-NEW-STATUS"
+	CodeSetStatus  = "AUTHOR-SET-STATUS"
+	CodeReapproval = "AUTHOR-REAPPROVE"
 )
 
 type Store interface {
@@ -51,11 +59,94 @@ func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 }
 
 // Write saves content only if it is a valid spec; otherwise nothing is written and the problems come back.
+// Only the status commands move a slice forward, so content may not claim a status the stored spec does not
+// have, and a change to an approved contract sends the slice back to draft (the diagnostic says so, as a warning).
 func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]findings.Diagnostic, error) {
-	if _, ds := specfile.ParseSlice(a.store.Path(slice), slice, content); len(ds) > 0 {
+	file := a.store.Path(slice)
+	sp, ds := specfile.ParseSlice(file, slice, content)
+	if len(ds) > 0 {
 		return ds, nil
 	}
-	return nil, a.store.Save(ctx, slice, content)
+	content, ds, err := a.settle(ctx, file, slice, sp.Status, content)
+	if err != nil || hasError(ds) {
+		return ds, err
+	}
+	return ds, a.store.Save(ctx, slice, content)
+}
+
+// settle applies the status rules of Write to content, which is a valid spec with status in its frontmatter.
+func (a *Author) settle(ctx context.Context, file, slice string, status lifecycle.Status, content []byte) ([]byte, []findings.Diagnostic, error) {
+	prev, err := a.store.Load(ctx, slice)
+	if err != nil { // there is no stored spec, or it cannot be read: either way this one starts over
+		if status != lifecycle.Draft {
+			return nil, []findings.Diagnostic{{File: file, Line: 1, Code: CodeNewStatus,
+				Message: fmt.Sprintf("a new spec is written as a draft, not %s; delta approve moves it forward", status)}}, nil
+		}
+		return content, nil, nil
+	}
+	old, _ := specfile.ParseSlice(file, slice, prev)
+	if status != lifecycle.Draft && status != old.Status {
+		return nil, []findings.Diagnostic{{File: file, Line: 1, Code: CodeSetStatus,
+			Message: fmt.Sprintf("the spec is %q and cannot be written as %q; only the delta commands change the status", old.Status, status)}}, nil
+	}
+	if old.Status == "" || old.Status == lifecycle.Draft || sameContract(prev, content) {
+		return content, nil, nil
+	}
+	redrafted, err := specfile.SetStatus(content, lifecycle.Draft)
+	if err != nil {
+		return nil, nil, err
+	}
+	return redrafted, []findings.Diagnostic{{File: file, Code: CodeReapproval, Warn: true,
+		Message: fmt.Sprintf("the contract changed, so %s is a draft again; run delta approve %s once it is right", slice, slice)}}, nil
+}
+
+// sameContract says whether two specs differ in nothing but their status.
+func sameContract(a, b []byte) bool {
+	x, errA := specfile.SetStatus(a, lifecycle.Draft)
+	y, errB := specfile.SetStatus(b, lifecycle.Draft)
+	return errA == nil && errB == nil && bytes.Equal(x, y)
+}
+
+func hasError(ds []findings.Diagnostic) bool {
+	for _, d := range ds {
+		if !d.Warn {
+			return true
+		}
+	}
+	return false
+}
+
+// Approve is the person's sign-off on a clean draft: the contract Forge builds from.
+func (a *Author) Approve(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
+	return a.move(ctx, slice, lifecycle.Approved)
+}
+
+// Built records that Forge finished building an approved (or stale) slice.
+func (a *Author) Built(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
+	return a.move(ctx, slice, lifecycle.Built)
+}
+
+// move changes the status of a clean spec if the lifecycle allows it, and edits nothing else in the file.
+func (a *Author) move(ctx context.Context, slice string, to lifecycle.Status) ([]findings.Diagnostic, error) {
+	src, err := a.store.Load(ctx, slice)
+	if err != nil {
+		return nil, err
+	}
+	sp, ds := specfile.ParseSlice(a.store.Path(slice), slice, src)
+	if len(ds) > 0 {
+		return ds, nil
+	}
+	if !lifecycle.Can(sp.Status, to) {
+		return nil, fmt.Errorf("%s is %s and cannot become %s", slice, sp.Status, to)
+	}
+	if to == lifecycle.Approved && len(sp.Claims) == 0 {
+		return nil, fmt.Errorf("%s has no claims, so there is nothing to approve", slice)
+	}
+	edited, err := specfile.SetStatus(src, to)
+	if err != nil {
+		return nil, err
+	}
+	return nil, a.store.Save(ctx, slice, edited)
 }
 
 func (a *Author) Link(ctx context.Context, slice, claimID, command string) error {

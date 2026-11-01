@@ -83,3 +83,37 @@ func TestReportOfAnEmptyProject(t *testing.T) {
 		t.Fatalf("Report = %v, %v", rows, err)
 	}
 }
+
+func TestReadyOnlyForACleanApprovedOrStaleSlice(t *testing.T) {
+	spec := func(status string) string {
+		return "---\nformat: 1\nslice: a\nstatus: " + status + "\n---\n- INV-01 [none]\n  When x, y.\n"
+	}
+	cases := map[string]struct {
+		src   string
+		ready bool
+	}{
+		"approved": {spec("approved"), true},
+		"stale":    {spec("stale"), true},
+		"draft":    {spec("draft"), false},
+		"built":    {spec("built"), false},
+		"verified": {spec("verified"), false},
+		"broken":   {"not a spec", false},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := New(fake{"a": c.src}, nil).Ready(context.Background(), "a")
+			var notReady *NotReady
+			if c.ready != (err == nil) || (!c.ready && !errors.As(err, &notReady)) {
+				t.Fatalf("Ready = %v, want ready = %v", err, c.ready)
+			}
+		})
+	}
+}
+
+func TestReadyFailsPlainlyForAMissingSpec(t *testing.T) {
+	err := New(fake{}, nil).Ready(context.Background(), "a")
+	var notReady *NotReady
+	if err == nil || errors.As(err, &notReady) {
+		t.Fatalf("Ready = %v, want a plain error", err)
+	}
+}

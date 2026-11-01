@@ -148,7 +148,7 @@ func TestSpecWriteSendsFindingsToStderr(t *testing.T) {
 		t.Fatalf("stderr = %q, stored %v", errOut, m.specs)
 	}
 
-	out, errOut, err = m.run(head+claim("INV-01", "none"), "spec", "write", "billing")
+	out, errOut, err = m.run(draftHead+claim("INV-01", "none"), "spec", "write", "billing")
 	if err != nil || out != "wrote the spec of billing\n" || errOut != "" {
 		t.Fatalf("out = %q, errOut = %q, err = %v", out, errOut, err)
 	}

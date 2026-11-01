@@ -152,3 +152,102 @@ func TestLinkRejectsBadInput(t *testing.T) {
 		})
 	}
 }
+
+func withStatus(status string) string {
+	return strings.Replace(valid, "status: draft", "status: "+status, 1)
+}
+
+func TestWriteAcceptsOnlyADraftForANewSpec(t *testing.T) {
+	m := newMemory()
+	ds, err := New(m, tmpl(tpl)).Write(ctx, "billing", []byte(withStatus("approved")))
+	if err != nil || len(ds) != 1 || ds[0].Code != CodeNewStatus || len(m.specs) != 0 {
+		t.Fatalf("Write = %v, %v; stored %v", ds, err, m.specs)
+	}
+}
+
+func TestWriteCannotMoveAnExistingSpecForward(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = valid
+	ds, err := New(m, tmpl(tpl)).Write(ctx, "billing", []byte(withStatus("verified")))
+	if err != nil || len(ds) != 1 || ds[0].Code != CodeSetStatus || m.specs["billing"] != valid {
+		t.Fatalf("Write = %v, %v; stored %q", ds, err, m.specs["billing"])
+	}
+}
+
+func TestWriteSendsAChangedApprovedContractBackToDraft(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = withStatus("approved")
+	changed := strings.Replace(withStatus("approved"), "When x, y.", "When x, z.", 1)
+	ds, err := New(m, tmpl(tpl)).Write(ctx, "billing", []byte(changed))
+	if err != nil || len(ds) != 1 || ds[0].Code != CodeReapproval || !ds[0].Warn {
+		t.Fatalf("Write = %v, %v; want one reapproval warning", ds, err)
+	}
+	if want := strings.Replace(changed, "status: approved", "status: draft", 1); m.specs["billing"] != want {
+		t.Fatalf("stored %q, want %q", m.specs["billing"], want)
+	}
+}
+
+func TestWriteKeepsTheStatusWhenTheContractIsTheSame(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = withStatus("built")
+	ds, err := New(m, tmpl(tpl)).Write(ctx, "billing", []byte(withStatus("built")))
+	if err != nil || len(ds) != 0 || m.specs["billing"] != withStatus("built") {
+		t.Fatalf("Write = %v, %v; stored %q", ds, err, m.specs["billing"])
+	}
+}
+
+func TestApproveMovesADraftAndTouchesNothingElse(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = valid
+	ds, err := New(m, tmpl(tpl)).Approve(ctx, "billing")
+	if err != nil || len(ds) != 0 || m.specs["billing"] != withStatus("approved") {
+		t.Fatalf("Approve = %v, %v; stored %q", ds, err, m.specs["billing"])
+	}
+}
+
+func TestApproveRefusesWhatIsNotAnApprovableDraft(t *testing.T) {
+	cases := map[string]string{
+		"already approved": withStatus("approved"),
+		"already built":    withStatus("built"),
+		"no claims":        "---\nformat: 1\nslice: billing\nstatus: draft\n---\n",
+	}
+	for name, spec := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := newMemory()
+			m.specs["billing"] = spec
+			if ds, err := New(m, tmpl(tpl)).Approve(ctx, "billing"); err == nil || len(ds) != 0 || m.specs["billing"] != spec {
+				t.Fatalf("Approve = %v, %v; stored %q", ds, err, m.specs["billing"])
+			}
+		})
+	}
+}
+
+func TestApproveReportsASpecWithProblems(t *testing.T) {
+	m := newMemory()
+	broken := strings.Replace(valid, "[none]", "[bogus]", 1)
+	m.specs["billing"] = broken
+	ds, err := New(m, tmpl(tpl)).Approve(ctx, "billing")
+	if err != nil || len(ds) == 0 || m.specs["billing"] != broken {
+		t.Fatalf("Approve = %v, %v; stored %q", ds, err, m.specs["billing"])
+	}
+}
+
+func TestApproveNeedsTheSpec(t *testing.T) {
+	if _, err := New(newMemory(), tmpl(tpl)).Approve(ctx, "ghost"); err == nil {
+		t.Fatal("a missing spec was approved")
+	}
+}
+
+func TestBuiltFollowsApprovedOrStaleOnly(t *testing.T) {
+	for status, ok := range map[string]bool{"draft": false, "approved": true, "built": false, "verified": false, "stale": true} {
+		m := newMemory()
+		m.specs["billing"] = withStatus(status)
+		_, err := New(m, tmpl(tpl)).Built(ctx, "billing")
+		if (err == nil) != ok {
+			t.Errorf("Built from %s: err = %v, want ok = %v", status, err, ok)
+		}
+		if ok && m.specs["billing"] != withStatus("built") {
+			t.Errorf("from %s stored %q", status, m.specs["billing"])
+		}
+	}
+}

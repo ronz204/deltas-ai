@@ -3,6 +3,7 @@ package status
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
@@ -65,4 +66,27 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// NotReady is why a slice cannot be built yet.
+type NotReady struct{ Reason string }
+
+func (e *NotReady) Error() string { return e.Reason }
+
+// Ready returns a *NotReady unless the slice has a clean spec and is approved or stale: the contract Forge builds from.
+func (r *Reporter) Ready(ctx context.Context, slice string) error {
+	src, err := r.specs.Load(ctx, slice)
+	if err != nil {
+		return err
+	}
+	sp, ds := specfile.ParseSlice(r.specs.Path(slice), slice, src)
+	switch {
+	case len(ds) > 0:
+		return &NotReady{fmt.Sprintf("the spec of %s has %d problems; run delta spec lint %s", slice, len(ds), slice)}
+	case sp.Status == lifecycle.Draft:
+		return &NotReady{fmt.Sprintf("%s is a draft; a person approves it first with delta approve %s", slice, slice)}
+	case sp.Status != lifecycle.Approved && sp.Status != lifecycle.Stale:
+		return &NotReady{fmt.Sprintf("%s is %s, not approved; run delta check %s to see where it stands", slice, sp.Status, slice)}
+	}
+	return nil
 }
