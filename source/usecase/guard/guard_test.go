@@ -175,7 +175,7 @@ func (e *evidence) Standings(_ context.Context, slices map[string]linkcheck.Scop
 	return e.by, e.err
 }
 
-const withTests = "---\nformat: 1\nslice: %s\nstatus: approved\n---\n- INV-01 [test: go test ./%s]\n  When x, y.\n"
+const withTests = "---\nformat: 1\nslice: %s\nstatus: built\n---\n- INV-01 [test: go test ./%s]\n  When x, y.\n"
 
 func stopGuard(t *testing.T, ev Evidence, slices ...string) *Guard {
 	t.Helper()
@@ -209,7 +209,7 @@ func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
 	passing := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
 	cases := map[string]*Guard{
 		"every slice stands":           stopGuard(t, passing, "billing"),
-		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"}, nil), nil, &evidence{}, nil),
+		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: built\n---\n- INV-01 [none]\n  When x, y.\n"}, nil), nil, &evidence{}, nil),
 		"there are no slices":          stopGuard(t, &evidence{}),
 		"there is no evidence to read": stopGuard(t, nil, "billing"),
 	}
@@ -217,6 +217,34 @@ func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
 		if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
 			t.Errorf("%s: Decide = %+v, %v; want it allowed", name, d, err)
 		}
+	}
+}
+
+func TestStopPointsAtForgeForAnApprovedSliceWhoseCodeChanged(t *testing.T) {
+	head := func(slice, status string) string {
+		return "---\nformat: 1\nslice: " + slice + "\nstatus: " + status + "\n---\n"
+	}
+	approved := map[string]string{
+		"billing":  head("billing", "approved") + "- INV-01 [none]\n  When x, y.\n",
+		"payments": head("payments", "stale") + "- INV-01 [test: go test ./payments]\n  When x, y.\n",
+	}
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Failing}}
+	g := New(t.TempDir(), status.New(specs(approved), nil), nil, ev, nil)
+	d, err := g.Decide(ctx, Event{Name: "Stop"})
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "/forge billing") || !strings.Contains(d.Reason, "/forge payments") || strings.Contains(d.Reason, "delta check") {
+		t.Fatalf("Decide = %+v, %v; want a block that points at /forge for both and not at delta check", d, err)
+	}
+	if len(ev.asked) != 2 {
+		t.Fatalf("asked about %v: an approved slice without test claims still has a tree to look at", ev.asked)
+	}
+}
+
+func TestStopLeavesAnApprovedSliceAloneWhileNothingChanged(t *testing.T) {
+	spec := "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
+	g := New(t.TempDir(), status.New(specs{"billing": spec}, nil), nil, ev, nil)
+	if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
+		t.Fatalf("Decide = %+v, %v; an untouched approved slice is not pending work", d, err)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/ronz204/deltas-ai/source/domain/findings"
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/domain/knowledge"
+	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
@@ -108,7 +109,8 @@ func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
 }
 
 // stop keeps Claude from finishing while a slice with test claims has not been checked against the tree as
-// it stands. It asks once: when Claude is already continuing because of a stop hook, it lets it finish.
+// it stands, or while an approved slice has had code written for it without Forge finishing it (delta built).
+// It asks once: when Claude is already continuing because of a stop hook, it lets it finish.
 func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	if e.StopActive || g.evidence == nil {
 		return Decision{}, nil
@@ -120,7 +122,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	var names []string
 	scopes := map[string]linkcheck.Scope{}
 	for _, r := range rows {
-		if r.Test > 0 && r.Issues == 0 {
+		if r.Issues == 0 && (r.Test > 0 || waitsForForge(r.Status)) {
 			names = append(names, r.Slice)
 			scopes[r.Slice] = r.Scope
 		}
@@ -132,16 +134,26 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	if err != nil {
 		return Decision{}, err
 	}
-	var unchecked, failing []string
+	state := map[string]lifecycle.Status{}
+	for _, r := range rows {
+		state[r.Slice] = r.Status
+	}
+	var unchecked, failing, unbuilt []string
 	for _, n := range names {
-		switch by[n] {
-		case judgment.Unchecked:
+		switch {
+		case by[n] == judgment.Passing:
+		case waitsForForge(state[n]):
+			unbuilt = append(unbuilt, n)
+		case by[n] == judgment.Unchecked:
 			unchecked = append(unchecked, n)
-		case judgment.Failing:
+		case by[n] == judgment.Failing:
 			failing = append(failing, n)
 		}
 	}
 	var lines []string
+	for _, n := range unbuilt {
+		lines = append(lines, fmt.Sprintf("%s is approved but not built, and the code changed since: finish it with /forge %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
+	}
 	if len(unchecked) > 0 {
 		lines = append(lines, "delta check has not run on the current changes for: "+strings.Join(unchecked, ", ")+". Run it before you finish.")
 	}
@@ -153,6 +165,9 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	}
 	return Decision{Block: true, Reason: strings.Join(lines, "\n")}, nil
 }
+
+// waitsForForge says whether a slice is approved to be built (or rebuilt) and nobody has said it is built.
+func waitsForForge(s lifecycle.Status) bool { return s == lifecycle.Approved || s == lifecycle.Stale }
 
 func (g *Guard) before(e Event) Decision {
 	switch {

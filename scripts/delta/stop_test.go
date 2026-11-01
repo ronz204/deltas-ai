@@ -19,7 +19,7 @@ func stopEvent(t *testing.T, active bool) string {
 // The whole loop: Claude changes the tree and tries to finish, delta check runs, and Claude may finish.
 func TestStopWaitsForACheckOfTheCurrentTree(t *testing.T) {
 	p := gitProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
+	p.write("deltas/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
 	p.write("billing_test.go", "// INV-01\n")
 	if out, err := git(t, p.root, "add", "-A"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -56,7 +56,7 @@ func TestStopWaitsForACheckOfTheCurrentTree(t *testing.T) {
 
 func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 	p := gitProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: git no-such-subcommand")))
+	p.write("deltas/billing.spec.md", built("billing", claimOf("INV-01", "test: git no-such-subcommand")))
 	p.write("billing_test.go", "// INV-01\n")
 	if code, out, _ := p.delta("", "check"); code != 1 || verdict(out, "billing", "INV-01") != "Violated" {
 		t.Fatalf("check = %d %q, want the claim violated", code, out)
@@ -71,7 +71,7 @@ func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 func billingProject(t *testing.T, conf string) *project {
 	t.Helper()
 	p := gitProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("deltas/billing.spec.md", built("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
 	p.write("billing/total_test.go", "// INV-01\n")
 	p.write("billing/total.go", "package billing\n")
 	p.write("shared/money.go", "package shared\n")
@@ -130,7 +130,7 @@ func postEdit(t *testing.T, root, rel string) string {
 
 func TestPostToolUseLintsTheTestFileJustWritten(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("deltas/billing.spec.md", built("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
 	p.write("billing/total_test.go", "// INV-01\nfunc TestTotal(t *testing.T) { t.Skip() }\n")
 	p.write("billing/other_test.go", "func TestOther(t *testing.T) { t.Skip() }\n")
 	p.write("billing/total.go", "package billing\n")
@@ -145,5 +145,35 @@ func TestPostToolUseLintsTheTestFileJustWritten(t *testing.T) {
 	p.write("billing/total_test.go", "// INV-01\nfunc TestTotal(t *testing.T) {}\n")
 	if code, _, errOut := p.delta(postEdit(t, p.root, "billing/total_test.go"), "hook"); code != 0 || errOut != "" {
 		t.Fatalf("a clean test file: PostToolUse = %d %q, want it left alone", code, errOut)
+	}
+}
+
+// Forge's turn: code written for an approved slice is pending work until delta built, then delta check closes it.
+func TestStopPointsAtForgeUntilTheSliceIsBuilt(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	if out, err := git(t, p.root, "add", "-A"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := git(t, p.root, "commit", "-q", "-m", "chore(repo): add the billing slice"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("nothing changed: Stop = %d %q, want it allowed", code, errOut)
+	}
+
+	p.write("main.go", "package main\n")
+	code, _, errOut := p.delta(stopEvent(t, false), "hook")
+	if code != 2 || !strings.Contains(errOut, "/forge billing") {
+		t.Fatalf("code for an approved slice: Stop = %d %q, want a block that points at /forge", code, errOut)
+	}
+
+	if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
+		t.Fatalf("built = %d %q", code, errOut)
+	}
+	code, _, errOut = p.delta(stopEvent(t, false), "hook")
+	if code != 2 || !strings.Contains(errOut, "delta check") || strings.Contains(errOut, "/forge") {
+		t.Fatalf("a built slice: Stop = %d %q, want a block that asks for delta check", code, errOut)
 	}
 }
