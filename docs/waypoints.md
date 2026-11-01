@@ -10,13 +10,13 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 22 de 65 tareas, 34 %**
+**Avance total: 26 de 67 tareas, 39 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
-| 1 | Núcleo del CLI | 🔄 En progreso | 11/12, 92 % |
-| 2 | Hooks | 🔲 Pendiente | 0/11, 0 % |
+| 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
+| 2 | Hooks | 🔄 En progreso | 3/13, 23 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/9, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
@@ -84,7 +84,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 1: núcleo del CLI
 
-**Estado: 🔄 En progreso, 11/12.** Solo falta ver los tests pasar en CI, en el primer push.
+**Estado: ✅ Terminada, 12/12.**
 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
@@ -100,7 +100,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 **Cierra cuando**
 - [x] Flujo de CI en `.github/workflows/ci.yml`: `gofmt`, `go vet` y `go test` en Linux, macOS y Windows, con Node 24 para la suite de TypeScript y `-race` en Linux.
-- [ ] Los tests del CLI y la suite de compatibilidad pasan en CI. *Se comprueba en el primer push: el flujo está escrito, pero no se ha ejecutado.*
+- [x] Los tests del CLI y la suite de compatibilidad pasan en CI. *Confirmado por la persona tras el primer push.*
 - [x] Se puede crear un spec, enlazarlo a un test real y obtener `Holds`, `Violated` y `Unverified` en los casos esperados, sin ningún LLM. *`run_test.go` y `compat_test.go` lo recorren de punta a punta.*
 - [x] Commit(s) de la fase, uno por concern.
 
@@ -110,14 +110,16 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 2: hooks
 
-**Estado: 🔲 Pendiente, 0/11.**
+**Estado: 🔄 En progreso, 3/13.**
 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
 **Entregables**
-- [ ] `delta hook <evento>`: el adaptador que lee el JSON de cada evento y decide con `usecase/guard`. Antes de escribirlo, verificar el formato real del JSON en la documentación de hooks vigente.
-- [ ] Hooks de Claude Code en `.claude/settings.json`: `SessionStart`, `PreToolUse` sobre la KB, `PreToolUse` sobre `git commit`, `PostToolUse` con el linter, `Stop` que exige evidencia de `delta check`. Todos bloquean con exit **2**, no 1.
-- [ ] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
+- [x] `delta hook`: el adaptador que lee el JSON de un evento y decide con `usecase/guard`. *Sin argumento: el evento llega en `hook_event_name`. El formato se verificó en la documentación vigente (`blueprint.md`, §8.5). Hoy decide `SessionStart` (resumen de slices) y `PreToolUse` (la KB y `git commit`); `PostToolUse` y `Stop` pasan sin decisión hasta sus tareas.*
+- [x] Hooks de Claude Code `SessionStart` y `PreToolUse` (sobre `Write|Edit` de la KB y sobre `Bash` para `git commit`), en el fragmento `source/harness/core/configs/settings.json`. Bloquean con exit **2**, no 1. *El `.claude/` de este repo no se toca hasta que `delta init` lo regenere (decisión 10 de `blueprint.md`). No usan el filtro `if`: no pude confirmar cómo evalúa comandos compuestos como `git add . && git commit`, y fallar en silencio dejaría pasar commits.*
+- [ ] Hook `PostToolUse` con el linter del proyecto. *Pendiente: sin archivo de configuración no se sabe qué linter correr (`blueprint.md`, §16).*
+- [ ] Hook `Stop` que exige evidencia de que `delta check` corrió tras el último cambio. *Pendiente: pide un registro de la última verificación.*
+- [x] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno. *Hoy `delta init` hace solo esto; el esqueleto, el `CLAUDE.md` y la regeneración de `.claude/` siguen en su propia tarea. Si falta `delta`, el hook avisa y deja pasar el commit.*
 - [ ] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`.
 - [ ] `delta commit-msg` en CI sobre el rango del PR.
 - [ ] `delta budget` como gate.

@@ -148,7 +148,7 @@ Un binario único, sin runtime. Propuesta de comandos:
 | `delta stale` | Compara archivos modificados contra los que cada spec referencia y marca slices desactualizados | Nada (es nuevo) |
 | `delta budget` | Mide lo siempre cargado y falla si pasa el techo | `budget.sh` como gate |
 | `delta commit-msg <archivo>` | Valida un mensaje contra Conventional Commits (tipos permitidos, longitud, minúscula, sin punto final; el imperativo no se puede comprobar). Lo llaman el hook del agente, el git hook y CI | La regla `commit-messages` como texto |
-| `delta hook <evento>` | Adaptador de los hooks de Claude Code: lee el JSON del evento por stdin, consulta la regla y sale con 0 o 2. No lleva lógica propia | Scripts sueltos por hook |
+| `delta hook` | Adaptador de los hooks de Claude Code: lee el JSON del evento por stdin (el evento va en el propio JSON, sin argumento), consulta la regla y sale con 0 o 2. No lleva lógica propia | Scripts sueltos por hook |
 | `delta context <slice>` | Imprime solo lo necesario para trabajar ese slice | Carga bajo demanda real |
 | `delta approve <slice>` | Pasa el spec a `approved` (lo hace la persona) | Punto de control humano formal |
 

@@ -36,7 +36,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 4 | Cuatro capas dentro de `source`: `domain`, `usecase`, `gateway`, `adapter` | Decidido |
 | 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en `usecase` y `gateway`, y `cmd` y `hook` en `adapter` | Decidido |
 | 6 | CLI con `spf13/cobra` | Decidido |
-| 7 | Se añade el comando `delta hook <evento>` | Decidido |
+| 7 | Se añade el comando `delta hook`, sin argumento: el evento llega en el JSON | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
 | 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`direction.md`, 6.4 y 6.5) |
 | 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `source/harness/` nace como copia renombrada | Decidido |
@@ -206,9 +206,9 @@ Observaciones:
 | `delta commit-msg <archivo>` | `cmd` | (ninguno: `cmd` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
 | `delta approve <slice>` | `cmd` | `author` | `lifecycle` |
 | `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
-| `delta hook <evento>` | `hook` | `guard` | `lifecycle`, `commits`, `budget`, `judgment` |
+| `delta hook` | `hook` | `guard` | `knowledge`, `commits` |
 
-`delta hook` se invoca desde `.claude/settings.json` con un evento (`session-start`, `pre-edit`, `pre-commit`, `post-edit`, `stop`). *Propuesta de nombres; se fijan al implementarlo.*
+`delta init` instala `.githooks/commit-msg` y fija `core.hooksPath`; el resto de lo que hará `delta init` (esqueleto, `CLAUDE.md`, regenerar `.claude/`) llega en su tarea de la Fase 2. `delta hook` se registra en `source/harness/core/configs/settings.json` y atiende todos los eventos: el evento viene en el JSON.
 
 ---
 
@@ -274,17 +274,28 @@ Para cada spec, `drift` compara los archivos que el spec referencia con los que 
 
 ### 8.5 `delta hook`
 
-Cada evento sigue el mismo camino: `hook` lee el JSON, `guard` decide, `hook` traduce a exit code.
+Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` decide y `hook` traduce la decisión a un código de salida. `settings.json` registra el mismo `delta hook` para todos.
 
-| Evento | Qué decide `guard` |
+**El contrato de Claude Code**, verificado el 1 de noviembre de 2026 en https://code.claude.com/docs/en/hooks:
+- **Configuración:** `hooks.<Evento>` es una lista de grupos `{ matcher, hooks: [{ type: "command", command, timeout }] }`. El `matcher` es una lista exacta separada por `|` (`Write|Edit`); cualquier otro carácter lo convierte en una expresión regular.
+- **Entrada por stdin:** `hook_event_name`, `cwd`, `session_id`, `transcript_path` y `permission_mode`, más `tool_name` y `tool_input` en los eventos de herramienta (`command` en Bash; `file_path` absoluto en Write y Edit). `PostToolUse` añade `tool_response`; `Stop`, `stop_hook_active` y `last_assistant_message`; `SessionStart`, `source`.
+- **Salida:** exit **2** bloquea (en `PreToolUse` la acción no ocurre y el stderr llega a Claude; en `Stop` impide parar). Cualquier otro código, incluido el 1 y el 127 de "comando no encontrado", **no bloquea**. En `SessionStart`, el stdout con exit 0 se suma al contexto de Claude.
+- **`Stop`:** `stop_hook_active` es verdadero cuando Claude ya continúa por un hook de parada; hay que mirarlo para no bloquear algo que nunca se resolverá, y Claude Code corta tras 8 continuaciones seguidas.
+
+| Evento | Qué hace hoy |
 |---|---|
-| `session-start` | Qué slices están `stale` o sin verificar; avisa si falta `core.hooksPath` o el binario |
-| `pre-edit` | Bloquea la edición directa de la KB por el agente |
-| `pre-commit` | Valida el mensaje con `commits.Validate`; bloquea con 2 si no cumple |
-| `post-edit` | Dispara el linter del proyecto y `stale` |
-| `stop` | Exige evidencia de que `delta check` corrió tras el último cambio |
+| `SessionStart` | Imprime el resumen de los slices (estado y claims por tag) y el hecho de que la KB no se edita directo |
+| `PreToolUse` con `Write` o `Edit` | Bloquea (2) si el archivo es de la KB (`knowledge.Covers`); una persona sí puede editarla a mano |
+| `PreToolUse` con `Bash` | Si la línea es un `git commit` con un mensaje legible (`commits.FromCommand`), lo valida y bloquea (2) si no cumple |
+| `PostToolUse` | Sin decisión todavía (el linter y `stale`) |
+| `Stop` | Sin decisión todavía (la evidencia de que `delta check` corrió) |
 
-*A verificar:* el formato exacto del JSON que Claude Code entrega a cada hook (nombres de campos, cómo llega el comando de Bash) y cómo declarar los eventos en `settings.json`. No lo leí de la documentación vigente; hay que confirmarlo antes de escribir `adapter/hook`. Es el punto más expuesto a cambios de plataforma, y por eso el adaptador se mantiene delgado.
+**Decisiones y límites:**
+- Un fallo propio (JSON ilegible, error de disco) sale con **1**, nunca con 2: un delta roto no debe bloquear al agente. Si `delta` no está instalado, el shell sale con 127, que tampoco bloquea.
+- `Write` y `Edit` son las únicas herramientas de archivo cubiertas, porque son las dos cuyo `file_path` confirmé. `MultiEdit` y `NotebookEdit` no se cubren hasta ver sus campos.
+- *Shortcut: el hook ve la línea de comando, no sus efectos; un `sed -i` o un `cat >` sobre un spec desde Bash no se detecta.*
+- El mensaje de commit se lee de `-m` y `--message` (también varios) y de la forma `$(cat <<'EOF' ... EOF)`. Con `-F`, con `--amend` sin `-m` o con otra sustitución de shell no se puede leer y se deja pasar: lo cubren el git hook y CI.
+- `settings.json` no usa el filtro `if` de los hooks (`Bash(git commit*)`): no pude confirmar cómo evalúa comandos compuestos, y si no coincide el commit no se vigila. Se paga un proceso `delta` por cada llamada a Bash.
 
 ---
 
@@ -418,10 +429,13 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 
 1. **Quién dispara `approved → built` y `built → verified`.** `direction.md`, 6.3, dice que solo el CLI cambia el estado, pero no qué comando lo hace. *Propuesta:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando. Se decide al implementar la Fase 3.
 2. **Archivo de configuración.** `delta init` menciona "config", pero no está definido qué se configura. *Propuesta:* sin archivo de configuración en la primera versión, solo convenciones y valores por defecto (por ejemplo, los patrones de archivos de tests). Se añade si aparece una necesidad real.
-3. **Formato del JSON de los hooks** y nombres definitivos de los eventos de `delta hook` (*a verificar*, sección 8.5).
+3. ~~**Formato del JSON de los hooks**~~ **Resuelto:** verificado en la documentación de Claude Code; el contrato y sus límites están en la sección 8.5.
 4. **Versión de Go y ruta del módulo** (`github.com/ronz204/deltas-ai` es la ruta natural del repositorio actual; la versión de Go se fija al crear `go.mod`).
 5. **Configuración de `golangci-lint`**: qué linters se activan.
 6. **Códigos de diagnóstico**: ya existen los de `specfile` (`SPEC-*`), `linkcheck` (`LINT-*`) y `commits` (`COMMIT-*`); se completan con cada comando nuevo.
 7. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. Cerrar ese hueco (un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado) es parte de la máquina de estados de la Fase 3.
 8. **Repos con servicios.** Los contratos se leen solo de `<raíz>/deltas`. Un repo partido en servicios, con un `deltas/` por servicio, no está soportado todavía.
 9. **Separar `Kind` y `TagKind` en `assertion`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.
+10. **`Stop` y la evidencia.** Exigir que `delta check` corrió tras el último cambio pide un registro de la última verificación. *Propuesta:* `delta check` anota la hora en un archivo dentro de `.git/`, y `Stop` la compara con la modificación más reciente de specs y tests; hay que respetar `stop_hook_active` y el tope de 8 continuaciones.
+11. **`PostToolUse` y el linter.** Sin archivo de configuración (pendiente 2) no se sabe qué linter correr tras una edición; depende de esa decisión.
+12. **El nombre del binario.** `delta` también es el nombre de un paginador de git muy usado (git-delta). Si está antes en el `PATH`, el hook `commit-msg` correría el programa equivocado. Decidir si el binario cambia de nombre, o si el hook verifica que `delta` sea este.
