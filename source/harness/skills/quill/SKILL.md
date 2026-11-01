@@ -1,78 +1,72 @@
 ---
 name: quill
 description: >-
-  Use before writing or substantially revising a <slice>.spec.md or <slice>.design.md under deltas/ (a multi-service repo keeps each service's own deltas/). Gathers what a robust spec or design needs by investigating the real implementation, checking it against existing docs and rules, and asking targeted questions about intent, boundaries, invariants and open decisions or, for the UI-facing design, layout, states, interactions and what it consumes. Then hands that material to the archivist skill to write. Trigger whenever the user wants to "spec out" a slice, flesh out or harden an existing spec, define how a screen or surface should look and behave, or says things like "let's spec out X", "this spec needs hardening", "write the spec for this slice", "what is this spec missing?", "let's define the design for this screen". Never writes the spec or design file itself, that is archivist's job.
+  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /quill <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
+argument-hint: <slice>
 ---
 
 # Quill
 
-Code shows what a slice currently does. It doesn't show why the slice exists, what's deliberately out of scope, what must never break, or what's intentionally left undecided — those only come from asking. The same gap exists on the presentation side: a mockup shows one snapshot of a screen, not every state it must handle, what happens on each interaction, or what it's allowed to depend on from the slice's logic-layer contract. This skill's entire job is producing that missing half so the spec (and, where relevant, the design) `archivist` writes is grounded and complete, not a paraphrase of the source code or a mockup with the important parts guessed at. Like `archivist`, this skill is meant to be portable across projects — its steps describe a way of investigating and interviewing, not anything specific to one codebase's stack or module names.
+Code shows what a slice currently does. It doesn't show why the slice exists, what is deliberately out of scope, what must never break, or what is intentionally left undecided. Those only come from asking. This skill produces that missing half and writes it down as a contract: claims with stable IDs, each with a way to verify it. Its reason to change is "did we ask the right questions and find the right conflicts", never "does the code satisfy the contract" (that is `forge`'s) or "is the contract still true" (that is `seal`'s).
 
-Splitting this from `archivist` is a deliberate SRP call: this skill's reason to change is "did we ask the right questions and find the right conflicts" — `archivist`'s reason to change is "does the artifact land in the right shape." Keeping them separate means the writing conventions (templates, phrasing, English-only, no product framing) stay consistent regardless of who's answering questions on a given day.
+Quill owns the span of the cycle up to `draft`. A person owns the next step: `delta approve`. Nothing below assumes a specific stack.
 
-A **delta spec** is what this skill produces material for: `<slice>.spec.md` describes a *delta* — a bounded change or capability inside a project, specified as a contract for how that artifact/sector of the project should behave — rather than an account of how it got that way. The slice is the unit; the spec is its current, living contract for the logic layer. A slice with a UI-facing surface has a second living contract, `<slice>.design.md`, for the presentation layer — same "current truth, not history" discipline, gathered the same interviewing way, just aimed at layout/states/interactions/consumption instead of data/rules/invariants.
+The slice is `$ARGUMENTS`; if it is empty, ask which slice.
 
 ---
 
-## Step 0 — Read what already exists for this slice
+## Step 0 — Read what already exists
 
-Before asking the user anything, find out what's already known:
-
-- Locate `deltas/<slice>.spec.md` at the project root and, if present, `<slice>.design.md` alongside it. Only in a repo genuinely split across multiple services, don't assume every sibling sits next to the file you started from: `design.md` lives under whichever service renders the UI, which can be a different service than the one implementing the logic, and the same slice name can carry its *own* `spec.md` in more than one service (each scoped to what that service owns) rather than a single shared one — check other services' `deltas/` for both before concluding a sibling doesn't exist. If any already have content, read them — every question below should be about a genuine gap or an update, not something already answered.
-- If the slice's spec (or design) file doesn't exist yet, don't create it — confirm the slice's name and boundary with the user first (creating the file is `archivist`'s step, once there's real content to put in it).
+- Run `delta status` to see the slices and their state. A slice in a service's own `deltas/` is named `folder/slice` (for example `services/auth/login`); a bare name works when only one `deltas/` has it.
+- If `<slice>` has a spec (`deltas/<slice>.spec.md`, or `<folder>/deltas/<slice>.spec.md`), read it in full. Every question below must be about a genuine gap or an update, not something already answered. Note its state: rewriting an approved or built contract sends it back to `draft`, and a person must approve it again.
+- If it has none, confirm the slice's name and boundary with the user first. The file is created in Step 4, once there is content for it.
 
 ## Step 1 — Investigate the real implementation
 
-Same discipline `archivist` applies at its own Step 0: find and read the actual source that implements this slice — grep by the slice's feature/path-alias name, walk its folder, read the whole file rather than an excerpt. Don't infer behavior from a filename or a related doc's description.
+Find and read the source that implements the slice: grep by the feature's name, walk its folder, read whole files rather than excerpts. Don't infer behavior from a filename or a doc's description.
 
-While reading, actively check the implementation against:
-- Any `.claude/docs/*` claim that describes this slice.
-- Any `.claude/rules/*` convention that should apply to it (e.g. a naming convention, an access-control pattern, a data-handling rule — whatever this project's actual rules cover).
+While reading, check the implementation against any project doc that describes the slice and any project rule that should apply to it. Note every mismatch: a doc that says one thing while the code does another is exactly the gap a contract exists to close, so it is surfaced (Step 3), never quietly resolved in either direction.
 
-Note every mismatch found — a doc that says one thing while the code does another is exactly the kind of gap a robust spec exists to close, not something to quietly resolve in either direction.
+## Step 2 — Ask what the code alone can't answer
 
-Also watch for a pattern that clearly extends beyond this one slice — not "how this capability behaves" but "how code gets written in this project" (a naming convention, a required check, a structural pattern repeated regardless of slice). That's a rule candidate, not spec content — see `archivist`'s "Spotting a rule candidate" check (cross-cutting, not already tool-enforced, applies every time, would be silently violated otherwise). Don't fold it into this slice's `Invariants`; carry it into Step 3 instead.
+For each point, confirm it from what Step 1 found or ask the user. Don't guess.
 
-## Step 2 — Ask what code (or a mockup) alone can't answer
+- **Intent**: why does the slice exist, in a sentence or two of domain language?
+- **Scope and non-goals**: what is explicitly not this slice's job, especially anything a future contributor could assume belongs here?
+- **Invariants**: what must hold however the implementation changes? This is the highest-value part, because it is what gets checked later. Phrase each as one EARS claim whose response can be observed (`When <trigger>, <subject> <response>`; also `While`, `Where`, `If … then`, or always/never). If the user's wording is vague or joins two outcomes, ask what triggers it and what would be seen, and propose the rewrite.
+- **Acceptance criteria**: each as `Given <context>, when <action>, then <outcome>`, only for what the invariants don't already cover.
+- **Deferred / open questions**: what is intentionally undecided, and what event would decide it.
+- **How each claim is verified**, because it decides the tag:
+  - `test: <command>`: a command that exits 0 when the claim holds. Name the file, package or folder it runs and don't filter by test name (`go test ./billing`, not `-run X`), so a filter that matches nothing can't pass silently. Find the existing test and confirm it exists. A claim with no test yet is not left out: write it as `none`.
+  - `manual: <step>`: only a person can check it.
+  - `none`: nothing verifies it yet. It is valid, stays visible as debt in `delta status`, and is listed under Deferred as a testing gap.
 
-For each of the following, either confirm it directly from what Step 1 found, or ask the user — don't guess. Which list applies depends on whether the output is `spec.md`, `design.md`, or both — ask the user up front if it's not obvious from the request.
-
-For `<slice>.spec.md` (logic layer):
-- **Intent** — why does this slice exist, in a sentence or two of domain language (not an implementation summary)?
-- **Scope & non-goals** — what's explicitly *not* this slice's job, especially anything a future contributor could plausibly assume belongs here?
-- **Invariants** — what must hold no matter how the implementation changes later? This is usually the highest-value part of the spec: it's the part that actually gets checked against future changes. For each one, also ask how it would be verified — an existing test (find it and confirm it exists), a read-only command, a manual step, or nothing yet — so the handoff carries a verification tag per invariant. Phrase each one as a single EARS claim (always/never, When <trigger>, While <state>, If <condition> then, or Where <feature>) whose response can be observed. If the user's wording is vague or joins two outcomes, ask what triggers it and what would be seen, and propose the rewrite instead of recording the vague version.
-- **Deferred / open questions** — anything intentionally left undecided, and what event or threshold would trigger deciding it (a scaling point, a feature-priority call, a compliance requirement)?
-- **Acceptance criteria** — how would someone verify this spec is satisfied — specific tests, a manual check, or both? Each gets the same verification tag as an invariant; an invariant with nothing verifying it yet is recorded as `[none]` and listed under deferred / open questions as a testing gap, never silently dropped. Write each criterion as a Given / when / then line.
-- **Context (optional)** — only if Step 1's investigation turned up domain background or a mechanism explanation that doesn't fit any field above and that a future reader would need — most slices don't need this; don't ask about it otherwise.
-
-For `<slice>.design.md` (presentation layer, only for a slice with a UI-facing surface):
-- **Scope** — which screen(s)/surface(s) does this cover, and what's deliberately deferred to a later design pass?
-- **Layout** — what's actually on the surface and how is it structured, beyond what one mockup snapshot shows?
-- **States** — every state the surface must handle (loading, empty, error, success, and any domain-specific one) and what each shows — a mockup usually only shows the happy path. Phrase each as "While <state>, the surface ...".
-- **Interactions** — what can the user do, what happens, and which actions need a confirmation step before firing a logic-layer consequence (check the slice's `spec.md` if one exists, don't re-decide an invariant here). Phrase each as "When <user action>, ...".
-- **Consumes** — what data/endpoints this surface reads and writes, mapped back to `spec.md`'s contract where one exists.
-- **Deferred / open questions** and **Acceptance criteria** — same meaning as the spec-side versions above, aimed at the presentation layer.
-- **Context (optional)** — same meaning as the spec-side version above, aimed at presentation-layer theory (e.g. why a third-party component behaves the way it does) — most slices don't need this.
-
-Ask in a short, focused batch (`AskUserQuestion` when the choices are concrete and enumerable) rather than dumping the whole list at once — a spec or design built from five rushed answers is worse than one built from two well-considered ones, continued next turn if needed.
+Ask in a short, focused batch (`AskUserQuestion` when the choices are concrete) rather than the whole list at once. A spec built from five rushed answers is worse than one built from two considered ones; continue next turn if needed.
 
 ## Step 3 — Reconcile conflicts explicitly
 
-Any mismatch found in Step 1, or any place where the user's answer contradicts an existing doc/rule/the slice's own current spec or design, gets surfaced and resolved with the user before it goes anywhere — never silently pick the code's version or the doc's version. This includes a spec/design mismatch — e.g. an interaction described in `design.md` implying a rule `spec.md` doesn't actually state — surface it rather than letting the design silently invent logic-layer behavior. Once resolved, note which side won and why; that resolution is what gets folded into the updated file(s) — this system doesn't keep a separate decision log for it.
+Any mismatch from Step 1, and any place where an answer contradicts a doc, a rule or the slice's current spec, is surfaced and resolved with the user before it goes anywhere. Never silently pick the code's version or the doc's version. Note which side won and why; the resolution is folded into the spec. There is no separate decision log.
 
-Any rule candidate flagged in Step 1 gets confirmed here too — ask the user whether the pattern is deliberate and worth enforcing on every future touch of matching files, not just incidental consistency in the code read so far. Only a confirmed candidate goes into Step 4's handoff; drop an unconfirmed one rather than passing it along as a maybe.
+## Step 4 — Write the draft with the CLI
 
-## Step 4 — Hand off to archivist
+The knowledge base is not edited directly: a hook blocks `Write` and `Edit` on `deltas/`. The CLI is the only way in, and it validates before it saves.
 
-Once the relevant fields (spec: intent, scope, contract, invariants, deferred questions, acceptance criteria, optional context — or design: scope, layout, states, interactions, consumes, deferred questions, acceptance criteria, optional context) are each either confirmed from code/mockup or answered by the user, package the result (including each invariant's and acceptance criterion's verification tag) and invoke `archivist` to write it: a new or updated `<slice>.spec.md` via `.claude/skills/archivist/references/artifacts/spec.template.md`, a new or updated `<slice>.design.md` via `.claude/skills/archivist/references/artifacts/design.template.md` if the slice has a UI-facing surface in scope, and any rule candidate confirmed in Step 3 for `archivist` to write separately as its own `.claude/rules/<topic>.md` — a cross-cutting convention doesn't belong inside a slice's own files. This skill's job ends at producing that material — it never writes into `deltas/` or `.claude/rules/` itself, even when the answer seems obvious enough to just write down directly.
+1. If the slice has no spec, run `delta spec new <slice>`. It creates the file from the template as a `draft`. Read it to see the sections.
+2. Compose the whole spec and send it on stdin with the Bash tool and a heredoc: `delta spec write <slice> <<'EOF'` … `EOF`. Use Bash even where PowerShell is the default shell: a piped PowerShell here-string can't be matched by a permission rule, so it would stop for approval every time. The frontmatter keeps `format: 1`, `slice: <bare name>` and `status: draft` (a new spec can only be a draft; the other states are moved by commands).
+3. Each claim is a header line `- INV-01 [tag]` or `- ACC-01 [tag]`, and under it, indented, its one sentence. IDs are stable: never renumber an existing claim, and don't reuse the ID of one you removed.
+4. If it prints diagnostics, nothing was written. Fix what they say (they carry file, line and code) and write again. When it succeeds, run `delta spec lint <slice>`.
 
-If the resulting spec/design implies nontrivial implementation work, that's the `forge` skill's job (or ordinary coding), not a deliverable this skill or `archivist` produces.
+Then stop. Tell the user the slice is a `draft`, summarize the claims and which are `none` or `manual`, and ask them to review it. **Don't run `delta approve`**: the sign-off is the person's, and Claude Code will ask them anyway. The next steps are `delta approve <slice>` and then `/forge <slice>`.
+
+If the resulting spec implies real implementation work, that is `forge`'s job, not a deliverable of this skill.
 
 ---
 
 ## Non-goals
 
-- Don't re-ask about anything already settled in the slice's current `spec.md` or `design.md`, if it has them — Step 0 exists specifically to prevent that.
-- Don't write `spec.md` or `design.md` directly, even to save a round-trip — the separation from `archivist` is what keeps every spec's shape consistent, not a formality to skip when it's inconvenient.
-- Don't force every field to a firm answer before handing off. "This is intentionally undecided until X" is a complete, valid answer for Deferred / Open questions — manufacturing a premature decision just to fill the section produces a spec/design that lies about its own certainty.
-- Don't spec out a slice that's a single trivial file with no invariant worth protecting — this system's ceremony pays for itself against real complexity, not by default. Same bar applies to `design.md`: don't create one for a trivial surface with no real state/interaction complexity worth pinning down.
+- Doesn't approve, build or verify. It ends at `draft`.
+- Doesn't write into `deltas/` any other way than `delta spec write`, even when the answer seems obvious enough to write directly.
+- Doesn't re-ask what the current spec already settles.
+- Doesn't force every field to a firm answer. "Intentionally undecided until X" is a complete answer for Deferred; a premature decision makes the spec lie about its own certainty.
+- Doesn't spec a slice that is a single trivial file with no invariant worth protecting. The ceremony pays for itself against real complexity, not by default.
+- Doesn't write docs, rules or the project's `CLAUDE.md`. Those are edited by a person.

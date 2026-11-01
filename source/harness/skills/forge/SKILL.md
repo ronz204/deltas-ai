@@ -20,7 +20,7 @@ The slice is `$ARGUMENTS`. It runs only when invoked as `/forge <slice>`, one sl
 
 - If `$ARGUMENTS` is empty, stop and ask which slice. Don't guess it from `git status`.
 - Run `delta ready <slice>`. If it exits non-zero, stop and relay its message (a missing spec, problems to fix with `delta spec lint`, or a draft that a person must approve with `delta approve <slice>`). Don't work around it, don't edit the spec's status, and don't run `delta approve` yourself: approval is the person's.
-- Read the spec in full, and the design too if the slice has a UI and it is in scope. If a Deferred / Open question blocks the work, ask the user rather than guessing its answer.
+- Read the spec in full. If a Deferred / Open question blocks the work, ask the user rather than guessing its answer.
 - Find the project's real test and build commands from its manifest or task runner, and check the permission policy lets you run them. If it doesn't, say so now, not at the end.
 
 ## Step 1 — Compute the work
@@ -35,7 +35,7 @@ Run `delta check <slice>` and `delta lint` for each claim's verdict and for the 
 | `[test: …]` that is `Unverified` | Its command didn't run, or no test cites the ID: write or repair the test |
 | `[manual: …]` | Nothing to automate; list it for the user |
 
-`design.md` claims carry no tags: judge each one by reading the code against it, and treat an unmet one as work. Run only the linked tests to compute the state, never the whole suite.
+Run only the linked tests to compute the state, never the whole suite.
 
 ## Step 2 — Propose the plan and wait
 
