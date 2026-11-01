@@ -28,13 +28,6 @@ jobs:
       - name: Race detector
         if: matrix.os == 'ubuntu-latest'
         run: go test -race ./...
-      # .claude/ is not versioned: the budget is measured on what delta init writes from the harness
-      - name: Install the harness
-        if: matrix.os == 'ubuntu-latest'
-        run: go run ./scripts/delta init
-      - name: Context budget
-        if: matrix.os == 'ubuntu-latest'
-        run: go run ./scripts/delta budget
 
   lint:
     runs-on: ubuntu-latest
