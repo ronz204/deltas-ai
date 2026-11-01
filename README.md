@@ -2,165 +2,151 @@
 
 # Delta
 
-**A living-documentation methodology for AI coding agents.**
+**A verifiable contract between what your project says it does and what its code does.**
 
 [![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-CC785C?style=flat-square)](https://claude.com/claude-code)
-[![Skills](https://img.shields.io/badge/skills-5-blueviolet?style=flat-square)]()
+[![Roles](https://img.shields.io/badge/roles-3-blueviolet?style=flat-square)]()
 [![No decision log](https://img.shields.io/badge/decision_log-none_by_design-informational?style=flat-square)]()
 
 </div>
 
 ---
 
-Most project context lives in one of two bad places: a person's head, or an ever-growing history of decisions that costs more to read than it's worth. **Delta** treats documentation as a set of **living contracts** instead — files that describe what is true *right now*, edited in place as things change, never appended to as a log. Superseded content is simply gone; git history is already the record of what used to be true.
+Most project context lives in one of two bad places: a person's head, or an ever-growing history of decisions that costs more to read than it's worth. **Delta** treats documentation as a set of **living contracts** instead: files that describe what is true *right now*, edited in place as things change, never appended to as a log. Superseded content is simply gone; git history is already the record of what used to be true.
 
-This repository *is* the harness: the skills, rules, and templates that implement Delta, packaged for [Claude Code](https://claude.com/claude-code) (`.claude/`). Drop that folder into a project and its agent gains five new capabilities: four for creating and maintaining that project's documentation, and one for building code against it.
+What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
+
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is not built yet. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`harness/`](harness) is the renamed source of the new one. The design and the order of work are in [`elements/`](elements).
 
 ## Contents
 
-- [Delta in plain words](#delta-in-plain-words)
-- [The five-role pipeline](#the-five-role-pipeline)
+- [The idea](#the-idea)
+- [Three roles and a CLI](#three-roles-and-a-cli)
+- [What a contract looks like](#what-a-contract-looks-like)
 - [What the knowledge base looks like](#what-the-knowledge-base-looks-like)
-- [Using this repo](#using-this-repo)
+- [Rules](#rules)
+- [What Delta promises, and what it doesn't](#what-delta-promises-and-what-it-doesnt)
+- [Using this repo today](#using-this-repo-today)
 - [Repository layout](#repository-layout)
 - [Non-goals](#non-goals)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
-## Delta in plain words
+## The idea
 
-Think of Delta as a small team of assistants that keep a project's notes honest, so the agent never has to guess how your project works.
+**The model proposes, the code decides.** Everything that can be a rule (the shape of a spec, the state of a feature, whether a commit message is valid, whether a claim holds) is enforced by a program and hooks, not by a prompt that the model may or may not follow. The model is kept for what is genuinely creative or ambiguous: interviewing, drafting claims, planning, writing code.
 
-- **You talk, they do the paperwork.** You say what you want in normal sentences ("spec out checkout", "implement it", "is it still accurate?"). The right assistant picks it up; you never have to remember file names or formats.
-- **One note per feature.** Each feature gets a short *contract* (its `spec.md`) that says what it must do and what must always be true. It describes the present, not the history: when things change, the contract is edited, not appended to.
-- **The contract drives the code.** The agent reads the contract before touching a feature, writes tests from its claims, then writes the code to satisfy them.
-- **Drift gets caught.** After the code changes, a check compares the contract to what the code really does and tells you where they disagree.
+- **One contract per feature.** Each feature (a *slice*) gets a short spec that says what it must do and what must always be true. It describes the present, not the history.
+- **Claims are checkable.** Every claim has an ID and a verification tag. `delta check` runs the linked command and reports `Holds`, `Violated` or `Unverified`. `Unverified` never pretends to be `Holds`.
+- **The contract drives the code.** Tests cite the claim they prove, and when the code would have to contradict a claim, the agent stops and raises a spec question instead of deciding silently.
+- **Drift is loud.** When code a contract references changes, the slice is marked `stale` until it is verified again.
+- **You decide at the expensive points.** The plan is yours to approve before anything is built, and nothing in the knowledge base is changed behind your back.
 
-### A typical week
-
-1. **Day one, once per project:** *"bootstrap this repo with Delta"*. The agent reads your codebase (or asks a few questions if it's empty) and writes a `CLAUDE.md` that points to everything, plus the few docs that hold something the code doesn't show.
-2. **New feature:** *"let's spec out invoices"*. You get asked a handful of targeted questions: what it's for, what must never break, what's still undecided. The answers become `invoices.spec.md`.
-3. **Build it:** *"implement the invoices slice"*. The agent shows a plan built from the claims not yet proven. You approve it, and it writes the tests first, then the code.
-4. **Later, after changes:** *"check invoices for drift"*. You get a short table: what still holds, what was broken, what can't be verified.
-5. **Anything else worth remembering:** *"we decided to always use UTC, write that down"*. It lands in the right place, in the right shape.
-
-You decide at every step that matters: the plan is yours to approve, and nothing in the knowledge base is changed behind your back.
-
-### Required and optional rules
-
-Delta splits its rules in two:
-
-- **Required** (`.claude/rules/`): the ones Delta itself needs to work, such as how the knowledge base is edited, when something deserves a spec, how much context it may cost, the lean-change rule that keeps code changes small, and the commit message format.
-- **Optional** (the surveyor's rule catalog): conventions that depend on your language or team habits, such as DDD layering, Python and TypeScript idioms, and English-only code. When you bootstrap a project, the surveyor proposes the ones that match your repo and writes only the ones you confirm into your project's `.claude/rules/`; the rest cost you nothing.
-
----
-
-## The five-role pipeline
-
-Delta enforces "every piece of context lands in the right shape, every time" with five narrow, single-responsibility skills rather than one do-everything assistant. Bootstrap and interview investigate and ask; verify checks; **only the write stage commits a change to the knowledge base**; the optional build stage writes application code and tests, and never the knowledge base:
+## Three roles and a CLI
 
 ```mermaid
 flowchart LR
-    subgraph Investigate & ask
-        SU["🧭 Surveyor<br/><small>bootstrap a bare repo</small>"]
-        SP["📝 Specifier<br/><small>interview one feature</small>"]
-    end
+    Q["✒️ Quill<br/><small>draft the contract</small>"]
+    A{{"you approve"}}
+    F["🔨 Forge<br/><small>build against it</small>"]
+    S["🔏 Seal<br/><small>verify it still holds</small>"]
+    CLI[("delta CLI + hooks<br/>validate · run · gate")]
 
-    AR["🗂️ Archivist<br/><small>the only writer of the knowledge base</small>"]
-    KB[("Knowledge base<br/>CLAUDE.md · docs · rules · specs")]
+    Q --> A --> F --> S
+    S -- "drift → stale" --> Q
+    CLI -. "decides" .- Q
+    CLI -. "decides" .- F
+    CLI -. "decides" .- S
 
-    SE["🛡️ Sentinel<br/><small>verify contract vs. code</small>"]
-    EX["🔨 Executor<br/><small>build code against a contract</small>"]
-
-    SU -- "material" --> AR
-    SP -- "material" --> AR
-    AR -- "writes" --> KB
-    KB -- "checked against real code" --> SE
-    SE -- "drift report" --> AR
-    KB -- "unverified claims" --> EX
-    EX -- "spec problems" --> AR
-
-    style AR fill:#7c3aed,color:#fff,stroke:none
-    style KB fill:#1f2937,color:#fff,stroke:none
+    style CLI fill:#1f2937,color:#fff,stroke:none
 ```
 
-| Skill | Role | Its reason to change | Writes to the knowledge base? |
-|---|---|---|:---:|
-| 🧭 **Surveyor** | Bootstraps a repo that has no knowledge base yet — scans the codebase (or interviews, if greenfield) breadth-first | "did the project get oriented fast and accurately" | ❌ hands off to Archivist |
-| 📝 **Specifier** | Gathers what code alone can't answer for one feature — intent, invariants, open questions, UI states/interactions | "did we ask the right questions and find the right conflicts" | ❌ hands off to Archivist |
-| 🗂️ **Archivist** | Lands material into the correct artifact shape — a doc, a rule, an agent, a skill, or a feature's contract | "does the artifact land in the right shape" | ✅ the sole writer |
-| 🛡️ **Sentinel** | Verifies whether an already-written contract still holds against the real implementation | "does the implementation still match its contract" | ❌ reports drift, hands corrections back |
-| 🔨 **Executor** | Implements a slice against its contract: derives the work from the claims not yet verified, proposes it for approval, then writes tests first and the code | "does the code now satisfy the contract, with tests that say so" | ❌ writes code and tests; hands spec problems back |
+| Role | What it does | Slice state it owns |
+|---|---|---|
+| ✒️ **Quill** | Interviews you about one feature, investigates the real code and drafts the claims | up to `draft`; you move it to `approved` |
+| 🔨 **Forge** | Plans from the claims not yet verified, you approve the plan, then it writes tests first and the code. Never edits the contract | `approved` → `built` |
+| 🔏 **Seal** | Verifies the contract against the code. The deterministic part runs commands; a model reads only what has no command | `built` → `verified`, or back to `stale` |
 
-> A hand-edit to any of these files skips the pipeline and is exactly the kind of drift Delta exists to prevent — the one exemption is a trivial, already-settled fix (a typo, a stale command).
+The `delta` CLI is what makes the state machine real: it validates specs, is the only writer of the knowledge base, runs verification, tracks drift, measures the context budget, and answers the Claude Code hooks. It does not depend on Claude Code; the hooks are a thin adapter on top. Planned commands: `init`, `spec new|lint|write`, `link`, `lint`, `check`, `status`, `stale`, `approve`, `budget`, `context`, `commit-msg` and `hook`.
 
-Full step-by-step instructions for each skill live in `.claude/skills/<name>/SKILL.md`.
+## What a contract looks like
 
+```markdown
 ---
+format: 1
+slice: invoicing
+status: approved
+---
+
+## Invariants
+- INV-01 [test: go test ./invoicing]
+  When an invoice is issued, the system shall round each line to 2 decimals before summing.
+- INV-02 [none]
+  The system shall not issue two invoices with the same sequence number.
+```
+
+Tags are `test: <command>` (any command that exits 0 when the claim holds, unit or end-to-end), `manual` and `none`. A `none` claim is valid but stays visible in `delta status` as verification debt, so you can start without a test harness and add it where it pays.
+
+A slice is a bounded feature or capability, sized the way a bounded context would be, not a source file and never an architecture layer. Two contracts that keep changing together for the same reason are really one slice wearing two names.
 
 ## What the knowledge base looks like
 
-Once bootstrapped, a project's Delta knowledge base has three layers — a router, a curated reference, and per-feature contracts:
+A project's knowledge base has three layers: a router, a curated reference, and per-feature contracts.
 
 ```
 CLAUDE.md                      router — orients a session fast, points at everything else
-.claude/docs/                  curated, project-wide reference (up to 5 files, each created only if it holds what the code doesn't show)
-   ├─ overview.md                 scope, non-goals, pillars, domain vocabulary
-   ├─ modules.md                  cross-component flows and non-obvious behavior
-   ├─ structure.md                architecture decisions and rationale, infrastructure, cross-cutting patterns
-   ├─ database.md                 persistence invariants, access control, data model where the schema is silent
-   └─ expertise.md                non-obvious mechanisms/concepts the project leans on
-.claude/rules/<topic>.md       conventions auto-loaded when matching files are touched
-.claude/agents/<name>.md       bounded, repeatable subagents with their own tools/context
-deltas/                        per-feature living contracts ("slices"); <service>/deltas/ in a repo split into services
-   ├─ <slice>.spec.md             logic-layer contract: intent, invariants, acceptance criteria
-   └─ <slice>.design.md           presentation-layer contract (only if the slice has a UI)
+.claude/docs/                  curated reference, created on demand and only if it holds what the code doesn't show
+.claude/rules/<topic>.md       conventions loaded when matching files are touched
+deltas/<slice>.spec.md         per-feature living contracts ("slices")
 ```
 
-A **slice** is a bounded feature or capability — sized the way a bounded context would be, not a source file. Two slices whose contracts keep changing together for the same reason are really one slice wearing two names. It's scoped to a capability, never to an architecture layer — a slice never gets split into a domain-logic spec, an application-orchestration spec, and an infrastructure spec for the same capability; that treats "layer" as if it were the capability boundary. A slice's contract is the only artifact Delta keeps for it — there's no roadmap file; moving from a finished contract to code is ordinary implementation work, never a second knowledge-base artifact.
+Docs and rules stay self-contained and free of volatile references (no citing a specific file path or function as proof a convention exists), since that breaks the moment something is renamed. A spec, by contrast, is expected to name the real implementation, since that is the point of a contract checked against it.
 
-Every doc/rule stays self-contained and free of volatile references — no citing a specific file path or function name as proof a convention exists, since that breaks the moment something is renamed. A `spec.md`/`design.md`, by contrast, is expected to name the real implementation, since that's the whole point of a contract checked against it.
+## Rules
 
----
+Delta keeps the always-loaded rules to the minimum:
 
-## Using this repo
+- **Core, always loaded (two rules).** *Fidelity*: the contract is the scope, tests cite the claim they prove, and ambiguity goes back to the spec. *Honesty*: nothing is called done without evidence that the checks ran, and the closing says what was left unverified. Both are enforced by code, not trusted to the model.
+- **Preset `base`, on by default and loaded only when source files are touched.** Scope (a ladder of cheaper answers before writing new code) and reliability (never cut validation, error handling or security). This is where "better code" lives. It is a side effect of Delta, not what it promises.
+- **Language and team presets, opt-in.** DDD layering, language idioms, security. Each one shows its context cost before you enable it. Whatever a linter can check goes to a linter, not to a rule.
 
-This repo has no application source of its own — it *is* the reusable harness.
+Commit messages are validated by hooks (a Claude Code hook for the agent, a git hook for people, CI for everything), not by a rule the model has to remember.
 
-```
-1. copy .claude/ into your project
-2. "bootstrap this repo with Delta"        → Surveyor writes CLAUDE.md + .claude/docs/*
-3. "let's spec out <feature>"              → Specifier interviews, Archivist writes <slice>.spec.md
-4. "implement <feature>"                   → Executor plans from the unverified claims, then builds
-5. "check <feature> for drift"             → Sentinel verifies the contract against the code
-6. anything else worth documenting         → Archivist, directly
-```
+## What Delta promises, and what it doesn't
+
+- **Promised: reliability of the system.** The CLI validates, states are respected, drift is detected. This is tested with ordinary tests, with no model involved.
+- **Not promised yet: better results.** Whether an agent writes better code with Delta has not been measured. Delta does not claim token savings either: more orientation costs tokens, and the saving is a hypothesis.
+- **Gates detect, they don't guarantee.** A `Holds` means the command exited 0 and a test cites the claim's ID, not that the test ran or is a good test. Drift detection is by referenced file, which is a heuristic. The honest promise is "problems don't go unnoticed", not "there are no problems".
+
+## Using this repo today
+
+The new CLI and the three-role harness are under construction (see the status note above). What works now is the previous generation:
 
 1. **Copy** `.claude/` into the target repo.
-2. **Bootstrap** — *"bootstrap this repo with Delta"* — invokes 🧭 **Surveyor**, which produces `CLAUDE.md` and creates the `.claude/docs/*` files that hold something the code doesn't show, from what it finds in the codebase (or from a short interview, if the repo is greenfield).
-3. **Spec a feature** — invokes 📝 **Specifier**, which investigates and interviews, then hands off to 🗂️ **Archivist** to write `<slice>.spec.md` (and `<slice>.design.md` for anything with a UI).
-4. **Build** — *"implement the checkout slice"* — invokes 🔨 **Executor**, which computes the work from the spec's claims that aren't verified yet, proposes the plan for your approval, then writes tests first and the code. It edits source and tests only, never the knowledge base.
-5. **Verify** after implementing — invokes 🛡️ **Sentinel**, which checks the spec's invariants against the real code — running the test each one links to, when it has one — and reports drift as a compact table:
+2. *"bootstrap this repo with Delta"* → Surveyor writes `CLAUDE.md` and the docs.
+3. *"let's spec out `<feature>`"* → Specifier interviews, Archivist writes `<slice>.spec.md`.
+4. *"implement `<feature>`"* → Executor plans from the unverified claims, then builds.
+5. *"check `<feature>` for drift"* → Sentinel verifies the contract against the code.
 
-   `Holds` · `Violated` · `Unverified` · `Gone` · `Conflict`
-
-6. **Anything else** — a convention, a subagent, an update to `CLAUDE.md` — ask directly; that routes to 🗂️ **Archivist**.
-
----
+Once the CLI exists, `delta init` replaces steps 1 and 2, `/quill`, `/forge` and `/seal` replace the rest, and the five skills of this generation retire: Archivist and Surveyor become CLI commands, Specifier, Executor and Sentinel become Quill, Forge and Seal.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `.claude/skills/` | The five skills' instructions (`SKILL.md`) their bundled read-only scripts (`codebase/`) and their `references/`: artifact templates, doc skeletons and guides, plus the surveyor's optional rule catalog (`references/catalog/`) |
-| `.claude/rules/` | The required rules: editing conventions for the knowledge base (route through the matching skill, don't hand-edit), delta scope, context budget and lean code changes (applied to every source change, spec or not) and commit messages |
-| `.claude/agents/`, `.claude/docs/` | Empty here — populated per project once bootstrapped, not part of the harness itself |
-| `.claude/budget.conf` | Context-budget ceilings, read by the budget script |
-| `.claude/settings.json` | Baseline permission allow/deny list for Claude Code sessions |
-| `ROADMAP.md` | Fill-in template for a project's progress tracker, copied to the project root; outside the knowledge base, and no skill reads it |
+| `.claude/` | The previous generation of the harness (five skills, rules, budget config). It is also the configuration this repo is worked with, so it stays untouched until `delta init` can regenerate it |
+| `harness/` | Source of the new generation: the same content with the skills renamed Quill, Forge and Seal. It is what `delta init` will install, embedded in the binary |
+| `elements/` | Working documents, in Spanish: `redirection.md` (what Delta becomes and why), `background.md` (context), `deterministic.md` (design of the Go CLI), `roadmap.md` (order of work) |
+| `entries/`, `internal/` | The Go CLI. Planned, not created yet |
 
 ## Non-goals
 
-- Delta does not keep an append-only decision log. When two sources disagree, the conflict is resolved explicitly and the resolution becomes the corrected text — nothing else is kept beyond that.
-- Sentinel only checks a slice's `spec.md`/`design.md` against the code — it doesn't audit `.claude/docs/*` or `.claude/rules/*` for drift.
-- Only the optional Executor writes application code, always from a plan you approved and derived from a spec, and it never touches the knowledge base. Delta manages context *about* a codebase first, and doesn't replace ordinary coding with no spec behind it.
+- Delta does not keep an append-only decision log. When two sources disagree, the conflict is resolved explicitly and the resolution becomes the corrected text.
+- Delta does not replace ordinary coding with no spec behind it. Forge writes application code only from a plan you approved and derived from a spec, and never touches the knowledge base.
+- Delta does not audit docs or rules for drift; it checks a slice's contract against the code.
+- Delta is not a process to follow phase by phase. The product is the verified contract, not the workflow around it.
+
+## Acknowledgments
+
+The lean-change ladder in the `base` preset is adapted from [ponytail](https://ponytail.dev/) (MIT), and the idea that every rule must earn its place against the version without it comes from the same project. Spec Kit and OpenSpec shaped the spec-first flow Delta deliberately keeps small.
