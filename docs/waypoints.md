@@ -10,13 +10,13 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 34 de 71 tareas, 48 %**
+**Avance total: 39 de 71 tareas, 55 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
-| 2 | Hooks | 🔄 En progreso | 11/16, 69 % |
+| 2 | Hooks | ✅ Terminada | 16/16, 100 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/10, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
@@ -110,7 +110,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 2: hooks
 
-**Estado: 🔄 En progreso, 11/16.**
+**Estado: ✅ Terminada, 16/16.**
 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
@@ -126,13 +126,13 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`. *`setup.Check` lista: hook sin instalar, `core.hooksPath` sin fijar o apuntando a otro lado, `delta` fuera del `PATH` y un programa distinto con el mismo nombre (git-delta). `status` los imprime en stderr como `warning:` sin fallar, y `SessionStart` los suma al contexto. Que el propio binario falte solo lo ve Claude Code, como un 127 que no bloquea.*
 - [x] `delta commit-msg` en CI sobre el rango del PR. *Trabajo `commits` de `ci.yml`, solo en pull requests: recorre `base..head` sin merges y valida cada mensaje. El mismo script, extraído del YAML, se probó en local contra el historial real (pasa) y contra un repositorio con un commit malo (falla y dice cuál); el trabajo en sí aún no ha corrido en GitHub.*
 - [x] `delta budget` como gate. *Falla con exit 1 si se supera un techo de lo siempre cargado, y corre en CI. Porta la parte "siempre cargada" de `budget.sh` (detalle y límites en `blueprint.md`, §8.6).*
-- [ ] `delta init` con defaults sensatos (esqueleto determinista, `CLAUDE.md` mínimo), que además regenera `.claude/` desde `source/harness/`.
+- [x] `delta init` con defaults sensatos. *Instala sin pisar nada: el hook de git y `core.hooksPath`, los skills y las reglas bajo `.claude/`, `delta.conf`, un `CLAUDE.md` mínimo con el nombre del proyecto, `deltas/`, y fusiona los hooks y permisos de Delta en `.claude/settings.json`. Es idempotente y nombra lo que deja como estaba (`blueprint.md`, §12). Este repo ya no versiona `.claude/`: lo escribe su propio `delta init` desde `source/harness/` y la CI hace lo mismo antes de medir el presupuesto.*
 
 **Cierra cuando**
-- [ ] Un commit del agente con formato inválido es bloqueado, y uno de una persona también (con el hook instalado).
-- [ ] Un clon sin `core.hooksPath` lo avisa al iniciar sesión.
-- [ ] Un hook que falla porque falta `delta` avisa y no deja la sesión bloqueada.
-- [ ] Commit(s) de la fase, uno por concern.
+- [x] Un commit del agente con formato inválido es bloqueado, y uno de una persona también (con el hook instalado). *El hook de Claude Code lo prueba `TestHookEndToEnd`; el de git, `TestTheInstalledHookStopsABadCommitMessage` con un `git commit` real tras `delta init`.*
+- [x] Un clon sin `core.hooksPath` lo avisa al iniciar sesión. *`TestSessionStartTellsAFreshCloneToRunInit`: el contexto de `SessionStart` dice `run delta init`.*
+- [x] Un hook que falla porque falta `delta` avisa y no deja la sesión bloqueada. *El hook de git avisa y deja pasar (`TestTheHookLetsACommitThroughWhenDeltaIsMissing`). En Claude Code, un `delta` ausente sale con 127 y la documentación dice que solo el 2 bloquea; esa parte es comportamiento de la plataforma y no la probé yo.*
+- [x] Commit(s) de la fase, uno por concern.
 
 ---
 

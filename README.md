@@ -16,7 +16,7 @@ Most project context lives in one of two bad places: a person's head, or an ever
 
 What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
 
-> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook` (including the lint and Stop checks), `delta.conf`, `budget`, `version` and a first `init` work; the rest is planned. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`source/harness/`](source/harness) is the renamed source of the new one. The design and the order of work are in [`docs/`](docs).
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook` (including the lint and Stop checks), `delta.conf`, `budget`, `version` and `init` work; the rest is planned. [`source/harness/`](source/harness) holds the skills and rules that `delta init` installs; this repo does not version a `.claude/` of its own. The design and the order of work are in [`docs/`](docs).
 
 ## Contents
 
@@ -121,22 +121,26 @@ Commit messages are validated by hooks (a Claude Code hook for the agent, a git 
 
 ## Using this repo today
 
-The new CLI and the three-role harness are under construction (see the status note above). What works now is the previous generation:
+Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
 
-1. **Copy** `.claude/` into the target repo.
-2. *"bootstrap this repo with Delta"* → Surveyor writes `CLAUDE.md` and the docs.
-3. *"let's spec out `<feature>`"* → Specifier interviews, Archivist writes `<slice>.spec.md`.
-4. *"implement `<feature>`"* → Executor plans from the unverified claims, then builds.
-5. *"check `<feature>` for drift"* → Sentinel verifies the contract against the code.
+- `.githooks/commit-msg` and `core.hooksPath`, so git checks commit messages;
+- the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
+- `delta.conf`, a minimal `CLAUDE.md` and the `deltas/` folder.
 
-Once the CLI exists, `delta init` replaces steps 1 and 2, `/quill`, `/forge` and `/seal` replace the rest, and the five skills of this generation retire: Archivist and Surveyor become CLI commands, Specifier, Executor and Sentinel become Quill, Forge and Seal.
+Then:
+
+1. *"let's spec out `<feature>`"* → Quill interviews, Archivist writes `<slice>.spec.md`.
+2. *"implement `<feature>`"* → Forge plans from the unverified claims, then builds.
+3. *"check `<feature>` for drift"* → Seal verifies the contract against the code.
+
+Archivist and Surveyor still ship with the harness; they become CLI commands in phase 3.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `.claude/` | The previous generation of the harness (five skills, rules, budget config). It is also the configuration this repo is worked with, so it stays untouched until `delta init` can regenerate it |
-| `source/harness/` | Source of the new generation: the same content with the skills renamed Quill, Forge and Seal. It is what `delta init` will install, embedded in the binary |
+| `.claude/` | Not versioned here: `delta init` writes it from `source/harness/`, and `.gitignore` excludes it |
+| `source/harness/` | What `delta init` installs, embedded in the binary: the skills Quill, Forge and Seal (plus Archivist and Surveyor, which retire in phase 3), the rules, the hooks and `delta.conf` |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
 | `scripts/`, `source/` | The Go CLI: `scripts/delta` wires it, `source/` holds the domain, use cases, gateways and adapters |
 

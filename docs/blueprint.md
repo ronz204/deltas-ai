@@ -39,7 +39,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 7 | Se añade el comando `delta hook`, sin argumento: el evento llega en el JSON | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
 | 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`direction.md`, 6.4 y 6.5) |
-| 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `source/harness/` nace como copia renombrada | Decidido |
+| 10 | Este repo no versiona `.claude/`: `source/harness/` es la fuente y `delta init` escribe `.claude/` (ignorado por git) | Decidido, hecho |
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
 | 13 | Archivos de código de `domain` y de `adapter/cmd` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
@@ -224,7 +224,7 @@ Observaciones:
 | `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
 | `delta hook` | `hook` | `guard` | `knowledge`, `commits` |
 
-`delta init` instala `.githooks/commit-msg` y fija `core.hooksPath`; el resto de lo que hará `delta init` (esqueleto, `CLAUDE.md`, regenerar `.claude/`) llega en su tarea de la Fase 2. `delta hook` se registra en `source/harness/core/configs/settings.json` y atiende todos los eventos: el evento viene en el JSON.
+`delta init` instala, sin pisar nada que el proyecto ya tenga: `.githooks/commit-msg` y `core.hooksPath`, los skills y las reglas bajo `.claude/`, `delta.conf`, un `CLAUDE.md` mínimo con el nombre del proyecto, la carpeta `deltas/` y los hooks y permisos de Delta fusionados en `.claude/settings.json` (sección 12). `delta hook` se registra en `source/harness/core/configs/settings.json` y atiende todos los eventos: el evento viene en el JSON.
 
 ---
 
@@ -440,20 +440,23 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 
 | En `source/harness/` | Se instala como |
 |---|---|
-| `skills/{quill,forge,seal}/` | `.claude/skills/...` |
-| `rules/core/`, `rules/base/` | `.claude/rules/...` |
+| `skills/<skill>/**` | `.claude/skills/<skill>/**`; hoy quill, forge, seal, archivist y surveyor (los dos últimos salen en la Fase 3). Los `.sh` se instalan ejecutables |
+| `rules/**/*.md` | `.claude/rules/<nombre>.md` (las subcarpetas `core/` y `base/` de la Fase 4 se aplanan) |
 | `core/githooks/commit-msg` | `.githooks/commit-msg` |
 | `core/configs/settings.json` | fragmento fusionado en `.claude/settings.json` |
-| `core/configs/budget.conf` | `.claude/budget.conf` (transitorio: lo lee `budget.sh` hasta que `delta budget` lo reemplace; ver el pendiente 2 de la sección 16) |
-| `core/templates/spec.md`, `core/templates/CLAUDE.md` | un spec nuevo y el `CLAUDE.md` mínimo |
+| `core/configs/delta.conf` | `delta.conf` en la raíz del proyecto (sección 8.8) |
+| `core/templates/CLAUDE.md` | el `CLAUDE.md` mínimo, con el nombre del proyecto |
+| `core/templates/spec.md` | no se instala: lo usa `delta spec new` |
 
 **El detalle del embed.** `go:embed` solo ve la carpeta de su paquete y sus subcarpetas, así que `source/gateway/bundle/` no puede embeber la carpeta hermana `source/harness/`. Por eso `source/harness/harness.go` declara el `embed.FS` y `gateway/bundle` lo importa. El test de capas trata `harness` como datos: no importa nada del módulo y solo `gateway` lo lee. Además, `embed` ignora por defecto los archivos que empiezan con `.` o `_`, por eso la carpeta se llama `core/githooks/` y se instala con el nombre con punto. Lo mismo vale para cualquier plantilla de un archivo con punto.
 
-**Convivencia con el `.claude/` actual** (decisión 10):
+**Cómo se instala** (`usecase/setup`, con `gateway/bundle` como puerto):
 
-1. `.claude/` de este repo no se toca. Contiene las reglas que rigen el trabajo aquí (commits, lean-change).
-2. En la Fase 0, `source/harness/` nace como copia ya renombrada (Quill, Forge, Seal), con los archivos de soporte reubicados bajo `core/configs/`.
-3. Cuando `delta init` exista (Fase 2), se regenera `.claude/` desde `source/harness/` y se elimina la duplicación. De paso, el repo prueba su propio instalador.
+- Un archivo que el proyecto ya tiene y que difiere del del harness **no se toca**: `delta init` lo nombra ("left as they are") y sigue. Uno idéntico se cuenta como ya instalado. Por eso correr `init` otra vez no cambia nada.
+- `.claude/settings.json` es la excepción: se **fusiona**. Se añaden los grupos de hooks que no corran ya los mismos comandos con el mismo `matcher` (un `timeout` distinto es decisión del proyecto), las reglas de permisos que falten y las claves de primer nivel que no existan. No se quita ni se cambia nada; al reescribir el archivo se ordenan sus claves. Si el archivo no es un JSON con la forma esperada, se deja como está y se dice.
+- Antes de escribir nada se fija `core.hooksPath`, de modo que fuera de un repositorio git `init` falla sin dejar archivos.
+
+**Este repositorio no versiona `.claude/`** (decisión 10, cumplida): `source/harness/` es la fuente y `delta init` escribe `.claude/`, que `.gitignore` excluye. Quien clone el repo corre `go run ./scripts/delta init`; la CI también, antes de medir el presupuesto. Para cambiar una regla o un skill se cambia el harness y se vuelve a instalar (borrando antes el archivo cambiado, porque `init` no pisa).
 
 ---
 
