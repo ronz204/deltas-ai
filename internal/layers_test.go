@@ -18,6 +18,7 @@ var reach = map[string][]string{
 	"usecase": {"domain", "usecase"},
 	"gateway": {"domain", "usecase", "gateway"},
 	"adapter": {"domain", "usecase", "adapter"},
+	"harness": {}, // embedded data: it imports nothing from the module
 }
 
 // violation says why a package in layer may not import target, or "" when it may.
@@ -32,17 +33,17 @@ func violation(layer, target string) string {
 		}
 		return "third-party imports belong in adapter"
 	}
-	if rest == "harness" || strings.HasPrefix(rest, "harness/") {
-		if layer == "gateway" {
-			return ""
-		}
-		return "only gateway reads the embedded harness"
-	}
 	inner, ok := strings.CutPrefix(rest, "internal/")
 	if !ok {
 		return "layers do not import entries"
 	}
 	other := strings.SplitN(inner, "/", 2)[0]
+	if other == "harness" {
+		if layer == "gateway" {
+			return ""
+		}
+		return "only gateway reads the embedded harness"
+	}
 	for _, allowed := range reach[layer] {
 		if other == allowed {
 			return ""
@@ -65,12 +66,13 @@ func TestViolation(t *testing.T) {
 		{"usecase imports gateway", "usecase", module + "/internal/gateway/runner", true},
 		{"usecase imports adapter", "usecase", module + "/internal/adapter/cmd", true},
 		{"gateway implements usecase ports", "gateway", module + "/internal/usecase/verify", false},
-		{"gateway reads the harness", "gateway", module + "/harness", false},
+		{"gateway reads the harness", "gateway", module + "/internal/harness", false},
 		{"gateway imports adapter", "gateway", module + "/internal/adapter/hook", true},
 		{"adapter imports usecase", "adapter", module + "/internal/usecase/guard", false},
 		{"adapter imports gateway", "adapter", module + "/internal/gateway/gitcli", true},
 		{"adapter imports third party", "adapter", "github.com/spf13/cobra", false},
-		{"usecase reads the harness", "usecase", module + "/harness", true},
+		{"usecase reads the harness", "usecase", module + "/internal/harness", true},
+		{"harness imports domain", "harness", module + "/internal/domain/assertion", true},
 		{"layers do not import entries", "adapter", module + "/entries/delta", true},
 	}
 	for _, c := range cases {

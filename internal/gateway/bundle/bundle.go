@@ -1,7 +1,7 @@
 // Package bundle hands out the files embedded in the harness.
 package bundle
 
-import "github.com/ronz204/deltas-ai/harness"
+import "github.com/ronz204/deltas-ai/internal/harness"
 
 type Bundle struct{}
 
