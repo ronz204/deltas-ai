@@ -13,6 +13,9 @@
       "Bash(docker exec *)",
       "Bash(docker compose *)"
     ],
+    "ask": [
+      "Bash(delta approve *)"
+    ],
     "deny": [
       "Read(**/.env)",
       "Read(**/.env.*)",
