@@ -37,6 +37,7 @@ type Asset struct {
 	Content []byte
 	Mode    fs.FileMode
 	Managed bool // kept up to date by delta update; any other asset is installed once and is then the project's
+	Base    bool // part of the base preset: left out when deltas.config says base=off
 }
 
 // Harness is what delta ships to install.
@@ -145,7 +146,7 @@ func (i *Installer) Run(ctx context.Context) ([]Step, error) {
 	}
 	steps := []Step{file, pointed}
 
-	assets, err := i.harness.Assets(i.files.Name())
+	assets, err := i.assets()
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +163,21 @@ func (i *Installer) Run(ctx context.Context) ([]Step, error) {
 		return nil, err
 	}
 	return append(append(append(steps, copied...), recorded...), settings), nil
+}
+
+// assets is what the harness ships to this project: all of it, but the base preset when deltas.config turns it off.
+func (i *Installer) assets() ([]Asset, error) {
+	all, err := i.harness.Assets(i.files.Name())
+	if err != nil || !i.conf.NoBase {
+		return all, err
+	}
+	var out []Asset
+	for _, a := range all {
+		if !a.Base {
+			out = append(out, a)
+		}
+	}
+	return out, nil
 }
 
 // copy writes the assets that are not there yet. One that exists and differs is a choice of the project's.

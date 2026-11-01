@@ -19,11 +19,12 @@ type Conf struct {
 	Timeout   time.Duration       // for each claim's command; zero means the default
 	Tools     []string            // programs that must be on the PATH
 	Scopes    map[string][]string // slice -> the paths it depends on; a slice not listed depends on every code file
+	NoBase    bool                // base=off: delta init and update leave the base preset out
 	Problems  []string
 }
 
 // Parse reads key=value lines; blank lines and lines starting with # are skipped. The keys are the budget
-// ceilings (see budget.ParseCeilings), test_files, command_timeout, required_tools and scope.<slice>.
+// ceilings (see budget.ParseCeilings), test_files, command_timeout, base, required_tools and scope.<slice>.
 func Parse(text string) Conf {
 	c := Conf{Budget: budget.ParseCeilings(text), Scopes: map[string][]string{}}
 	for i, line := range strings.Split(text, "\n") {
@@ -43,6 +44,8 @@ func Parse(text string) Conf {
 			c.testFiles(i, value)
 		case key == "command_timeout":
 			c.timeout(i, value)
+		case key == "base":
+			c.base(i, value)
 		case key == "required_tools":
 			c.Tools = words(value)
 		case strings.HasPrefix(key, "scope."):
@@ -75,6 +78,16 @@ func (c *Conf) timeout(i int, value string) {
 		return
 	}
 	c.Timeout = d
+}
+
+func (c *Conf) base(i int, value string) {
+	switch value {
+	case "on":
+	case "off":
+		c.NoBase = true
+	default:
+		c.problem(i, fmt.Sprintf("base: %q is not on or off", value))
+	}
 }
 
 func (c *Conf) scope(i int, slice, value string) {

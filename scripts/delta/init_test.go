@@ -20,7 +20,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 
 	for _, rel := range []string{
 		".githooks/commit-msg", "deltas/specifies/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
-		".claude/settings.json", ".claude/rules/commit-messages.md",
+		".claude/settings.json", ".claude/rules/fidelity.md",
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); err != nil {
@@ -74,14 +74,14 @@ func TestInitTwiceChangesNothingTheSecondTime(t *testing.T) {
 func TestInitKeepsWhatTheProjectAlreadyHas(t *testing.T) {
 	p := gitProject(t)
 	p.write("CLAUDE.md", "# my own router\n")
-	p.write(".claude/rules/commit-messages.md", "# my commit rule\n")
+	p.write(".claude/rules/fidelity.md", "# my fidelity rule\n")
 	p.write(".claude/settings.json", `{"model": "opus", "permissions": {"deny": ["Bash(rm -rf *)"]}}`)
 
 	code, out, _ := p.delta("", "init")
-	if code != 0 || !strings.Contains(out, "CLAUDE.md") || !strings.Contains(out, ".claude/rules/commit-messages.md") || !strings.Contains(out, "left as they are") {
+	if code != 0 || !strings.Contains(out, "CLAUDE.md") || !strings.Contains(out, ".claude/rules/fidelity.md") || !strings.Contains(out, "left as they are") {
 		t.Fatalf("init = %d %q", code, out)
 	}
-	if p.read("CLAUDE.md") != "# my own router\n" || p.read(".claude/rules/commit-messages.md") != "# my commit rule\n" {
+	if p.read("CLAUDE.md") != "# my own router\n" || p.read(".claude/rules/fidelity.md") != "# my fidelity rule\n" {
 		t.Error("init replaced a file the project had")
 	}
 	var settings map[string]any
@@ -103,5 +103,19 @@ func TestSessionStartTellsAFreshCloneToRunInit(t *testing.T) {
 	}
 	if !strings.Contains(out, "run delta init") {
 		t.Errorf("the warning does not say what to do:\n%s", out)
+	}
+}
+
+// base=off in deltas.config keeps the base preset out, and update retires it once installed.
+func TestInitLeavesOutTheBasePresetWhenTheConfigTurnsItOff(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/deltas.config", "base=off\n")
+	if code, out, errOut := p.delta("", "init"); code != 0 {
+		t.Fatalf("init = %d %q %q", code, out, errOut)
+	}
+	for rel, want := range map[string]bool{".claude/rules/fidelity.md": true, ".claude/rules/honesty.md": true, ".claude/rules/base-scope.md": false, ".claude/rules/base-reliability.md": false} {
+		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); (err == nil) != want {
+			t.Errorf("%s installed = %v, want %v", rel, err == nil, want)
+		}
 	}
 }

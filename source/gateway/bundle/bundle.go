@@ -44,7 +44,7 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 				return err
 			}
 		}
-		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p)})
+		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p), Base: strings.HasPrefix(p, "rules/base/")})
 		return nil
 	})
 	return out, err

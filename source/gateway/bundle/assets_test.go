@@ -32,7 +32,7 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	by := assetsOf(t)
 	for _, want := range []string{
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/rules/commit-messages.md", "deltas/deltas.config", "CLAUDE.md",
+		".claude/rules/fidelity.md", ".claude/rules/honesty.md", ".claude/rules/base-scope.md", ".claude/rules/base-reliability.md", "deltas/deltas.config", "CLAUDE.md",
 	} {
 		if _, ok := by[want]; !ok {
 			t.Errorf("%s is not installed", want)

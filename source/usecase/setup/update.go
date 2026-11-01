@@ -18,7 +18,7 @@ func (i *Installer) managed() ([]Asset, error) {
 	if err != nil {
 		return nil, err
 	}
-	assets, err := i.harness.Assets(i.files.Name())
+	assets, err := i.assets()
 	if err != nil {
 		return nil, err
 	}

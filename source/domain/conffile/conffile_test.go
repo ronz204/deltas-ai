@@ -78,3 +78,12 @@ func TestTheLastValueOfAKeyWins(t *testing.T) {
 		t.Fatalf("Parse = %+v", c)
 	}
 }
+
+func TestBaseIsOnUnlessTheConfigTurnsItOff(t *testing.T) {
+	if Parse("").NoBase || Parse("base=on").NoBase || !Parse("base=off").NoBase {
+		t.Error("base=on and no line keep the preset; base=off drops it")
+	}
+	if c := Parse("base=maybe"); c.NoBase || len(c.Problems) != 1 {
+		t.Errorf("base=maybe = %+v; want a problem and the preset kept", c)
+	}
+}
