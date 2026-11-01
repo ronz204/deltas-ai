@@ -54,7 +54,8 @@ deltas-ai/
 │   └── delta/main.go            # raíz de composición: crea las piezas y las conecta
 ├── internal/
 │   ├── domain/                  # puro: sin I/O, solo librería estándar
-│   │   ├── claim/               # Claim, ID, Tag, enunciado EARS
+│   │   ├── diag/                # Diagnostic: archivo, línea, código estable y mensaje
+│   │   ├── claim/               # Claim, ID, Tag, enunciado EARS y Given/When/Then
 │   │   ├── spec/                # Spec, Frontmatter, versión de formato, parser y render
 │   │   ├── slice/               # Slice, Status, transiciones válidas
 │   │   ├── proof/               # Verdict (Holds, Violated, Unverified) y la regla de evidencia
@@ -138,7 +139,8 @@ type Runner interface {
 
 | Paquete | Responsabilidad | Tipos y funciones principales |
 |---|---|---|
-| `claim` | El átomo del contrato | `ID`, `ParseID(string) (ID, error)`, `Tag` (`Test` con comando, `Manual`, `None`), `Claim` (ID, tag, texto, línea) |
+| `diag` | El hallazgo que todo validador reporta | `Diagnostic` (archivo, línea, código estable, mensaje) |
+| `claim` | El átomo del contrato | `ID`, `ParseID(string) (ID, error)`, `Kind` (`Invariant`, `Acceptance`), `Tag` (`Test` con comando, `Manual`, `None`), `Claim` (ID, tag, texto, línea), `CheckStatement(kind, texto) error` |
 | `spec` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
 | `slice` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool` |
 | `proof` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome` |
@@ -212,10 +214,14 @@ Observaciones:
 
 Definido en `redirection.md`, 6.4. Resumen de lo que el parser exige:
 
-- Frontmatter con `format`, `slice` y `status`, claves planas.
-- Cada claim es una línea `- <ID> [<tag>]` seguida de su texto indentado.
-- IDs únicos dentro del spec. Tags: `test: <comando>`, `manual`, `none`.
+- Frontmatter con `format`, `slice` y `status`, claves planas. Una clave desconocida, repetida o ausente es un error; `slice` va en minúsculas unidas por guiones.
+- Cada claim es una línea `- <ID> [<tag>]` seguida de su texto indentado, que puede ocupar varias líneas (se une con espacios).
+- IDs únicos dentro del spec, con dos prefijos: `INV-<n>` (invariante) y `ACC-<n>` (aceptación). El prefijo decide la notación de la frase.
+- Tags: `test: <comando>`, `manual` (con un paso opcional, `manual: <paso>`) y `none`. El tag `check` de la generación anterior ya no existe.
 - `format: 1` permite que una versión futura migre specs viejos.
+- Un `INV` se escribe en **EARS**: el parser valida la estructura, no un verbo modal (la generación anterior escribe sin "shall"). Una cláusula `When`, `While`, `Where` o `If` lleva una coma antes de la respuesta, y `If` exige `then` después de la coma; se pueden encadenar. Un `ACC` se escribe `Given <contexto>, when <acción>, then <resultado>`. Las palabras clave se aceptan en inglés y en español (`cuando`, `mientras`, `donde`, `si`/`entonces`, `dado que`), y una misma frase puede mezclarlas.
+- Se ignoran el código entre vallas (` ``` `) y los comentarios HTML, para poder mostrar un claim de ejemplo sin declararlo. Un ítem de lista cuya primera palabra parece un ID (`ISO-8601`) se toma como intento de claim y se reporta.
+- `Parse` devuelve todos los diagnósticos, no solo el primero, y en `Claims` solo los claims que se leyeron sin problemas. Los códigos (`SPEC-FRONTMATTER`, `SPEC-KEY`, `SPEC-FORMAT`, `SPEC-SLICE`, `SPEC-STATUS`, `SPEC-CLAIM`, `SPEC-TAG`, `SPEC-DUP-ID`, `SPEC-NO-TEXT`, `SPEC-STATEMENT`) son estables.
 
 ### 7.2 Estados del slice
 
