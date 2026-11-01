@@ -110,6 +110,7 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 		Guard:     guard.New(root, status.New(m), installer),
 		Installer: installer,
 		Meter:     measure.New(m),
+		Version:   "test",
 	})
 	var o, e bytes.Buffer
 	cmd.SetArgs(args)

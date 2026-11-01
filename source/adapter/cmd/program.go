@@ -32,6 +32,7 @@ type Deps struct {
 	Guard     *guard.Guard
 	Installer *setup.Installer
 	Meter     *measure.Meter
+	Version   string
 }
 
 // New builds the delta command. Findings go to stderr and results to stdout.
@@ -43,7 +44,7 @@ func New(d Deps) *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
-	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd(), installCmd(d), guardsCmd(d), budgetCmd(d))
+	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd(), installCmd(d), guardsCmd(d), budgetCmd(d), versionCmd(d))
 	return root
 }
 

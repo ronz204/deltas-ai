@@ -38,6 +38,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 		Guard:     guard.New(root, report, installer),
 		Installer: installer,
 		Meter:     measure.New(vault),
+		Version:   version,
 	})
 	app.SetArgs(args)
 	app.SetIn(in)

@@ -201,6 +201,40 @@ func TestTheHookLetsACommitThroughWhenDeltaIsMissing(t *testing.T) {
 	}
 }
 
+// git-delta shares the name; running it on a commit message would fail and cancel the commit.
+func TestTheHookLetsACommitThroughWhenAnotherProgramIsCalledDelta(t *testing.T) {
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("sh is not on the PATH")
+	}
+	grep, err := exec.LookPath("grep")
+	if err != nil {
+		t.Skip("grep is not on the PATH")
+	}
+	hook, err := os.ReadFile(filepath.Join("..", "..", "source", "harness", "core", "githooks", "commit-msg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, other := t.TempDir(), t.TempDir()
+	script, msg := filepath.Join(dir, "commit-msg"), filepath.Join(dir, "MSG")
+	for path, content := range map[string]string{
+		script:                        string(hook),
+		msg:                           "whatever",
+		filepath.Join(other, "delta"): "#!/bin/sh\necho 'error: no such file: commit-msg' >&2\nexit 1\n",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stderr bytes.Buffer
+	cmd := exec.Command(sh, script, msg)
+	cmd.Env = []string{"PATH=" + other + string(os.PathListSeparator) + filepath.Dir(grep)}
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil || !strings.Contains(stderr.String(), "is not deltas-ai") {
+		t.Fatalf("err = %v, stderr = %q; want exit 0 with a warning", err, stderr.String())
+	}
+}
+
 func TestStatusWarnsUntilInitHasRun(t *testing.T) {
 	p := gitProject(t)
 	_, _, errOut := p.delta("", "status")

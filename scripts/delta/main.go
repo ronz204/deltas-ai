@@ -19,3 +19,6 @@ func main() {
 	stop()
 	os.Exit(code)
 }
+
+// version is set at build time: go build -ldflags "-X main.version=1.2.3"
+var version = "dev"
