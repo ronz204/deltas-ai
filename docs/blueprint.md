@@ -391,7 +391,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 1. Esqueleto: `go.mod`, las tres carpetas, `main.go` mínimo y el **test de dependencias**.
 2. `domain/assertion`, `domain/specfile` y `domain/lifecycle`, con el fuzzing del parser.
 3. `domain/linkcheck`, `domain/judgment` y los casos de uso `verify` para `delta spec lint` y `delta lint`.
-4. `gateway/runner`, `gateway/files` y `delta check`.
+4. `gateway/runner`, `gateway/vaults` y `delta check`.
 5. `domain/drift` no entra aquí: es de la Fase 5.
 6. `gateway/gitcli`, `domain/commits`, `domain/budget` y sus comandos.
 7. La suite de compatibilidad con proyectos reales de Go y TypeScript.
