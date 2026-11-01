@@ -164,7 +164,7 @@ Notas de diseño:
 | `PreToolUse` (Write/Edit sobre la KB) | Bloquea la edición directa de specs y docs por parte del agente (exit **2**, no 1). La persona sí puede editar a mano |
 | `PreToolUse` (Bash con `git commit`) | Valida el mensaje con `delta commit-msg` y bloquea con exit **2** si no cumple. Es la capa que protege los commits del agente |
 | `PostToolUse` (Write/Edit sobre un archivo de test) | Corre `delta lint` y le cuenta a Claude los problemas de ese archivo (un `skip`, un ID desconocido). Los linters de lenguaje los maneja cada proyecto, no Delta. En la Fase 5 llamará además `delta stale` |
-| `Stop` | Exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol (regla de honestidad): compara la huella de esa parte del árbol con la que `delta check` anotó, y bloquea una sola vez. Los documentos y el código de otros slices no cuentan. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
+| `Stop` | Exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol (regla de honestidad): compara la huella de esa parte del árbol con la que `delta check` anotó, y bloquea una sola vez. Un slice mira todo el código salvo que `delta.conf` declare sus rutas; la documentación no cuenta. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
 
 Estos hooks viven en `.claude/settings.json`, que se versiona: **quien clone el repo los tiene sin configurar nada.**
 
