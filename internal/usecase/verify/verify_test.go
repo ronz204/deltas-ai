@@ -36,7 +36,6 @@ type fakeTests []linkcheck.File
 
 func (f fakeTests) TestFiles(context.Context) ([]linkcheck.File, error) { return f, nil }
 
-// fakeRunner answers by command and records what it ran.
 type fakeRunner struct {
 	exits map[string]int
 	errs  map[string]error

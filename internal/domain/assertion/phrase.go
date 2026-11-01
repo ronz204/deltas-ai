@@ -9,9 +9,7 @@ import (
 
 var scenario = regexp.MustCompile(`(?i)^(?:given|dad[oa](?: que)?)\s+(.+?),\s*(?:when|cuando)\s+(.+?),\s*(?:then|entonces)\s+(.+)$`)
 
-// CheckStatement checks a claim's sentence against the notation its kind uses: EARS for
-// invariants, Given/When/Then for acceptance criteria. Only the shape is checked: the response
-// must be observable, but no parser can judge that.
+// CheckStatement checks the shape of a sentence: EARS for invariants, Given/When/Then for acceptance.
 func CheckStatement(k Kind, text string) error {
 	text = strings.TrimSpace(text)
 	switch k {

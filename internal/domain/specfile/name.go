@@ -9,12 +9,10 @@ import (
 
 var sliceName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
-// ValidSlice reports whether name is a slice name: lowercase words joined by hyphens. It is also
-// what keeps a name safe to use as a file name.
+// ValidSlice also keeps a name safe to use as a file name.
 func ValidSlice(name string) bool { return sliceName.MatchString(name) }
 
-// ParseSlice parses the spec stored for a slice and also checks that its frontmatter names that
-// same slice, so a file cannot quietly describe another capability.
+// ParseSlice also checks that the frontmatter names the same slice as the file.
 func ParseSlice(file, slice string, src []byte) (Spec, []findings.Diagnostic) {
 	sp, ds := Parse(file, src)
 	if sp.Slice != "" && sp.Slice != slice {

@@ -14,13 +14,13 @@ import (
 
 // Diagnostic codes. Hooks and CI depend on these, so they do not change once released.
 const (
-	CodeEmpty  = "COMMIT-EMPTY"  // no subject line
-	CodeFormat = "COMMIT-FORMAT" // not type(scope): subject
-	CodeType   = "COMMIT-TYPE"   // type outside the allowed list
-	CodeLength = "COMMIT-LENGTH" // subject outside 40 to 50 characters
-	CodeCase   = "COMMIT-CASE"   // subject starts with a capital letter
-	CodePeriod = "COMMIT-PERIOD" // subject ends with a period
-	CodeBody   = "COMMIT-BODY"   // body not separated by a blank line
+	CodeEmpty  = "COMMIT-EMPTY"
+	CodeFormat = "COMMIT-FORMAT"
+	CodeType   = "COMMIT-TYPE"
+	CodeLength = "COMMIT-LENGTH"
+	CodeCase   = "COMMIT-CASE"
+	CodePeriod = "COMMIT-PERIOD"
+	CodeBody   = "COMMIT-BODY"
 )
 
 const (
@@ -30,23 +30,17 @@ const (
 
 var types = []string{"feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"}
 
-// subjectLine captures the type and what comes after "type(scope): ".
 var subjectLine = regexp.MustCompile(`^([a-z]+)(?:\([^()\s]+\))?: (.+)$`)
 
 // generated are the prefixes of messages git writes itself; they are not held to the format.
 var generated = []string{"Merge ", `Revert "`, "fixup! ", "squash! ", "amend! "}
 
-// line is a line of the message with its 1-based number in the original text.
 type line struct {
 	n    int
 	text string
 }
 
-// Validate checks a message as git hands it to the commit-msg hook: lines starting with # are
-// comments and are ignored. name only labels the diagnostics.
-//
-// shortcut: the imperative mood is not checked, because no rule tells "embed" from "embedded"
-// without a dictionary; a reviewer catches it.
+// shortcut: the imperative mood is not checked; no rule tells "embed" from "embedded" without a dictionary.
 func Validate(name, message string) []findings.Diagnostic {
 	lines := significant(message)
 	if len(lines) == 0 {
@@ -65,8 +59,7 @@ func Validate(name, message string) []findings.Diagnostic {
 	return out
 }
 
-// significant returns the lines git keeps: no comments, and nothing before the subject. Blank
-// lines inside the message stay, because they separate the subject from the body.
+// significant drops comment lines and leading blanks; inner blanks stay, they separate subject from body.
 func significant(message string) []line {
 	var out []line
 	for i, text := range strings.Split(strings.ReplaceAll(message, "\r\n", "\n"), "\n") {

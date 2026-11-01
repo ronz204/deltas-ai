@@ -38,8 +38,7 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-// TestHelperProcess is the command the other tests run: the test binary itself, switched into a
-// small program by an environment variable.
+// TestHelperProcess is the command the other tests run: the test binary itself, switched by an environment variable.
 func TestHelperProcess(t *testing.T) {
 	switch os.Getenv("DELTA_HELPER") {
 	case "":

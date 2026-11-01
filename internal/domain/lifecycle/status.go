@@ -1,5 +1,4 @@
-// Package lifecycle describes where a slice is in its life. Which moves between statuses are legal
-// is the state machine's job and arrives with it.
+// Package lifecycle holds the status of a slice; the legal moves between statuses arrive with the state machine.
 package lifecycle
 
 import (
@@ -7,7 +6,6 @@ import (
 	"slices"
 )
 
-// Status is the stage a slice's contract has reached.
 type Status string
 
 const (
@@ -20,7 +18,6 @@ const (
 
 var statuses = []Status{Draft, Approved, Built, Verified, Stale}
 
-// ParseStatus turns the text of a frontmatter value into a Status.
 func ParseStatus(s string) (Status, error) {
 	if st := Status(s); slices.Contains(statuses, st) {
 		return st, nil

@@ -12,8 +12,7 @@ var (
 	headerLine = regexp.MustCompile(`^- ([A-Za-z]+-[0-9]+)\s+\[(.*)\]\s*$`)
 )
 
-// claims scans the lines after the frontmatter. Fenced code and HTML comments are skipped, so a
-// spec can show an example claim without declaring it.
+// claims skips fenced code and HTML comments, so a spec can show an example claim without declaring it.
 func (p *parser) claims(lines []string, from int) []assertion.Claim {
 	var out []assertion.Claim
 	seen := map[assertion.ID]int{} // each ID with the line that defined it
@@ -62,8 +61,7 @@ func (p *parser) claim(line int, header, text string, seen map[assertion.ID]int)
 	return assertion.Claim{ID: id, Tag: tag, Text: text, Line: line}, len(p.diags) == before
 }
 
-// continuation gathers the indented lines right under a header and joins them with spaces. last
-// is the index of the final line that belongs to the claim: the header itself when none follow.
+// continuation joins the indented lines under a header; last is the index of the final line used.
 func continuation(lines []string, from int) (text string, last int) {
 	var parts []string
 	last = from - 1
@@ -77,7 +75,6 @@ func continuation(lines []string, from int) (text string, last int) {
 	return strings.Join(parts, " "), last
 }
 
-// skipper tells which lines are inside a fenced code block or an HTML comment.
 type skipper struct{ inFence, inComment bool }
 
 func (s *skipper) skips(line string) bool {

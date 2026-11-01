@@ -11,16 +11,14 @@ import (
 	"testing"
 )
 
-// TestHelperProcess is the command the claims of these tests run: this test binary again, told
-// by its first argument whether to pass or fail.
+// TestHelperProcess is the command the claims run: this test binary again, told by its argument to pass or fail.
 func TestHelperProcess(t *testing.T) {
 	if flag.Arg(0) == "fail" {
 		os.Exit(1)
 	}
 }
 
-// cmd is a claim command that exits 0 ("pass") or 1 ("fail"). Anything in extra is ignored by
-// the helper but still part of the command line, so it can name a path.
+// cmd is a claim command that exits 0 (pass) or 1 (fail); extra words are ignored by the helper but can name a path.
 func cmd(mode string, extra ...string) string {
 	return strings.Join(append([]string{fmt.Sprintf(`"%s" -test.run=^TestHelperProcess$ %s`, os.Args[0], mode)}, extra...), " ")
 }
@@ -59,7 +57,6 @@ func (p *project) read(rel string) string {
 	return string(b)
 }
 
-// delta runs the command line from the project root and returns the exit status and both streams.
 func (p *project) delta(stdin string, args ...string) (code int, out, errOut string) {
 	return p.deltaIn(p.root, stdin, args...)
 }
@@ -76,7 +73,6 @@ func spec(slice string, claims ...string) string {
 
 func claimOf(id, tag string) string { return "- " + id + " [" + tag + "]\n  When x, y.\n" }
 
-// verdict finds the verdict printed for one claim of one slice in the table of check.
 func verdict(out, slice, id string) string {
 	for _, line := range strings.Split(out, "\n") {
 		if f := strings.Fields(line); len(f) >= 3 && f[0] == slice && f[1] == id {

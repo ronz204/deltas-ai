@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// specCmd groups the commands that work on one spec at a time.
 func specCmd(d Deps) *cobra.Command {
 	spec := &cobra.Command{Use: "spec", Short: "Create, check and write specs"}
 	spec.AddCommand(specNewCmd(d), specLintCmd(d), specWriteCmd(d))

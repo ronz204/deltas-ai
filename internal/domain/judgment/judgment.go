@@ -7,13 +7,10 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/assertion"
 )
 
-// Verdict is how a claim stands after a check.
 type Verdict int
 
 const (
-	// Holds means the claim's command passed and a test it runs cites the claim.
 	Holds Verdict = iota + 1
-	// Violated means the claim's command failed.
 	Violated
 	// Unverified means there is no evidence either way. It never passes for Holds.
 	Unverified
@@ -31,14 +28,12 @@ func (v Verdict) String() string {
 	return "unknown"
 }
 
-// Outcome is a verdict with the reason a person needs to act on it.
 type Outcome struct {
 	Verdict Verdict
 	Reason  string // empty for Holds
 }
 
-// Judge decides a claim from its tag, the exit code of its command and whether a test that
-// command runs cites the claim. exit and cited only matter for a Test tag.
+// Judge decides a claim; exit and cited only matter for a Test tag.
 func Judge(tag assertion.Tag, exit int, cited bool) Outcome {
 	switch {
 	case tag.Kind == assertion.Manual && tag.Arg != "":

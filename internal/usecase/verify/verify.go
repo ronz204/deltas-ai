@@ -11,14 +11,12 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
-// Specs is where specs are read from.
 type Specs interface {
 	List(ctx context.Context) ([]string, error)
 	Load(ctx context.Context, slice string) ([]byte, error)
 	Path(slice string) string
 }
 
-// Tests gives the project's test files.
 type Tests interface {
 	TestFiles(ctx context.Context) ([]linkcheck.File, error)
 }
@@ -28,7 +26,6 @@ type Runner interface {
 	Run(ctx context.Context, command string) (exit int, err error)
 }
 
-// Checker verifies the specs of a project.
 type Checker struct {
 	specs Specs
 	tests Tests
@@ -76,14 +73,12 @@ func problems(ls []loaded) []findings.Diagnostic {
 	return out
 }
 
-// SpecLint reports what is wrong with the structure of a spec, or of every spec when only is empty.
 func (v *Checker) SpecLint(ctx context.Context, only string) ([]findings.Diagnostic, error) {
 	ls, err := v.load(ctx, only)
 	return problems(ls), err
 }
 
-// Lint is SpecLint over every spec plus the cross-check of specs against test files. A project
-// whose specs have problems gets only those: a broken contract cannot be crossed.
+// Lint adds the cross-check with test files; a project whose specs have problems gets only those.
 func (v *Checker) Lint(ctx context.Context) ([]findings.Diagnostic, error) {
 	ls, err := v.load(ctx, "")
 	if err != nil {
@@ -103,22 +98,18 @@ func (v *Checker) Lint(ctx context.Context) ([]findings.Diagnostic, error) {
 	return linkcheck.Check(slices, files), nil
 }
 
-// Result is the verdict on one claim.
 type Result struct {
 	Slice   string
 	ID      assertion.ID
 	Outcome judgment.Outcome
 }
 
-// Report is what Check found: problems with the specs, and a verdict per claim of the specs
-// that are sound.
 type Report struct {
 	Diags   []findings.Diagnostic
 	Results []Result
 }
 
-// Check runs the command of every test claim of the named slice, or of every slice when only
-// is empty, and judges each claim. A slice whose spec has problems is not run, only reported.
+// Check judges every claim; a slice whose spec has problems is only reported, not run.
 func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 	ls, err := v.load(ctx, only)
 	if err != nil {
@@ -160,8 +151,6 @@ func hasTestClaims(ls []loaded) bool {
 	return false
 }
 
-// judge runs a test claim's command and decides the claim. A command that did not finish says
-// nothing about the claim, so it leaves it Unverified, with the reason.
 func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File) judgment.Outcome {
 	if c.Tag.Kind != assertion.Test {
 		return judgment.Judge(c.Tag, 0, false)

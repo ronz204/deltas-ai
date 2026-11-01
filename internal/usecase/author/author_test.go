@@ -11,7 +11,6 @@ import (
 
 var ctx = context.Background()
 
-// memory is a Store kept in a map.
 type memory struct {
 	specs map[string]string
 	fail  error

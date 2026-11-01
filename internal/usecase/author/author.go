@@ -1,5 +1,4 @@
-// Package author is the only way the knowledge base is written: everything is validated before
-// it reaches the disk.
+// Package author is the only write path of the knowledge base: everything is validated first.
 package author
 
 import (
@@ -14,7 +13,6 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
-// Store is where specs are kept.
 type Store interface {
 	Load(ctx context.Context, slice string) ([]byte, error)
 	Create(ctx context.Context, slice string, content []byte) error
@@ -22,7 +20,6 @@ type Store interface {
 	Path(slice string) string
 }
 
-// Templates gives the text a new spec starts from.
 type Templates interface {
 	Spec() ([]byte, error)
 }
@@ -34,7 +31,6 @@ type Author struct {
 
 func New(store Store, tpl Templates) *Author { return &Author{store: store, tpl: tpl} }
 
-// Create makes deltas/<slice>.spec.md from the template, in the draft state. It returns the path.
 func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 	raw, err := a.tpl.Spec()
 	if err != nil {
@@ -54,8 +50,7 @@ func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 	return a.store.Path(slice), nil
 }
 
-// Write validates content as the spec of slice and saves it. If it has any problem nothing is
-// written and the problems come back; the error is for failures of the store itself.
+// Write saves content only if it is a valid spec; otherwise nothing is written and the problems come back.
 func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]findings.Diagnostic, error) {
 	if _, ds := specfile.ParseSlice(a.store.Path(slice), slice, content); len(ds) > 0 {
 		return ds, nil
@@ -63,8 +58,6 @@ func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]fin
 	return nil, a.store.Save(ctx, slice, content)
 }
 
-// Link makes the claim verified by command: its tag becomes test: <command>. Only that line
-// of the spec changes.
 func (a *Author) Link(ctx context.Context, slice, claimID, command string) error {
 	id, err := assertion.ParseID(claimID)
 	if err != nil {

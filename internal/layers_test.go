@@ -12,8 +12,7 @@ import (
 
 const module = "github.com/ronz204/deltas-ai"
 
-// reach lists, per layer, the layers of this module its packages may import. Standard library
-// imports are always fine; third-party ones are only fine in adapter (see violation).
+// reach lists the layers each layer may import; the standard library is always fine, third-party only in adapter.
 var reach = map[string][]string{
 	"domain":  {"domain"},
 	"usecase": {"domain", "usecase"},
@@ -83,7 +82,6 @@ func TestViolation(t *testing.T) {
 	}
 }
 
-// TestLayers walks every package under internal and fails on any import its layer may not make.
 func TestLayers(t *testing.T) {
 	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") {

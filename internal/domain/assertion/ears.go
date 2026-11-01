@@ -7,10 +7,8 @@ import (
 	"unicode"
 )
 
-// leaders open an EARS clause; the value says whether the clause must be followed by "then".
-//
-// shortcut: a sentence's language is not detected, so English and Spanish keywords are both
-// accepted and one sentence may mix them; narrow it if that ever hides a mistake.
+// leaders open an EARS clause; true means the clause needs "then" after the comma.
+// shortcut: a sentence's language is not detected, so English and Spanish keywords may be mixed.
 var leaders = map[string]bool{
 	"when": false, "cuando": false,
 	"while": false, "mientras": false,
@@ -50,7 +48,6 @@ func checkEARS(text string) error {
 	return nil
 }
 
-// cutWord splits off the first whitespace-separated word and trims what follows it.
 func cutWord(s string) (word, rest string) {
 	i := strings.IndexFunc(s, unicode.IsSpace)
 	if i < 0 {

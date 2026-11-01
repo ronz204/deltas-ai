@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// Runner runs a command from one directory, showing its output on out.
 type Runner struct {
 	dir     string
 	timeout time.Duration
@@ -21,11 +20,8 @@ func New(dir string, timeout time.Duration, out io.Writer) *Runner {
 	return &Runner{dir: dir, timeout: timeout, out: out}
 }
 
-// Run runs the command without a shell and returns its exit code. An error means it did not
-// finish: it could not start, or it ran past the timeout.
-//
-// shortcut: with no shell there are no pipes, redirections or $VARIABLES in a command; a check
-// that needs them is written as a program or a script of the project.
+// Run returns the exit code; an error means it did not finish (could not start, or timed out).
+// shortcut: no shell, so no pipes, redirections or $VARIABLES; write such a check as a program or script.
 func (r *Runner) Run(ctx context.Context, command string) (int, error) {
 	args, err := split(command)
 	if err != nil {

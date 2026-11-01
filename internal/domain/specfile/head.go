@@ -12,14 +12,12 @@ var keyLine = regexp.MustCompile(`^([a-z_]+):\s*(.*?)\s*$`)
 
 var knownKeys = map[string]bool{"format": true, "slice": true, "status": true}
 
-// entry is the value of one frontmatter key and the line it was written on.
 type entry struct {
 	value string
 	line  int
 }
 
-// frontmatter reads the block at the top into sp and returns the index of the first line after
-// it. ok is false when there is no usable block, and then nothing else gets read.
+// frontmatter reads the top block into sp; ok is false when there is none, and then nothing else is read.
 func (p *parser) frontmatter(lines []string, sp *Spec) (body int, ok bool) {
 	if strings.TrimSpace(lines[0]) != "---" {
 		p.add(1, CodeFrontmatter, "a spec starts with a --- frontmatter block")

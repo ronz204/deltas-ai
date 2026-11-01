@@ -31,8 +31,6 @@ func checkCmd(d Deps) *cobra.Command {
 	}
 }
 
-// printResults prints one row per claim and a summary line, and returns how many claims got
-// each verdict.
 func printResults(w io.Writer, results []verify.Result) map[judgment.Verdict]int {
 	count := map[judgment.Verdict]int{}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)

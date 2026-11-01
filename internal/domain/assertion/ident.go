@@ -1,4 +1,4 @@
-// Package assertion is the atom of a contract: one statement with a stable ID and a way to verify it.
+// Package assertion is one statement of a contract, with a stable ID and a way to verify it.
 package assertion
 
 import (
@@ -6,13 +6,10 @@ import (
 	"strings"
 )
 
-// Kind says what a claim is, which decides the sentence notation it is written in.
 type Kind int
 
 const (
-	// Invariant is written in EARS notation.
 	Invariant Kind = iota + 1
-	// Acceptance is written as Given/When/Then.
 	Acceptance
 )
 
@@ -28,13 +25,11 @@ func (k Kind) String() string {
 
 var prefixes = map[string]Kind{"INV": Invariant, "ACC": Acceptance}
 
-// ID names a claim for good: tests cite it and the CLI links through it.
 type ID struct {
 	text string
 	kind Kind
 }
 
-// ParseID accepts INV-<n> for invariants and ACC-<n> for acceptance criteria.
 func ParseID(s string) (ID, error) {
 	prefix, num, _ := strings.Cut(s, "-")
 	kind, ok := prefixes[prefix]
@@ -46,5 +41,4 @@ func ParseID(s string) (ID, error) {
 
 func (id ID) String() string { return id.text }
 
-// Kind comes from the prefix; the zero ID has none.
 func (id ID) Kind() Kind { return id.kind }

@@ -19,8 +19,7 @@ import (
 // commandTimeout bounds each claim's command, so one that hangs cannot hang a check.
 const commandTimeout = 10 * time.Minute
 
-// run wires the layers together and executes one command line. It returns the exit status:
-// 0 all good, 1 problems were found, 2 the command could not run.
+// run executes one command line and returns the exit status: 0 ok, 1 problems found, 2 error.
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, cwd string) int {
 	root := files.FindRoot(cwd)
 	store := files.New(root)

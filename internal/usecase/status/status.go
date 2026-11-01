@@ -9,21 +9,17 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
-// Specs is where specs are read from.
 type Specs interface {
 	List(ctx context.Context) ([]string, error)
 	Load(ctx context.Context, slice string) ([]byte, error)
 	Path(slice string) string
 }
 
-// Reporter summarises the slices of a project.
 type Reporter struct{ specs Specs }
 
 func New(specs Specs) *Reporter { return &Reporter{specs: specs} }
 
-// Row is one slice. Test, Manual and None count its claims by how they are verified; the
-// unverified debt is everything that is not Test. Issues counts the problems found in its spec,
-// and when there are any the other numbers cover only the claims that parsed cleanly.
+// Row counts a slice's claims by tag; Issues counts the problems found, and the counts cover only clean claims.
 type Row struct {
 	Slice  string
 	Status lifecycle.Status // empty when the frontmatter could not be read
@@ -34,7 +30,6 @@ type Row struct {
 	Issues int
 }
 
-// Report returns one row per slice, in name order.
 func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 	names, err := r.specs.List(ctx)
 	if err != nil {

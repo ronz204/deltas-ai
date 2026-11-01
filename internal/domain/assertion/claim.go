@@ -1,6 +1,5 @@
 package assertion
 
-// Claim is one verifiable statement of a contract.
 type Claim struct {
 	ID   ID
 	Tag  Tag

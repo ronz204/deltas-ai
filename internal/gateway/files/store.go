@@ -22,16 +22,11 @@ const (
 // skipDirs are never searched for test files: they hold other people's code or the contracts.
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
 
-// Store is the knowledge base of the project rooted at one directory.
-//
-// shortcut: contracts live in <root>/deltas only; a repo split into services keeps one deltas/
-// per service and is not read yet.
+// shortcut: contracts are read from <root>/deltas only; a repo split into services is not supported yet.
 type Store struct{ root string }
 
 func New(root string) *Store { return &Store{root: root} }
 
-// FindRoot returns the nearest directory at or above start that holds a .git, or start itself
-// when there is none.
 func FindRoot(start string) string {
 	for dir := start; ; {
 		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
@@ -45,10 +40,9 @@ func FindRoot(start string) string {
 	}
 }
 
-// Path is where a slice's spec is shown to be, relative to the root and with forward slashes.
 func (s *Store) Path(slice string) string { return dirName + "/" + slice + suffix }
 
-// file is the real location of a slice's spec. It refuses a name that could point outside deltas/.
+// file refuses a name that could point outside deltas/.
 func (s *Store) file(slice string) (string, error) {
 	if !specfile.ValidSlice(slice) {
 		return "", fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens", slice)
@@ -56,7 +50,6 @@ func (s *Store) file(slice string) (string, error) {
 	return filepath.Join(s.root, dirName, slice+suffix), nil
 }
 
-// List returns the names of the slices that have a spec, sorted.
 func (s *Store) List(context.Context) ([]string, error) {
 	entries, err := os.ReadDir(filepath.Join(s.root, dirName))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -86,10 +79,7 @@ func (s *Store) Load(_ context.Context, slice string) ([]byte, error) {
 	return src, err
 }
 
-// Create writes a new spec and fails if one already exists.
-//
-// shortcut: it checks and then writes, so two processes creating the same slice at once could
-// both pass; the CLI is run by one person at a time.
+// shortcut: check-then-write, so two simultaneous creates could both pass; one person runs the CLI at a time.
 func (s *Store) Create(_ context.Context, slice string, content []byte) error {
 	p, err := s.file(slice)
 	if err != nil {
@@ -101,8 +91,6 @@ func (s *Store) Create(_ context.Context, slice string, content []byte) error {
 	return writeAtomic(p, content)
 }
 
-// Save writes a spec, replacing the one that is there. The old file is replaced whole or not at
-// all, so a spec is never left half written.
 func (s *Store) Save(_ context.Context, slice string, content []byte) error {
 	p, err := s.file(slice)
 	if err != nil {
@@ -111,8 +99,7 @@ func (s *Store) Save(_ context.Context, slice string, content []byte) error {
 	return writeAtomic(p, content)
 }
 
-// writeAtomic writes data to a temporary file beside path and renames it over path, so readers
-// see the old content or the new, never half of it.
+// writeAtomic renames a temporary file over path, so readers see the old content or the new, never half.
 func writeAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -137,10 +124,7 @@ func writeAtomic(path string, data []byte) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-// TestFiles reads every test file under the root, in path order.
-//
-// shortcut: every test file is held in memory at once; for a very large repo, read only the
-// files under the paths the claims name.
+// shortcut: every test file is held in memory; for a very large repo read only the files under the claims' paths.
 func (s *Store) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
 	var out []linkcheck.File
 	err := filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {

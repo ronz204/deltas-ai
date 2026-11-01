@@ -7,12 +7,8 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/findings"
 )
 
-// Parse reads a spec. It reports every problem it finds, not just the first, and Claims holds
-// only the claims that parsed cleanly, so check the diagnostics before trusting the result.
-// name is only used to label diagnostics.
-//
-// shortcut: a list item whose first word looks like an ID (letters, a hyphen, digits) is taken
-// as a claim attempt, so a prose bullet like "- ISO-8601 dates" is reported; reword it.
+// Parse reports every problem, and Claims holds only the claims that parsed cleanly: check the diagnostics first.
+// shortcut: a list item starting with an ID-like word ("- ISO-8601 dates") is read as a claim attempt.
 func Parse(name string, src []byte) (Spec, []findings.Diagnostic) {
 	p := &parser{name: name}
 	lines := splitLines(src)
@@ -23,7 +19,6 @@ func Parse(name string, src []byte) (Spec, []findings.Diagnostic) {
 	return sp, p.diags
 }
 
-// parser collects the diagnostics of one Parse.
 type parser struct {
 	name  string
 	diags []findings.Diagnostic
@@ -33,8 +28,7 @@ func (p *parser) add(line int, code, format string, args ...any) {
 	p.diags = append(p.diags, findings.Diagnostic{File: p.name, Line: line, Code: code, Message: fmt.Sprintf(format, args...)})
 }
 
-// splitLines drops a leading byte order mark and the CR of CRLF endings, so a spec parses the
-// same whichever way the platform checked it out.
+// splitLines drops a BOM and the CR of CRLF, so a spec parses the same on every platform.
 func splitLines(src []byte) []string {
 	lines := strings.Split(strings.TrimPrefix(string(src), "\xef\xbb\xbf"), "\n")
 	for i, l := range lines {

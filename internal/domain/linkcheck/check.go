@@ -12,12 +12,11 @@ import (
 
 // Diagnostic codes. Hooks and CI depend on these, so they do not change once released.
 const (
-	CodeNoCite    = "LINT-NO-CITE"    // a test claim that no test file under its command cites
-	CodeUnknownID = "LINT-UNKNOWN-ID" // a test file cites an ID no spec defines
-	CodeSkip      = "LINT-SKIP"       // a file that cites IDs skips or focuses a test
+	CodeNoCite    = "LINT-NO-CITE"
+	CodeUnknownID = "LINT-UNKNOWN-ID"
+	CodeSkip      = "LINT-SKIP"
 )
 
-// Slice is a parsed spec and the file it came from.
 type Slice struct {
 	File string
 	Spec specfile.Spec
@@ -29,9 +28,7 @@ var (
 	skipped  = regexp.MustCompile(`\bt\.Skip(?:f|Now)?\(|\.(?:skip|only)\(|\bx(?:it|describe|test)\(|pytest\.mark\.skip|pytest\.skip\(|unittest\.skip`)
 )
 
-// Check cross-checks specs against test files. Pass only specs that parsed without problems: a
-// broken contract cannot be crossed, and its dropped claims would show up as unknown IDs.
-// The diagnostics come in a fixed order, claims first and then files in the order given.
+// Check needs specs that parsed cleanly: a dropped claim would show up as an unknown ID.
 func Check(slices []Slice, files []File) []findings.Diagnostic {
 	var out []findings.Diagnostic
 	defined := map[string]bool{}
@@ -54,7 +51,6 @@ func Check(slices []Slice, files []File) []findings.Diagnostic {
 	return out
 }
 
-// unknownIDs warns, once per ID, about each ID the file cites that no spec defines.
 func unknownIDs(file string, lines []string, defined map[string]bool) []findings.Diagnostic {
 	var out []findings.Diagnostic
 	reported := map[string]bool{}
@@ -72,10 +68,7 @@ func unknownIDs(file string, lines []string, defined map[string]bool) []findings
 	return out
 }
 
-// skippedTests warns about the first skipped or focused test in the file, if any.
-//
-// shortcut: skipped tests are found by pattern and flagged per file, not per test; a file that
-// cites IDs and skips an unrelated test is warned too. It is a warning, not a verdict.
+// shortcut: skipped tests are found by pattern and flagged per file; it is a warning, not a verdict.
 func skippedTests(file string, lines []string) []findings.Diagnostic {
 	for i, text := range lines {
 		if found := skipped.FindString(text); found != "" {

@@ -7,8 +7,7 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/assertion"
 )
 
-// SetTag returns src with the tag of one claim replaced. Only that header line changes, so the
-// rest of the file, its line endings included, comes back as it was.
+// SetTag replaces the tag of one claim and changes nothing else in the file, line endings included.
 func SetTag(src []byte, id assertion.ID, tag assertion.Tag) ([]byte, error) {
 	sp, _ := Parse("", src)
 	line := 0

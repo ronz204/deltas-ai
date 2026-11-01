@@ -5,9 +5,7 @@ import (
 	"strings"
 )
 
-// split cuts a command into its arguments. Single and double quotes group words and are
-// dropped; nothing else is special, in particular not the backslash, which is a path separator
-// on Windows.
+// split cuts a command into arguments; quotes group words and the backslash is not special (Windows paths).
 func split(command string) ([]string, error) {
 	var args []string
 	var cur strings.Builder

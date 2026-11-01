@@ -7,8 +7,7 @@ import (
 	"github.com/ronz204/deltas-ai/internal/domain/assertion"
 )
 
-// FuzzParse feeds Parse arbitrary bytes: it must never panic, and what it returns must be
-// internally consistent whatever the input.
+// FuzzParse must never panic, and what Parse returns must be consistent whatever the input.
 func FuzzParse(f *testing.F) {
 	f.Add([]byte(validSpec))
 	f.Add([]byte(head))
