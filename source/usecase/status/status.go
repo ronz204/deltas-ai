@@ -6,6 +6,7 @@ import (
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
 )
 
@@ -28,6 +29,7 @@ type Row struct {
 	Manual int
 	None   int
 	Issues int
+	Scope  linkcheck.Scope // the part of the project the slice depends on
 }
 
 func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
@@ -41,8 +43,9 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		if err != nil {
 			return nil, err
 		}
-		sp, ds := specfile.ParseSlice(r.specs.Path(name), name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds)}
+		file := r.specs.Path(name)
+		sp, ds := specfile.ParseSlice(file, name, src)
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.ScopeOf(file, sp.Claims)}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
 			case assertion.Test:

@@ -7,9 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ronz204/deltas-ai/source/domain/assertion"
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 )
 
 var ctx = context.Background()
+
+// everything is the scope of a slice whose commands name no path: every code file.
+var everything = linkcheck.ScopeOf("", nil)
 
 // repo makes an empty repository that ignores the global and system git configuration, so the
 // tests do not depend on who runs them.
@@ -95,7 +101,7 @@ func TestTreeIsCleanRightAfterACommit(t *testing.T) {
 	dir := repo(t)
 	put(t, dir, "a.txt", "one")
 	commit(t, dir)
-	if hash, dirty, err := New(dir).Tree(ctx); err != nil || dirty || hash != "" {
+	if hash, dirty, err := New(dir).Tree(ctx, everything); err != nil || dirty || hash != "" {
 		t.Fatalf("Tree = %q, %v, %v; want clean", hash, dirty, err)
 	}
 }
@@ -107,19 +113,19 @@ func TestTreeChangesWithTheContentAndComesBack(t *testing.T) {
 	g := New(dir)
 
 	put(t, dir, "a.txt", "two")
-	first, dirty, err := g.Tree(ctx)
+	first, dirty, err := g.Tree(ctx, everything)
 	if err != nil || !dirty || first == "" {
 		t.Fatalf("a modified file: %q, %v, %v", first, dirty, err)
 	}
-	if again, _, _ := g.Tree(ctx); again != first {
+	if again, _, _ := g.Tree(ctx, everything); again != first {
 		t.Fatal("the same tree gave two fingerprints")
 	}
 	put(t, dir, "a.txt", "three")
-	if other, _, _ := g.Tree(ctx); other == first {
+	if other, _, _ := g.Tree(ctx, everything); other == first {
 		t.Fatal("another content gave the same fingerprint")
 	}
 	put(t, dir, "a.txt", "one")
-	if hash, dirty, _ := g.Tree(ctx); dirty || hash != "" {
+	if hash, dirty, _ := g.Tree(ctx, everything); dirty || hash != "" {
 		t.Fatalf("reverting the edit left the tree dirty: %q", hash)
 	}
 }
@@ -132,15 +138,15 @@ func TestTreeSeesUntrackedStagedAndDeletedFiles(t *testing.T) {
 	g := New(dir)
 
 	put(t, dir, "new.txt", "x")
-	untracked, dirty, _ := g.Tree(ctx)
+	untracked, dirty, _ := g.Tree(ctx, everything)
 	if !dirty {
 		t.Fatal("an untracked file left the tree clean")
 	}
 	put(t, dir, ".gitignore", "ignored.txt\n")
 	put(t, dir, "ignored.txt", "x")
-	withIgnore, _, _ := g.Tree(ctx)
+	withIgnore, _, _ := g.Tree(ctx, everything)
 	put(t, dir, "ignored.txt", "changed")
-	if again, _, _ := g.Tree(ctx); again != withIgnore {
+	if again, _, _ := g.Tree(ctx, everything); again != withIgnore {
 		t.Fatal("an ignored file changed the fingerprint")
 	}
 	if withIgnore == untracked {
@@ -150,14 +156,14 @@ func TestTreeSeesUntrackedStagedAndDeletedFiles(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "b.txt")); err != nil {
 		t.Fatal(err)
 	}
-	if hash, _, _ := g.Tree(ctx); hash == withIgnore {
+	if hash, _, _ := g.Tree(ctx, everything); hash == withIgnore {
 		t.Fatal("a deleted file did not change the fingerprint")
 	}
 
 	if out, err := exec.Command("git", "-C", dir, "add", "-A").CombinedOutput(); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if _, dirty, _ := g.Tree(ctx); !dirty {
+	if _, dirty, _ := g.Tree(ctx, everything); !dirty {
 		t.Fatal("staged changes left the tree clean")
 	}
 }
@@ -165,18 +171,45 @@ func TestTreeSeesUntrackedStagedAndDeletedFiles(t *testing.T) {
 func TestTreeOfARepositoryWithoutCommits(t *testing.T) {
 	dir := repo(t)
 	g := New(dir)
-	if hash, dirty, err := g.Tree(ctx); err != nil || dirty || hash != "" {
+	if hash, dirty, err := g.Tree(ctx, everything); err != nil || dirty || hash != "" {
 		t.Fatalf("an empty repository: %q, %v, %v", hash, dirty, err)
 	}
 	put(t, dir, "a.txt", "one")
-	if hash, dirty, err := g.Tree(ctx); err != nil || !dirty || hash == "" {
+	if hash, dirty, err := g.Tree(ctx, everything); err != nil || !dirty || hash == "" {
 		t.Fatalf("a first file: %q, %v, %v", hash, dirty, err)
 	}
 }
 
 func TestTreeOutsideARepositoryFails(t *testing.T) {
 	repo(t)
-	if _, _, err := New(t.TempDir()).Tree(ctx); err == nil {
+	if _, _, err := New(t.TempDir()).Tree(ctx, everything); err == nil {
 		t.Fatal("no error outside a repository")
+	}
+}
+
+func TestTreeLooksOnlyAtTheScopeAndIgnoresDocumentation(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "billing.go", "one")
+	put(t, dir, "payments.go", "one")
+	put(t, dir, "README.md", "one")
+	commit(t, dir)
+	g := New(dir)
+	claims := []assertion.Claim{{Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./billing.go"}}}
+	billing := linkcheck.ScopeOf("deltas/billing.spec.md", claims)
+
+	put(t, dir, "README.md", "two")
+	if hash, dirty, _ := g.Tree(ctx, everything); dirty || hash != "" {
+		t.Fatal("a change to documentation made the tree dirty")
+	}
+	put(t, dir, "payments.go", "two")
+	if _, dirty, _ := g.Tree(ctx, billing); dirty {
+		t.Fatal("a change to payments.go is outside what billing depends on")
+	}
+	if _, dirty, _ := g.Tree(ctx, everything); !dirty {
+		t.Fatal("a change to code is not seen by the whole-project scope")
+	}
+	put(t, dir, "billing.go", "two")
+	if _, dirty, _ := g.Tree(ctx, billing); !dirty {
+		t.Fatal("a change inside the scope was missed")
 	}
 }

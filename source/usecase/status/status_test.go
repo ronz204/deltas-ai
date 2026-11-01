@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 )
 
 type fake map[string]string
@@ -47,8 +48,15 @@ func TestReport(t *testing.T) {
 		{Slice: "b", Status: lifecycle.Verified},
 		{Slice: "c", Issues: 1},
 	}
+	scopes := make([]linkcheck.Scope, len(rows))
+	for i := range rows {
+		scopes[i], rows[i].Scope = rows[i].Scope, linkcheck.Scope{}
+	}
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
+	}
+	if a := scopes[0]; !a.Covers("a/x.go") || a.Covers("b/x.go") || !a.Covers("deltas/a.spec.md") {
+		t.Fatalf("the scope of a = %+v, want what go test ./a looks at, and its spec", a)
 	}
 }
 

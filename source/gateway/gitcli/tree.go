@@ -12,12 +12,15 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 )
 
-// Tree fingerprints the working tree: HEAD plus the content of every file that differs from it or is
-// untracked and not ignored. dirty is false when there is nothing of the sort, as right after a commit.
+// Tree fingerprints the part of the working tree a scope covers: HEAD plus the content of every file in it
+// that differs from HEAD or is untracked and not ignored. dirty is false when there is nothing of the sort,
+// as right after a commit.
 // shortcut: it reads every such file, so a big binary left untracked slows it; upgrade by hashing size and mtime.
-func (g *Git) Tree(ctx context.Context) (hash string, dirty bool, err error) {
+func (g *Git) Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dirty bool, err error) {
 	head, err := g.run(ctx, "rev-parse", "--verify", "-q", "HEAD")
 	var exit *exec.ExitError
 	changed := []string{"diff", "--name-only", "--no-renames", "-z", "HEAD"}
@@ -36,6 +39,7 @@ func (g *Git) Tree(ctx context.Context) (hash string, dirty bool, err error) {
 		return "", false, err
 	}
 	names = append(names, untracked...)
+	names = slices.DeleteFunc(names, func(name string) bool { return !scope.Covers(name) })
 	slices.Sort(names)
 	names = slices.Compact(names)
 	if len(names) == 0 {

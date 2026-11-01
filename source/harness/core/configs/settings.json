@@ -24,22 +24,28 @@
   "hooks": {
     "SessionStart": [
       {
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
       },
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
       }
     ]
   }

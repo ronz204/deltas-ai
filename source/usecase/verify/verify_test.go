@@ -166,12 +166,16 @@ func TestLintReportsOnlySpecProblemsWhenThereAreAny(t *testing.T) {
 }
 
 type fakeMarks struct {
-	got map[string]bool
-	err error
+	got  map[string]bool
+	seen []Seen
+	err  error
 }
 
-func (f *fakeMarks) Record(_ context.Context, violated map[string]bool) error {
-	f.got = violated
+func (f *fakeMarks) Record(_ context.Context, seen []Seen) error {
+	f.seen, f.got = seen, map[string]bool{}
+	for _, s := range seen {
+		f.got[s.Slice] = s.Violated
+	}
 	return f.err
 }
 
@@ -188,6 +192,9 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	}
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
+	}
+	if billing := marks.seen[0].Scope; !billing.Covers("billing/total.go") || billing.Covers("payments/pay.go") || !billing.Covers("deltas/billing.spec.md") {
+		t.Fatalf("the scope of billing = %+v, want what go test ./billing looks at, and its spec", billing)
 	}
 }
 

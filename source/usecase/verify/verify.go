@@ -26,9 +26,16 @@ type Runner interface {
 	Run(ctx context.Context, command string) (exit int, err error)
 }
 
+// Seen is what a check found for one slice: whether a claim was violated, and the part of the project it depends on.
+type Seen struct {
+	Slice    string
+	Scope    linkcheck.Scope
+	Violated bool
+}
+
 // Marks remembers what a check saw, so the Stop hook can tell a checked tree from an unchecked one.
 type Marks interface {
-	Record(ctx context.Context, violated map[string]bool) error
+	Record(ctx context.Context, seen []Seen) error
 }
 
 // CodeRecord is the warning for a check that ran but could not be remembered.
@@ -132,26 +139,25 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 		}
 	}
 	var rep Report
-	violated := map[string]bool{}
+	var seen []Seen
 	for _, l := range ls {
 		if len(l.diags) > 0 {
 			rep.Diags = append(rep.Diags, l.diags...)
 			continue
 		}
-		violated[l.slice] = false
+		s := Seen{Slice: l.slice, Scope: linkcheck.ScopeOf(l.file, l.spec.Claims)}
 		for _, c := range l.spec.Claims {
 			if err := ctx.Err(); err != nil {
 				return rep, err
 			}
 			out := v.judge(ctx, c, files)
 			rep.Results = append(rep.Results, Result{Slice: l.slice, ID: c.ID, Outcome: out})
-			if out.Verdict == judgment.Violated {
-				violated[l.slice] = true
-			}
+			s.Violated = s.Violated || out.Verdict == judgment.Violated
 		}
+		seen = append(seen, s)
 	}
-	if v.marks != nil && len(violated) > 0 {
-		if err := v.marks.Record(ctx, violated); err != nil {
+	if v.marks != nil && len(seen) > 0 {
+		if err := v.marks.Record(ctx, seen); err != nil {
 			rep.Diags = append(rep.Diags, findings.Diagnostic{File: "delta check", Code: CodeRecord, Warn: true,
 				Message: "the check could not be remembered, so the Stop hook will ask for it again: " + err.Error()})
 		}

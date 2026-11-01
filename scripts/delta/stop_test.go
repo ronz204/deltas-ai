@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -63,5 +64,62 @@ func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 	code, _, errOut := p.delta(stopEvent(t, false), "hook")
 	if code != 2 || !strings.Contains(errOut, "violated") {
 		t.Fatalf("Stop = %d %q, want a block about violated claims", code, errOut)
+	}
+}
+
+// Only what a slice's commands look at counts: documentation and other slices' code do not ask for a new check.
+func TestStopIgnoresChangesTheSliceDoesNotDependOn(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("billing/total_test.go", "// INV-01\n")
+	p.write("billing/total.go", "package billing\n")
+	p.write("payments/pay.go", "package payments\n")
+	if out, err := git(t, p.root, "add", "-A"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := git(t, p.root, "commit", "-q", "-m", "chore(repo): add the billing slice"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+
+	p.write("README.md", "# a new readme\n")
+	p.write("payments/pay.go", "package payments\n\nfunc Pay() {}\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
+		t.Fatalf("a README and another slice's code: Stop = %d %q, want it allowed", code, errOut)
+	}
+
+	p.write("billing/total.go", "package billing\n\nfunc Total() {}\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
+		t.Fatalf("a change under ./billing: Stop = %d %q, want a block", code, errOut)
+	}
+	if code, out, _ := p.delta("", "check"); code != 0 || verdict(out, "billing", "INV-01") != "Holds" {
+		t.Fatalf("check = %d %q", code, out)
+	}
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
+		t.Fatalf("after the check: Stop = %d %q, want it allowed", code, errOut)
+	}
+}
+
+func postEdit(t *testing.T, root, rel string) string {
+	t.Helper()
+	return hookEvent(t, "PostToolUse", "Write", filepath.Join(root, filepath.FromSlash(rel)), "")
+}
+
+func TestPostToolUseLintsTheTestFileJustWritten(t *testing.T) {
+	p := newProject(t)
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("billing/total_test.go", "// INV-01\nfunc TestTotal(t *testing.T) { t.Skip() }\n")
+	p.write("billing/other_test.go", "func TestOther(t *testing.T) { t.Skip() }\n")
+	p.write("billing/total.go", "package billing\n")
+
+	code, _, errOut := p.delta(postEdit(t, p.root, "billing/total_test.go"), "hook")
+	if code != 2 || !strings.Contains(errOut, "LINT-SKIP") || !strings.Contains(errOut, "billing/total_test.go:2") {
+		t.Fatalf("a skipped test that cites a claim: PostToolUse = %d %q, want the problem told to Claude", code, errOut)
+	}
+	if code, _, errOut := p.delta(postEdit(t, p.root, "billing/total.go"), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("a file that is not a test: PostToolUse = %d %q, want it left alone", code, errOut)
+	}
+	p.write("billing/total_test.go", "// INV-01\nfunc TestTotal(t *testing.T) {}\n")
+	if code, _, errOut := p.delta(postEdit(t, p.root, "billing/total_test.go"), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("a clean test file: PostToolUse = %d %q, want it left alone", code, errOut)
 	}
 }

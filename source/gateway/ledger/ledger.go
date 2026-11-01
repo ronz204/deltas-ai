@@ -13,11 +13,13 @@ import (
 	"path/filepath"
 
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
-// Tree fingerprints the working tree; dirty is false when it has no changes.
+// Tree fingerprints the part of the working tree a scope covers; dirty is false when it has no changes.
 type Tree interface {
-	Tree(ctx context.Context) (hash string, dirty bool, err error)
+	Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dirty bool, err error)
 }
 
 type Ledger struct {
@@ -40,36 +42,40 @@ type entry struct {
 	Violated bool   `json:"violated"`
 }
 
-// Record marks each slice as checked against the tree as it is now; the value says if a claim was violated.
-func (l *Ledger) Record(ctx context.Context, violated map[string]bool) error {
+// Record marks each slice as checked against its part of the tree as it is now.
+func (l *Ledger) Record(ctx context.Context, seen []verify.Seen) error {
 	if l.file == "" {
 		return errors.New("there is no cache directory to keep the record in")
 	}
-	tree, _, err := l.tree.Tree(ctx)
-	if err != nil {
-		return err
-	}
 	marks, _ := l.read() // a missing or damaged record is replaced
-	for slice, v := range violated {
-		marks[slice] = entry{Tree: tree, Violated: v}
+	for _, s := range seen {
+		tree, _, err := l.tree.Tree(ctx, s.Scope)
+		if err != nil {
+			return err
+		}
+		marks[s.Slice] = entry{Tree: tree, Violated: s.Violated}
 	}
 	return l.write(marks)
 }
 
-// Standings says what the last check of each slice proves about the tree as it is now. dirty is false when
-// the tree has no changes, and then there is nothing to prove.
-func (l *Ledger) Standings(ctx context.Context, slices []string) (dirty bool, by map[string]judgment.Standing, err error) {
-	tree, dirty, err := l.tree.Tree(ctx)
-	if err != nil || !dirty {
-		return false, nil, err
-	}
+// Standings says what the last check of each slice proves about its part of the tree as it is now. A slice
+// whose part has no changes has nothing to prove and stands.
+func (l *Ledger) Standings(ctx context.Context, slices map[string]linkcheck.Scope) (map[string]judgment.Standing, error) {
 	marks, _ := l.read()
-	by = make(map[string]judgment.Standing, len(slices))
-	for _, s := range slices {
-		e := marks[s]
-		by[s] = judgment.Mark{Tree: e.Tree, Violated: e.Violated}.At(tree)
+	by := make(map[string]judgment.Standing, len(slices))
+	for slice, scope := range slices {
+		tree, dirty, err := l.tree.Tree(ctx, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !dirty {
+			by[slice] = judgment.Passing
+			continue
+		}
+		e := marks[slice]
+		by[slice] = judgment.Mark{Tree: e.Tree, Violated: e.Violated}.At(tree)
 	}
-	return true, by, nil
+	return by, nil
 }
 
 func (l *Ledger) read() (map[string]entry, error) {

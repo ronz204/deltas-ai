@@ -36,11 +36,12 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
 	checks := ledger.New(cache, root, git)
 	installer := setup.New(vault, git, bundle.Bundle{}, programs)
+	checker := verify.New(vault, vault, programs, checks)
 	app := cmd.New(cmd.Deps{
 		Author:    author.New(vault, bundle.Bundle{}),
-		Checker:   verify.New(vault, vault, programs, checks),
+		Checker:   checker,
 		Report:    report,
-		Guard:     guard.New(root, report, installer, checks),
+		Guard:     guard.New(root, report, installer, checks, checker),
 		Installer: installer,
 		Meter:     measure.New(vault),
 		Version:   version,

@@ -107,7 +107,7 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 		Author:    author.New(m, m),
 		Checker:   verify.New(m, m, m, nil),
 		Report:    status.New(m),
-		Guard:     guard.New(root, status.New(m), installer, nil),
+		Guard:     guard.New(root, status.New(m), installer, nil, nil),
 		Installer: installer,
 		Meter:     measure.New(m),
 		Version:   "test",
