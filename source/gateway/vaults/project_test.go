@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -64,5 +65,37 @@ func TestProjectFilesCannotLeaveTheProject(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(filepath.Dir(root), "evil")); err == nil {
 		t.Fatal("a file was written outside the project")
+	}
+}
+
+func TestGlobReadsWhatMatchesAndSkipsFolders(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "CLAUDE.md", "router")
+	write(t, root, ".claude/rules/a.md", "rule a")
+	write(t, root, ".claude/rules/b.txt", "not a rule")
+	write(t, root, ".claude/rules/deep/c.md", "too deep for *")
+	write(t, root, ".claude/skills/quill/SKILL.md", "skill")
+	write(t, root, ".claude/skills/quill/references/guide.md", "reference")
+	if err := os.MkdirAll(filepath.Join(root, ".claude", "agents", "folder.md"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := New(root).Glob(ctx, []string{"CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/*.md", ".claude/skills/*/SKILL.md", ".claude/agents/*.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen []string
+	for _, f := range got {
+		seen = append(seen, f.Path+"="+f.Text)
+	}
+	want := []string{"CLAUDE.md=router", ".claude/rules/a.md=rule a", ".claude/skills/quill/SKILL.md=skill"}
+	if !reflect.DeepEqual(seen, want) {
+		t.Fatalf("Glob = %v, want %v", seen, want)
+	}
+}
+
+func TestGlobWithNothingThereIsEmpty(t *testing.T) {
+	got, err := New(t.TempDir()).Glob(ctx, []string{"CLAUDE.md", ".claude/rules/*.md"})
+	if err != nil || len(got) != 0 {
+		t.Fatalf("Glob = %v, %v", got, err)
 	}
 }

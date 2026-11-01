@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
 )
@@ -124,6 +125,30 @@ func (s *Vault) WriteFile(_ context.Context, rel string, content []byte, perm fs
 		return err
 	}
 	return writeAtomic(p, content, perm)
+}
+
+// Glob reads the project files whose path matches any pattern, where * stands for part of one folder
+// or file name. Paths come back relative to the root and with forward slashes.
+func (s *Vault) Glob(_ context.Context, patterns []string) ([]budget.File, error) {
+	root := os.DirFS(s.root)
+	var out []budget.File
+	for _, pattern := range patterns {
+		names, err := fs.Glob(root, pattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range names {
+			if info, err := fs.Stat(root, name); err != nil || info.IsDir() {
+				continue
+			}
+			text, err := fs.ReadFile(root, name)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, budget.File{Path: name, Text: string(text)})
+		}
+	}
+	return out, nil
 }
 
 // writeAtomic renames a temporary file over path, so readers see the old content or the new, never half.
