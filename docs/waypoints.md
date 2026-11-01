@@ -10,7 +10,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 50 de 72 tareas, 69 %**
+**Avance total: 56 de 72 tareas, 78 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
 | 2 | Hooks | ✅ Terminada | 15/15, 100 % |
 | 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
-| 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
+| 4 | Reglas core y preset `base` | 🔄 En progreso | 6/9, 67 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
 | 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
 
@@ -163,17 +163,17 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 4: reglas core y preset `base`
 
-**Estado: 🔲 Pendiente, 0/9.**
+**Estado: 🔄 En progreso, 6/9.**
 
 *Escribir el texto final, con el peso medido (§7).*
 
 **Entregables**
-- [ ] R1 (fidelidad) y R2 (honestidad) como reglas core, ~600 tokens en conjunto.
-- [ ] B1 (alcance, la escalera) y B2 (fiabilidad) como preset `base`, con `paths:` sobre código fuente, activado por `delta init` y desactivable.
-- [ ] Mover lo valioso de `code-lean-change` según §7.6 y borrarla como regla única; dar crédito a ponytail (licencia MIT) donde se conserve texto.
-- [ ] Eliminar la regla `commit-messages` como texto (ya la cumple el hook).
-- [ ] Convertir el resto del catálogo en presets con `paths:`; mover lo chequeable a linters.
-- [ ] Reglas, skills y repo en inglés (decisión 4).
+- [x] R1 (fidelidad) y R2 (honestidad) como reglas core, ~600 tokens en conjunto. *`rules/fidelity.md` y `rules/honesty.md`, sin `paths:`; pesan 255 y 240 tokens según `delta budget`.*
+- [x] B1 (alcance, la escalera) y B2 (fiabilidad) como preset `base`, con `paths:` sobre código fuente, activado por `delta init` y desactivable. *`rules/base/base-scope.md` y `base-reliability.md`. Se desactiva con `base=off` en `deltas/deltas.config` (clave nueva, `base=on` por defecto): `init` no los instala y `update` retira los ya instalados y sin editar. Con la tarea no se añadió ningún comando.*
+- [x] Mover lo valioso de `code-lean-change` según §7.6 y borrarla como regla única; dar crédito a ponytail (licencia MIT) donde se conserve texto. *Borrada. La escalera pasó a B1 con el crédito en la propia regla y en el README; lo de estructura/capas y el comentario `shortcut:` quedan fuera hasta que haya presets de DDD y opcionales.*
+- [x] Eliminar la regla `commit-messages` como texto (ya la cumple el hook). *Borrada de `source/harness/`; los tests de `init` y `update` usan ahora `fidelity.md`.*
+- [x] Convertir el resto del catálogo en presets con `paths:`; mover lo chequeable a linters. *Las tres reglas que quedan (`when-write-delta`, `kb-deltas-routing`, `context-budgets`) ya cargaban solo por `paths:`, así que no cuestan nada siempre cargadas y no se tocaron. Las reglas de TypeScript y DDD no viven en este repo, por lo que no hay nada que mover aquí.*
+- [x] Reglas, skills y repo en inglés (decisión 4). *Las reglas y skills de `source/harness/` ya estaban en inglés y las nuevas también; `docs/` sigue en español.*
 
 **Cierra cuando**
 - [ ] `delta budget` confirma que lo siempre cargado baja del techo anterior y deja margen. Las cifras de §7.8 son una estimación; aquí se ajustan con medición real.
