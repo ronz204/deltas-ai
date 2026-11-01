@@ -4,11 +4,11 @@ package verify
 import (
 	"context"
 
-	"github.com/ronz204/deltas-ai/internal/domain/claim"
-	"github.com/ronz204/deltas-ai/internal/domain/diag"
-	"github.com/ronz204/deltas-ai/internal/domain/lint"
-	"github.com/ronz204/deltas-ai/internal/domain/proof"
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/assertion"
+	"github.com/ronz204/deltas-ai/internal/domain/findings"
+	"github.com/ronz204/deltas-ai/internal/domain/judgment"
+	"github.com/ronz204/deltas-ai/internal/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 // Specs is where specs are read from.
@@ -20,7 +20,7 @@ type Specs interface {
 
 // Tests gives the project's test files.
 type Tests interface {
-	TestFiles(ctx context.Context) ([]lint.File, error)
+	TestFiles(ctx context.Context) ([]linkcheck.File, error)
 }
 
 // Runner runs a claim's command and returns its exit code. An error means it did not finish.
@@ -42,8 +42,8 @@ func New(specs Specs, tests Tests, run Runner) *Checker {
 type loaded struct {
 	slice string
 	file  string
-	spec  spec.Spec
-	diags []diag.Diagnostic
+	spec  specfile.Spec
+	diags []findings.Diagnostic
 }
 
 // load parses the named slice, or every slice when only is empty.
@@ -62,14 +62,14 @@ func (v *Checker) load(ctx context.Context, only string) ([]loaded, error) {
 			return nil, err
 		}
 		file := v.specs.Path(name)
-		sp, ds := spec.ParseSlice(file, name, src)
+		sp, ds := specfile.ParseSlice(file, name, src)
 		out = append(out, loaded{slice: name, file: file, spec: sp, diags: ds})
 	}
 	return out, nil
 }
 
-func problems(ls []loaded) []diag.Diagnostic {
-	var out []diag.Diagnostic
+func problems(ls []loaded) []findings.Diagnostic {
+	var out []findings.Diagnostic
 	for _, l := range ls {
 		out = append(out, l.diags...)
 	}
@@ -77,14 +77,14 @@ func problems(ls []loaded) []diag.Diagnostic {
 }
 
 // SpecLint reports what is wrong with the structure of a spec, or of every spec when only is empty.
-func (v *Checker) SpecLint(ctx context.Context, only string) ([]diag.Diagnostic, error) {
+func (v *Checker) SpecLint(ctx context.Context, only string) ([]findings.Diagnostic, error) {
 	ls, err := v.load(ctx, only)
 	return problems(ls), err
 }
 
 // Lint is SpecLint over every spec plus the cross-check of specs against test files. A project
 // whose specs have problems gets only those: a broken contract cannot be crossed.
-func (v *Checker) Lint(ctx context.Context) ([]diag.Diagnostic, error) {
+func (v *Checker) Lint(ctx context.Context) ([]findings.Diagnostic, error) {
 	ls, err := v.load(ctx, "")
 	if err != nil {
 		return nil, err
@@ -96,24 +96,24 @@ func (v *Checker) Lint(ctx context.Context) ([]diag.Diagnostic, error) {
 	if err != nil {
 		return nil, err
 	}
-	slices := make([]lint.Slice, len(ls))
+	slices := make([]linkcheck.Slice, len(ls))
 	for i, l := range ls {
-		slices[i] = lint.Slice{File: l.file, Spec: l.spec}
+		slices[i] = linkcheck.Slice{File: l.file, Spec: l.spec}
 	}
-	return lint.Check(slices, files), nil
+	return linkcheck.Check(slices, files), nil
 }
 
 // Result is the verdict on one claim.
 type Result struct {
 	Slice   string
-	ID      claim.ID
-	Outcome proof.Outcome
+	ID      assertion.ID
+	Outcome judgment.Outcome
 }
 
 // Report is what Check found: problems with the specs, and a verdict per claim of the specs
 // that are sound.
 type Report struct {
-	Diags   []diag.Diagnostic
+	Diags   []findings.Diagnostic
 	Results []Result
 }
 
@@ -124,7 +124,7 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	var files []lint.File
+	var files []linkcheck.File
 	if hasTestClaims(ls) {
 		if files, err = v.tests.TestFiles(ctx); err != nil {
 			return Report{}, err
@@ -152,7 +152,7 @@ func hasTestClaims(ls []loaded) bool {
 			continue
 		}
 		for _, c := range l.spec.Claims {
-			if c.Tag.Kind == claim.Test {
+			if c.Tag.Kind == assertion.Test {
 				return true
 			}
 		}
@@ -162,13 +162,13 @@ func hasTestClaims(ls []loaded) bool {
 
 // judge runs a test claim's command and decides the claim. A command that did not finish says
 // nothing about the claim, so it leaves it Unverified, with the reason.
-func (v *Checker) judge(ctx context.Context, c claim.Claim, files []lint.File) proof.Outcome {
-	if c.Tag.Kind != claim.Test {
-		return proof.Judge(c.Tag, 0, false)
+func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File) judgment.Outcome {
+	if c.Tag.Kind != assertion.Test {
+		return judgment.Judge(c.Tag, 0, false)
 	}
 	exit, err := v.run.Run(ctx, c.Tag.Arg)
 	if err != nil {
-		return proof.Outcome{Verdict: proof.Unverified, Reason: "could not run the command: " + err.Error()}
+		return judgment.Outcome{Verdict: judgment.Unverified, Reason: "could not run the command: " + err.Error()}
 	}
-	return proof.Judge(c.Tag, exit, lint.Cited(c.ID, c.Tag.Arg, files))
+	return judgment.Judge(c.Tag, exit, linkcheck.Cited(c.ID, c.Tag.Arg, files))
 }

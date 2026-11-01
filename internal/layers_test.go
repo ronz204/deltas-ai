@@ -58,11 +58,11 @@ func TestViolation(t *testing.T) {
 		bad                 bool
 	}{
 		{"stdlib anywhere", "domain", "strings", false},
-		{"domain imports domain", "domain", module + "/internal/domain/claim", false},
+		{"domain imports domain", "domain", module + "/internal/domain/assertion", false},
 		{"domain imports usecase", "domain", module + "/internal/usecase/verify", true},
 		{"domain imports gateway", "domain", module + "/internal/gateway/files", true},
 		{"domain imports third party", "domain", "github.com/spf13/cobra", true},
-		{"usecase imports domain", "usecase", module + "/internal/domain/spec", false},
+		{"usecase imports domain", "usecase", module + "/internal/domain/specfile", false},
 		{"usecase imports gateway", "usecase", module + "/internal/gateway/runner", true},
 		{"usecase imports adapter", "usecase", module + "/internal/adapter/cli", true},
 		{"gateway implements usecase ports", "gateway", module + "/internal/usecase/verify", false},

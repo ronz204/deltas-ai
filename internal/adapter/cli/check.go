@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/internal/domain/proof"
+	"github.com/ronz204/deltas-ai/internal/domain/judgment"
 	"github.com/ronz204/deltas-ai/internal/usecase/verify"
 )
 
@@ -23,7 +23,7 @@ func checkCmd(d Deps) *cobra.Command {
 			}
 			printDiags(cmd.ErrOrStderr(), rep.Diags)
 			count := printResults(cmd.OutOrStdout(), rep.Results)
-			if count[proof.Violated] > 0 {
+			if count[judgment.Violated] > 0 {
 				return ErrFound
 			}
 			return foundIn(rep.Diags)
@@ -33,8 +33,8 @@ func checkCmd(d Deps) *cobra.Command {
 
 // printResults prints one row per claim and a summary line, and returns how many claims got
 // each verdict.
-func printResults(w io.Writer, results []verify.Result) map[proof.Verdict]int {
-	count := map[proof.Verdict]int{}
+func printResults(w io.Writer, results []verify.Result) map[judgment.Verdict]int {
+	count := map[judgment.Verdict]int{}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	for _, r := range results {
 		count[r.Outcome.Verdict]++
@@ -45,6 +45,6 @@ func printResults(w io.Writer, results []verify.Result) map[proof.Verdict]int {
 		fmt.Fprintln(tw, row)
 	}
 	tw.Flush()
-	fmt.Fprintf(w, "%d holds, %d violated, %d unverified\n", count[proof.Holds], count[proof.Violated], count[proof.Unverified])
+	fmt.Fprintf(w, "%d holds, %d violated, %d unverified\n", count[judgment.Holds], count[judgment.Violated], count[judgment.Unverified])
 	return count
 }

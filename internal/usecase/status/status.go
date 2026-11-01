@@ -4,9 +4,9 @@ package status
 import (
 	"context"
 
-	"github.com/ronz204/deltas-ai/internal/domain/claim"
-	"github.com/ronz204/deltas-ai/internal/domain/slice"
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/assertion"
+	"github.com/ronz204/deltas-ai/internal/domain/lifecycle"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 // Specs is where specs are read from.
@@ -26,7 +26,7 @@ func New(specs Specs) *Reporter { return &Reporter{specs: specs} }
 // and when there are any the other numbers cover only the claims that parsed cleanly.
 type Row struct {
 	Slice  string
-	Status slice.Status // empty when the frontmatter could not be read
+	Status lifecycle.Status // empty when the frontmatter could not be read
 	Claims int
 	Test   int
 	Manual int
@@ -46,13 +46,13 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		if err != nil {
 			return nil, err
 		}
-		sp, ds := spec.ParseSlice(r.specs.Path(name), name, src)
+		sp, ds := specfile.ParseSlice(r.specs.Path(name), name, src)
 		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds)}
 		for _, c := range sp.Claims {
 			switch c.Tag.Kind {
-			case claim.Test:
+			case assertion.Test:
 				row.Test++
-			case claim.Manual:
+			case assertion.Manual:
 				row.Manual++
 			default:
 				row.None++

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/internal/domain/slice"
+	"github.com/ronz204/deltas-ai/internal/domain/lifecycle"
 )
 
 type fake map[string]string
@@ -45,8 +45,8 @@ func TestReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Row{
-		{Slice: "a", Status: slice.Approved, Claims: 4, Test: 1, Manual: 1, None: 2},
-		{Slice: "b", Status: slice.Verified},
+		{Slice: "a", Status: lifecycle.Approved, Claims: 4, Test: 1, Manual: 1, None: 2},
+		{Slice: "b", Status: lifecycle.Verified},
 		{Slice: "c", Issues: 1},
 	}
 	if !reflect.DeepEqual(rows, want) {

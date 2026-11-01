@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 var ctx = context.Background()
@@ -58,7 +58,7 @@ func TestCreateMakesADraftFromTheTemplate(t *testing.T) {
 	if err != nil || path != "deltas/billing.spec.md" {
 		t.Fatalf("Create = %q, %v", path, err)
 	}
-	sp, ds := spec.ParseSlice(path, "billing", []byte(m.specs["billing"]))
+	sp, ds := specfile.ParseSlice(path, "billing", []byte(m.specs["billing"]))
 	if len(ds) != 0 || sp.Status != "draft" || sp.Slice != "billing" {
 		t.Fatalf("created spec is %+v with %v", sp, ds)
 	}

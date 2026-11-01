@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/internal/domain/lint"
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 const (
@@ -50,7 +50,7 @@ func (s *Store) Path(slice string) string { return dirName + "/" + slice + suffi
 
 // file is the real location of a slice's spec. It refuses a name that could point outside deltas/.
 func (s *Store) file(slice string) (string, error) {
-	if !spec.ValidSlice(slice) {
+	if !specfile.ValidSlice(slice) {
 		return "", fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens", slice)
 	}
 	return filepath.Join(s.root, dirName, slice+suffix), nil
@@ -141,8 +141,8 @@ func writeAtomic(path string, data []byte) error {
 //
 // shortcut: every test file is held in memory at once; for a very large repo, read only the
 // files under the paths the claims name.
-func (s *Store) TestFiles(ctx context.Context) ([]lint.File, error) {
-	var out []lint.File
+func (s *Store) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
+	var out []linkcheck.File
 	err := filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -158,14 +158,14 @@ func (s *Store) TestFiles(ctx context.Context) ([]lint.File, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if !lint.IsTestFile(rel) {
+		if !linkcheck.IsTestFile(rel) {
 			return nil
 		}
 		text, err := os.ReadFile(p)
 		if err != nil {
 			return err
 		}
-		out = append(out, lint.File{Path: rel, Text: string(text)})
+		out = append(out, linkcheck.File{Path: rel, Text: string(text)})
 		return nil
 	})
 	return out, err

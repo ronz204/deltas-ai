@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/internal/domain/diag"
+	"github.com/ronz204/deltas-ai/internal/domain/findings"
 	"github.com/ronz204/deltas-ai/internal/usecase/author"
 	"github.com/ronz204/deltas-ai/internal/usecase/status"
 	"github.com/ronz204/deltas-ai/internal/usecase/verify"
@@ -47,14 +47,14 @@ func optional(args []string) string {
 	return args[0]
 }
 
-func printDiags(w io.Writer, ds []diag.Diagnostic) {
+func printDiags(w io.Writer, ds []findings.Diagnostic) {
 	for _, d := range ds {
 		fmt.Fprintln(w, d)
 	}
 }
 
 // foundIn is ErrFound when ds holds an error; warnings alone do not fail a run.
-func foundIn(ds []diag.Diagnostic) error {
+func foundIn(ds []findings.Diagnostic) error {
 	for _, d := range ds {
 		if !d.Warn {
 			return ErrFound

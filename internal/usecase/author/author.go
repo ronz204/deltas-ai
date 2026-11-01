@@ -9,9 +9,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ronz204/deltas-ai/internal/domain/claim"
-	"github.com/ronz204/deltas-ai/internal/domain/diag"
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/assertion"
+	"github.com/ronz204/deltas-ai/internal/domain/findings"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 // Store is where specs are kept.
@@ -56,8 +56,8 @@ func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 
 // Write validates content as the spec of slice and saves it. If it has any problem nothing is
 // written and the problems come back; the error is for failures of the store itself.
-func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]diag.Diagnostic, error) {
-	if _, ds := spec.ParseSlice(a.store.Path(slice), slice, content); len(ds) > 0 {
+func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]findings.Diagnostic, error) {
+	if _, ds := specfile.ParseSlice(a.store.Path(slice), slice, content); len(ds) > 0 {
 		return ds, nil
 	}
 	return nil, a.store.Save(ctx, slice, content)
@@ -66,11 +66,11 @@ func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]dia
 // Link makes the claim verified by command: its tag becomes test: <command>. Only that line
 // of the spec changes.
 func (a *Author) Link(ctx context.Context, slice, claimID, command string) error {
-	id, err := claim.ParseID(claimID)
+	id, err := assertion.ParseID(claimID)
 	if err != nil {
 		return err
 	}
-	tag, err := claim.ParseTag("test: " + strings.TrimSpace(command)) // it also rejects an empty command
+	tag, err := assertion.ParseTag("test: " + strings.TrimSpace(command)) // it also rejects an empty command
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (a *Author) Link(ctx context.Context, slice, claimID, command string) error
 	if err != nil {
 		return err
 	}
-	edited, err := spec.SetTag(src, id, tag)
+	edited, err := specfile.SetTag(src, id, tag)
 	if err != nil {
 		return err
 	}

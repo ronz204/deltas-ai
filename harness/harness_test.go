@@ -7,8 +7,8 @@ import (
 	"text/template"
 
 	"github.com/ronz204/deltas-ai/harness"
-	"github.com/ronz204/deltas-ai/internal/domain/slice"
-	"github.com/ronz204/deltas-ai/internal/domain/spec"
+	"github.com/ronz204/deltas-ai/internal/domain/lifecycle"
+	"github.com/ronz204/deltas-ai/internal/domain/specfile"
 )
 
 func render(t *testing.T, name string, data any) string {
@@ -31,11 +31,11 @@ func render(t *testing.T, name string, data any) string {
 // The spec template is what delta spec new will start from, so it must already be a valid spec.
 func TestSpecTemplateParses(t *testing.T) {
 	src := render(t, "spec.md", struct{ Slice string }{"billing"})
-	sp, ds := spec.Parse("billing.spec.md", []byte(src))
+	sp, ds := specfile.Parse("billing.spec.md", []byte(src))
 	if len(ds) != 0 {
 		t.Fatalf("the template is not a valid spec: %v", ds)
 	}
-	if sp.Slice != "billing" || sp.Status != slice.Draft || sp.Format != 1 || len(sp.Claims) != 0 {
+	if sp.Slice != "billing" || sp.Status != lifecycle.Draft || sp.Format != 1 || len(sp.Claims) != 0 {
 		t.Fatalf("template read as %+v", sp)
 	}
 }

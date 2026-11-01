@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/internal/domain/lint"
-	"github.com/ronz204/deltas-ai/internal/domain/proof"
+	"github.com/ronz204/deltas-ai/internal/domain/judgment"
+	"github.com/ronz204/deltas-ai/internal/domain/linkcheck"
 )
 
 var ctx = context.Background()
@@ -32,9 +32,9 @@ func (f fakeSpecs) Load(_ context.Context, s string) ([]byte, error) {
 	return []byte(src), nil
 }
 
-type fakeTests []lint.File
+type fakeTests []linkcheck.File
 
-func (f fakeTests) TestFiles(context.Context) ([]lint.File, error) { return f, nil }
+func (f fakeTests) TestFiles(context.Context) ([]linkcheck.File, error) { return f, nil }
 
 // fakeRunner answers by command and records what it ran.
 type fakeRunner struct {
@@ -119,7 +119,7 @@ func TestCheckAnUnrunnableCommandIsUnverifiedWithItsReason(t *testing.T) {
 	run := &fakeRunner{errs: map[string]error{"go test ./billing": errors.New("not found")}}
 	rep, _ := newVerify(specs, run).Check(ctx, "")
 	got := rep.Results[0].Outcome
-	if got.Verdict != proof.Unverified || got.Reason != "could not run the command: not found" {
+	if got.Verdict != judgment.Unverified || got.Reason != "could not run the command: not found" {
 		t.Fatalf("outcome = %+v", got)
 	}
 }
@@ -148,7 +148,7 @@ func TestLintCrossesSpecsWithTests(t *testing.T) {
 	inv02 := "- INV-02 [test: go test ./billing]\n  When x, y.\n"
 	specs := fakeSpecs{"billing": specOf("billing", passing, inv02, uncited)}
 	ds, err := newVerify(specs, &fakeRunner{}).Lint(ctx)
-	if err != nil || len(ds) != 1 || ds[0].Code != lint.CodeNoCite || ds[0].Line != 10 {
+	if err != nil || len(ds) != 1 || ds[0].Code != linkcheck.CodeNoCite || ds[0].Line != 10 {
 		t.Fatalf("Lint = %v, %v", ds, err)
 	}
 }
@@ -160,7 +160,7 @@ func TestLintReportsOnlySpecProblemsWhenThereAreAny(t *testing.T) {
 		t.Fatalf("Lint = %v, %v", ds, err)
 	}
 	for _, d := range ds {
-		if d.Code == lint.CodeNoCite {
+		if d.Code == linkcheck.CodeNoCite {
 			t.Fatalf("a broken project was crossed with its tests: %v", d)
 		}
 	}
