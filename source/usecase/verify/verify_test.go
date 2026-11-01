@@ -35,6 +35,7 @@ func (f fakeSpecs) Load(_ context.Context, s string) ([]byte, error) {
 type fakeTests []linkcheck.File
 
 func (f fakeTests) TestFiles(context.Context) ([]linkcheck.File, error) { return f, nil }
+func (f fakeTests) IsTest(rel string) bool                              { return linkcheck.IsTestFile(rel) }
 
 type fakeRunner struct {
 	exits map[string]int
@@ -65,7 +66,7 @@ const (
 
 var tests = fakeTests{{Path: "billing/total_test.go", Text: "// INV-01\n// INV-02\n"}}
 
-func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil) }
+func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil, nil) }
 
 func TestCheckJudgesEveryKindOfClaim(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing, failing, uncited, manual, untagged)}
@@ -187,20 +188,20 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	}
 	marks := &fakeMarks{}
 	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
-	if _, err := New(specs, tests, run, marks).Check(ctx, ""); err != nil {
+	if _, err := New(specs, tests, run, marks, nil).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
 	}
-	if billing := marks.seen[0].Scope; !billing.Covers("billing/total.go") || billing.Covers("payments/pay.go") || !billing.Covers("deltas/billing.spec.md") {
-		t.Fatalf("the scope of billing = %+v, want what go test ./billing looks at, and its spec", billing)
+	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/billing.spec.md") || billing.Covers("README.md") {
+		t.Fatalf("the scope of billing = %+v, want every code file and its spec when delta.conf names no paths", billing)
 	}
 }
 
 func TestCheckStillReportsWhenItCannotBeRemembered(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing)}
-	rep, err := New(specs, tests, &fakeRunner{}, &fakeMarks{err: errors.New("disk full")}).Check(ctx, "")
+	rep, err := New(specs, tests, &fakeRunner{}, &fakeMarks{err: errors.New("disk full")}, nil).Check(ctx, "")
 	if err != nil || len(rep.Results) != 1 {
 		t.Fatalf("Check = %+v, %v; the results must survive a failed record", rep, err)
 	}
@@ -211,10 +212,22 @@ func TestCheckStillReportsWhenItCannotBeRemembered(t *testing.T) {
 
 func TestCheckRecordsNothingWhenNoSliceWasChecked(t *testing.T) {
 	marks := &fakeMarks{}
-	if _, err := New(fakeSpecs{"broken": "no frontmatter"}, tests, &fakeRunner{}, marks).Check(ctx, ""); err != nil {
+	if _, err := New(fakeSpecs{"broken": "no frontmatter"}, tests, &fakeRunner{}, marks, nil).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	if marks.got != nil {
 		t.Fatalf("recorded %v for a project with nothing checked", marks.got)
+	}
+}
+
+func TestCheckRecordsTheNarrowScopeDeltaConfDeclares(t *testing.T) {
+	specs := fakeSpecs{"billing": specOf("billing", passing)}
+	marks := &fakeMarks{}
+	scopes := map[string][]string{"billing": {"billing", "shared/money"}}
+	if _, err := New(specs, tests, &fakeRunner{}, marks, scopes).Check(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	if s := marks.seen[0].Scope; !s.Covers("shared/money/round.go") || s.Covers("payments/pay.go") {
+		t.Fatalf("scope = %+v, want only billing, shared/money and the spec", s)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/ronz204/deltas-ai/source/domain/budget"
+	"github.com/ronz204/deltas-ai/source/domain/conffile"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
@@ -51,6 +52,8 @@ func newMemory() *memory {
 func (m *memory) GitHook(string) ([]byte, error) { return []byte("#!/bin/sh\n"), nil }
 
 func (m *memory) Locate(string) (string, bool) { return m.onPath, m.self }
+
+func (m *memory) IsTest(rel string) bool { return linkcheck.IsTestFile(rel) }
 
 func (m *memory) Glob(context.Context, []string) ([]budget.File, error) { return m.kb, nil }
 
@@ -102,14 +105,14 @@ func (m *memory) TestFiles(context.Context) ([]linkcheck.File, error) { return m
 func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
 
 func (m *memory) run(stdin string, args ...string) (out, errOut string, err error) {
-	installer := setup.New(m, m, m, m)
+	installer := setup.New(m, m, m, m, conffile.Conf{})
 	cmd := New(Deps{
 		Author:    author.New(m, m),
-		Checker:   verify.New(m, m, m, nil),
-		Report:    status.New(m),
-		Guard:     guard.New(root, status.New(m), installer, nil, nil),
+		Checker:   verify.New(m, m, m, nil, nil),
+		Report:    status.New(m, nil),
+		Guard:     guard.New(root, status.New(m, nil), installer, nil, nil),
 		Installer: installer,
-		Meter:     measure.New(m),
+		Meter:     measure.New(m, budget.Defaults()),
 		Version:   "test",
 	})
 	var o, e bytes.Buffer

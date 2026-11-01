@@ -39,7 +39,7 @@ func (s specs) Load(_ context.Context, slice string) ([]byte, error) {
 func newGuard(t *testing.T, s specs) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(s), nil, nil, nil), root
+	return New(root, status.New(s, nil), nil, nil, nil), root
 }
 
 func TestFileToolsCannotEditTheKnowledgeBase(t *testing.T) {
@@ -137,7 +137,7 @@ func (h health) Check(context.Context) []string { return h }
 
 func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 	root := t.TempDir()
-	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}), health{"git does not check commit messages yet: run delta init"}, nil, nil)
+	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}, nil), health{"git does not check commit messages yet: run delta init"}, nil, nil)
 	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +150,7 @@ func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 }
 
 func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}), health{"delta is not on the PATH, so the git hook cannot run it"}, nil, nil)
+	g := New(t.TempDir(), status.New(specs{}, nil), health{"delta is not on the PATH, so the git hook cannot run it"}, nil, nil)
 	d, _ := g.Decide(ctx, Event{Name: "SessionStart"})
 	if strings.Contains(d.Context, "Delta slices:") || !strings.Contains(d.Context, "delta is not on the PATH") {
 		t.Fatalf("context = %q, want the problem and no slice list", d.Context)
@@ -158,7 +158,7 @@ func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
 }
 
 func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}), health{}, nil, nil)
+	g := New(t.TempDir(), status.New(specs{}, nil), health{}, nil, nil)
 	if d, _ := g.Decide(ctx, Event{Name: "SessionStart"}); d.Context != "" {
 		t.Fatalf("context = %q, want none", d.Context)
 	}
@@ -183,7 +183,7 @@ func stopGuard(t *testing.T, ev Evidence, slices ...string) *Guard {
 	for _, name := range slices {
 		s[name] = fmt.Sprintf(withTests, name, name)
 	}
-	return New(t.TempDir(), status.New(s), nil, ev, nil)
+	return New(t.TempDir(), status.New(s, nil), nil, ev, nil)
 }
 
 func TestStopAsksForACheckOfEverySliceThatIsNotCheckedYet(t *testing.T) {
@@ -209,7 +209,7 @@ func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
 	passing := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
 	cases := map[string]*Guard{
 		"every slice stands":           stopGuard(t, passing, "billing"),
-		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"}), nil, &evidence{}, nil),
+		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"}, nil), nil, &evidence{}, nil),
 		"there are no slices":          stopGuard(t, &evidence{}),
 		"there is no evidence to read": stopGuard(t, nil, "billing"),
 	}
@@ -241,6 +241,8 @@ type linter struct {
 	ran   bool
 }
 
+func (l *linter) IsTest(rel string) bool { return linkcheck.IsTestFile(rel) }
+
 func (l *linter) Lint(context.Context) ([]findings.Diagnostic, error) {
 	l.ran = true
 	return l.diags, l.err
@@ -249,7 +251,7 @@ func (l *linter) Lint(context.Context) ([]findings.Diagnostic, error) {
 func lintGuard(t *testing.T, l Linter) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(specs{}), nil, nil, l), root
+	return New(root, status.New(specs{}, nil), nil, nil, l), root
 }
 
 func TestPostToolUseTellsClaudeAboutProblemsInTheTestFileItWrote(t *testing.T) {
@@ -293,7 +295,7 @@ func TestPostToolUseDoesNotLintWhatIsNotATestFile(t *testing.T) {
 	if l.ran {
 		t.Fatal("lint ran for a file that is not a test: it reads every test file of the project")
 	}
-	if d, err := New(root, status.New(specs{}), nil, nil, nil).Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a_test.go")}); err != nil || d.Block {
+	if d, err := New(root, status.New(specs{}, nil), nil, nil, nil).Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a_test.go")}); err != nil || d.Block {
 		t.Fatalf("without a linter: %+v, %v", d, err)
 	}
 }

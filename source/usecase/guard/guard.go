@@ -47,6 +47,7 @@ type Evidence interface {
 // Linter cross-checks the specs against the test files.
 type Linter interface {
 	Lint(ctx context.Context) ([]findings.Diagnostic, error)
+	IsTest(rel string) bool
 }
 
 type Guard struct {
@@ -87,7 +88,7 @@ func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
 		return Decision{}, nil
 	}
 	rel, ok := g.relative(e.Path)
-	if !ok || !linkcheck.IsTestFile(rel) {
+	if !ok || !g.linter.IsTest(rel) {
 		return Decision{}, nil
 	}
 	ds, err := g.linter.Lint(ctx)

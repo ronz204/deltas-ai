@@ -1,32 +1,16 @@
 package linkcheck
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
-)
-
-func testClaim(cmd string) assertion.Claim {
-	return assertion.Claim{Tag: assertion.Tag{Method: assertion.Test, Arg: cmd}}
-}
-
-func TestScopeFollowsThePathsTheCommandsName(t *testing.T) {
-	s := ScopeOf("deltas/billing.spec.md", []assertion.Claim{
-		testClaim("go test ./billing/..."),
-		testClaim("npx vitest run tests/billing/total.test.ts"),
-		{Tag: assertion.Tag{Method: assertion.Manual, Arg: "look at it"}},
-	})
+func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
+	s := NewScope("deltas/billing.spec.md", nil)
 	cases := map[string]bool{
-		"billing/total.go":                 true,
-		"billing/deep/x_test.go":           true,
-		"tests/billing/total.test.ts":      true,
-		"deltas/billing.spec.md":           true,
-		"billing2/x.go":                    false,
-		"payments/pay.go":                  false,
-		"README.md":                        false,
-		"billing/NOTES.md":                 false,
-		"deltas/payments.spec.md":          false,
-		"tests/billing/total.test.ts.snap": false,
+		"billing/total.go":        true,
+		"shared/money/round.go":   true,
+		"deltas/billing.spec.md":  true,
+		"README.md":               false,
+		"docs/guide.md":           false,
+		"deltas/payments.spec.md": false,
 	}
 	for file, want := range cases {
 		if got := s.Covers(file); got != want {
@@ -35,22 +19,43 @@ func TestScopeFollowsThePathsTheCommandsName(t *testing.T) {
 	}
 }
 
-func TestScopeIsTheWholeProjectWhenACommandNamesNoPath(t *testing.T) {
-	for _, cmds := range [][]string{{"npm test"}, {"go test ./..."}, {"go test ./billing", "make test"}, {"pytest ."}} {
-		var claims []assertion.Claim
-		for _, c := range cmds {
-			claims = append(claims, testClaim(c))
-		}
-		s := ScopeOf("deltas/billing.spec.md", claims)
-		if !s.Covers("anything/at/all.go") || s.Covers("docs/guide.md") || !s.Covers("deltas/billing.spec.md") {
-			t.Errorf("%v: scope = %+v, want every code file but no documentation", cmds, s)
+func TestDeclaredPathsNarrowTheScope(t *testing.T) {
+	s := NewScope("deltas/billing.spec.md", []string{"billing", "shared/money"})
+	cases := map[string]bool{
+		"billing/total.go":        true,
+		"billing/deep/x_test.go":  true,
+		"shared/money/round.go":   true,
+		"deltas/billing.spec.md":  true,
+		"billing2/x.go":           false,
+		"payments/pay.go":         false,
+		"shared/other.go":         false,
+		"billing/NOTES.md":        false,
+		"deltas/payments.spec.md": false,
+	}
+	for file, want := range cases {
+		if got := s.Covers(file); got != want {
+			t.Errorf("Covers(%q) = %v, want %v", file, got, want)
 		}
 	}
 }
 
-func TestScopeWithoutTestClaimsCoversEveryCodeFile(t *testing.T) {
-	s := ScopeOf("deltas/billing.spec.md", nil)
-	if !s.Covers("main.go") || s.Covers("README.md") {
-		t.Fatalf("scope = %+v", s)
+func TestTestMatcher(t *testing.T) {
+	own := TestMatcher(nil)
+	for file, want := range map[string]bool{"a/b_test.go": true, "x/test_a.py": true, "a.test.ts": true, "a.go": false, "deltas/a.spec.md": false} {
+		if got := own(file); got != want {
+			t.Errorf("default: %q = %v, want %v", file, got, want)
+		}
+	}
+	custom := TestMatcher([]string{"*_spec.rb", "*Test.java"})
+	for file, want := range map[string]bool{
+		"spec/models/user_spec.rb": true,
+		"src/UserTest.java":        true,
+		"a_test.go":                false, // the patterns replace the defaults
+		"docs/user_spec.rb.md":     false,
+		"src/User.java":            false,
+	} {
+		if got := custom(file); got != want {
+			t.Errorf("custom: %q = %v, want %v", file, got, want)
+		}
 	}
 }

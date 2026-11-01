@@ -1,39 +1,17 @@
 package linkcheck
 
-import (
-	"slices"
-	"strings"
+import "strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
-)
-
-// Scope is the part of a project a slice depends on: the paths its commands name, plus its own spec.
-// Markdown is documentation and never counts, except the spec itself.
-// shortcut: code a command reaches but does not name (a shared package) is outside the scope; upgrade with a
-// list of extra paths per slice in delta.conf.
+// Scope is the part of a project a slice depends on. Unless delta.conf names paths for the slice, that is
+// every code file: a change anywhere can break a claim. Markdown is documentation and never counts, except
+// the slice's own spec.
 type Scope struct {
 	paths []string // empty means every path
 	spec  string
 }
 
-// ScopeOf is the scope of a spec file whose claims are given. A test command that names no path, or
-// names ".", looks at the whole project, and so does the scope.
-func ScopeOf(spec string, claims []assertion.Claim) Scope {
-	s := Scope{spec: spec}
-	for _, c := range claims {
-		if c.Tag.Method != assertion.Test {
-			continue
-		}
-		found := pathsIn(c.Tag.Arg)
-		if len(found) == 0 || slices.Contains(found, ".") {
-			return Scope{spec: spec}
-		}
-		s.paths = append(s.paths, found...)
-	}
-	slices.Sort(s.paths)
-	s.paths = slices.Compact(s.paths)
-	return s
-}
+// NewScope is the scope of a spec file; paths, when given, narrow it to those files and folders.
+func NewScope(spec string, paths []string) Scope { return Scope{paths: paths, spec: spec} }
 
 // Covers says whether a change to file (relative to the project, with forward slashes) can affect the slice.
 func (s Scope) Covers(file string) bool {

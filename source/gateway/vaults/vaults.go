@@ -24,9 +24,19 @@ const (
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
 
 // shortcut: contracts are read from <root>/deltas only; a repo split into services is not supported yet.
-type Vault struct{ root string }
+type Vault struct {
+	root   string
+	isTest func(string) bool
+}
 
-func New(root string) *Vault { return &Vault{root: root} }
+func New(root string) *Vault { return &Vault{root: root, isTest: linkcheck.IsTestFile} }
+
+// Matching is a vault that takes as test files those whose name matches one of the patterns.
+func (s *Vault) Matching(patterns []string) *Vault {
+	return &Vault{root: s.root, isTest: linkcheck.TestMatcher(patterns)}
+}
+
+func (s *Vault) IsTest(rel string) bool { return s.isTest(rel) }
 
 func FindRoot(start string) string {
 	for dir := start; ; {
@@ -194,7 +204,7 @@ func (s *Vault) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if !linkcheck.IsTestFile(rel) {
+		if !s.isTest(rel) {
 			return nil
 		}
 		text, err := os.ReadFile(p)

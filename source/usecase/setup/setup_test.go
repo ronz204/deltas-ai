@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ronz204/deltas-ai/source/domain/conffile"
 	"io/fs"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +21,7 @@ type world struct {
 	writes   int
 	onPath   string
 	self     bool
+	tools    map[string]bool // other programs on the PATH
 }
 
 func newWorld() *world {
@@ -47,7 +50,15 @@ func (w *world) WriteFile(_ context.Context, rel string, content []byte, perm fs
 	return nil
 }
 
-func (w *world) Locate(string) (string, bool) { return w.onPath, w.self }
+func (w *world) Locate(name string) (string, bool) {
+	switch {
+	case name == "delta":
+		return w.onPath, w.self
+	case w.tools[name]:
+		return "/usr/bin/" + name, false
+	}
+	return "", false
+}
 
 func (w *world) HooksPath(context.Context) (string, error) { return w.hooksDir, nil }
 
@@ -59,7 +70,7 @@ func (w *world) SetHooksPath(_ context.Context, path string) error {
 	return nil
 }
 
-func installer(w *world) *Installer { return New(w, w, w, w) }
+func installer(w *world) *Installer { return New(w, w, w, w, conffile.Conf{}) }
 
 func TestAFreshProjectGetsTheHookAndThePath(t *testing.T) {
 	w := newWorld()
@@ -186,7 +197,7 @@ func TestCheckWarnsWhenDeltaIsNotTheOneOnThePath(t *testing.T) {
 
 func TestCheckReportsWhatItCannotReadInsteadOfFailing(t *testing.T) {
 	w := healthy()
-	got := New(w, brokenGit{}, w, w).Check(ctx)
+	got := New(w, brokenGit{}, w, w, conffile.Conf{}).Check(ctx)
 	if len(got) != 1 || got[0] != "could not read git's configuration: no git" {
 		t.Fatalf("Check = %q", got)
 	}
@@ -194,5 +205,28 @@ func TestCheckReportsWhatItCannotReadInsteadOfFailing(t *testing.T) {
 
 type brokenGit struct{}
 
-func (brokenGit) HooksPath(context.Context) (string, error)  { return "", errors.New("no git") }
-func (brokenGit) SetHooksPath(context.Context, string) error { return errors.New("no git") }
+func (brokenGit) HooksPath(context.Context) (string, error) {
+	return "", errors.New("no git")
+}
+func (brokenGit) SetHooksPath(context.Context, string) error {
+	return errors.New("no git")
+}
+
+func TestCheckListsTheToolsDeltaConfRequires(t *testing.T) {
+	w := healthy()
+	conf := conffile.Parse("required_tools=git, docker\n")
+	w.tools = map[string]bool{"git": true}
+	problems := New(w, w, w, w, conf).Check(ctx)
+	if len(problems) != 1 || !strings.Contains(problems[0], "docker is required by delta.conf") {
+		t.Fatalf("problems = %q, want only docker", problems)
+	}
+}
+
+func TestCheckReportsWhatDeltaConfGotWrong(t *testing.T) {
+	w := healthy()
+	conf := conffile.Parse("colour=blue\n")
+	problems := New(w, w, w, w, conf).Check(ctx)
+	if len(problems) != 1 || !strings.Contains(problems[0], `delta.conf:1: unknown key "colour"`) {
+		t.Fatalf("problems = %q", problems)
+	}
+}

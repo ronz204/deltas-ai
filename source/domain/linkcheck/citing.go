@@ -29,6 +29,26 @@ func IsTestFile(p string) bool {
 	return false
 }
 
+// TestMatcher says which files are tests: those whose name matches one of the patterns (as in path.Match,
+// on the name alone), or delta's own rule when there are none. A Markdown file never is one.
+func TestMatcher(patterns []string) func(string) bool {
+	if len(patterns) == 0 {
+		return IsTestFile
+	}
+	return func(p string) bool {
+		base := path.Base(p)
+		if path.Ext(base) == ".md" {
+			return false
+		}
+		for _, pattern := range patterns {
+			if ok, _ := path.Match(pattern, base); ok {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // idPattern matches INV-01, INV_01 and INV01 in any case, but not INV-011.
 func idPattern(id assertion.ID) *regexp.Regexp {
 	prefix, num, _ := strings.Cut(id.String(), "-")

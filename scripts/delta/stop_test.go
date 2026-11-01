@@ -67,29 +67,53 @@ func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 	}
 }
 
-// Only what a slice's commands look at counts: documentation and other slices' code do not ask for a new check.
-func TestStopIgnoresChangesTheSliceDoesNotDependOn(t *testing.T) {
+// billingProject is a committed repository with one slice whose command names ./billing, and other code beside it.
+func billingProject(t *testing.T, conf string) *project {
+	t.Helper()
 	p := gitProject(t)
 	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
 	p.write("billing/total_test.go", "// INV-01\n")
 	p.write("billing/total.go", "package billing\n")
+	p.write("shared/money.go", "package shared\n")
 	p.write("payments/pay.go", "package payments\n")
+	if conf != "" {
+		p.write("delta.conf", conf)
+	}
 	if out, err := git(t, p.root, "add", "-A"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if out, err := git(t, p.root, "commit", "-q", "-m", "chore(repo): add the billing slice"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
+	return p
+}
+
+// Without delta.conf a slice depends on every code file, as a command cannot say what its code reaches:
+// only documentation is left out.
+func TestStopAsksForACheckWhateverCodeChangesButNotDocumentation(t *testing.T) {
+	p := billingProject(t, "")
 
 	p.write("README.md", "# a new readme\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
+		t.Fatalf("a README: Stop = %d %q, want it allowed", code, errOut)
+	}
+	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
+		t.Fatalf("a shared package: Stop = %d %q, want a block, the command names only ./billing", code, errOut)
+	}
+}
+
+// delta.conf can say what a slice depends on, and then only that counts.
+func TestStopFollowsTheScopeDeltaConfDeclares(t *testing.T) {
+	p := billingProject(t, "scope.billing=billing shared\n")
+
 	p.write("payments/pay.go", "package payments\n\nfunc Pay() {}\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
-		t.Fatalf("a README and another slice's code: Stop = %d %q, want it allowed", code, errOut)
+		t.Fatalf("code outside the declared paths: Stop = %d %q, want it allowed", code, errOut)
 	}
-
-	p.write("billing/total.go", "package billing\n\nfunc Total() {}\n")
+	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
-		t.Fatalf("a change under ./billing: Stop = %d %q, want a block", code, errOut)
+		t.Fatalf("a declared path: Stop = %d %q, want a block", code, errOut)
 	}
 	if code, out, _ := p.delta("", "check"); code != 0 || verdict(out, "billing", "INV-01") != "Holds" {
 		t.Fatalf("check = %d %q", code, out)

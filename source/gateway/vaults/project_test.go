@@ -99,3 +99,20 @@ func TestGlobWithNothingThereIsEmpty(t *testing.T) {
 		t.Fatalf("Glob = %v, %v", got, err)
 	}
 }
+
+func TestMatchingChoosesWhichFilesAreTests(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "spec/user_spec.rb", "# INV-01")
+	write(t, root, "user_test.go", "// INV-01")
+	own, custom := New(root), New(root).Matching([]string{"*_spec.rb"})
+	if !own.IsTest("user_test.go") || own.IsTest("spec/user_spec.rb") {
+		t.Error("delta's own rule changed")
+	}
+	if custom.IsTest("user_test.go") || !custom.IsTest("spec/user_spec.rb") {
+		t.Error("the patterns do not replace the default rule")
+	}
+	files, err := custom.TestFiles(ctx)
+	if err != nil || len(files) != 1 || files[0].Path != "spec/user_spec.rb" {
+		t.Fatalf("TestFiles = %v, %v; want only the Ruby spec", files, err)
+	}
+}

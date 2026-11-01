@@ -8,14 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 )
 
 var ctx = context.Background()
 
 // everything is the scope of a slice whose commands name no path: every code file.
-var everything = linkcheck.ScopeOf("", nil)
+var everything = linkcheck.NewScope("", nil)
 
 // repo makes an empty repository that ignores the global and system git configuration, so the
 // tests do not depend on who runs them.
@@ -194,8 +193,7 @@ func TestTreeLooksOnlyAtTheScopeAndIgnoresDocumentation(t *testing.T) {
 	put(t, dir, "README.md", "one")
 	commit(t, dir)
 	g := New(dir)
-	claims := []assertion.Claim{{Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./billing.go"}}}
-	billing := linkcheck.ScopeOf("deltas/billing.spec.md", claims)
+	billing := linkcheck.NewScope("deltas/billing.spec.md", []string{"billing.go"})
 
 	put(t, dir, "README.md", "two")
 	if hash, dirty, _ := g.Tree(ctx, everything); dirty || hash != "" {

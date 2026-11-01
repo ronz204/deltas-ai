@@ -16,9 +16,15 @@ type Specs interface {
 	Path(slice string) string
 }
 
-type Reporter struct{ specs Specs }
+type Reporter struct {
+	specs  Specs
+	scopes map[string][]string
+}
 
-func New(specs Specs) *Reporter { return &Reporter{specs: specs} }
+// New builds the reporter. scopes holds, for the slices that have them, the paths delta.conf says they depend on.
+func New(specs Specs, scopes map[string][]string) *Reporter {
+	return &Reporter{specs: specs, scopes: scopes}
+}
 
 // Row counts a slice's claims by tag; Issues counts the problems found, and the counts cover only clean claims.
 type Row struct {
@@ -45,7 +51,7 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.ScopeOf(file, sp.Claims)}
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.NewScope(file, r.scopes[name])}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
 			case assertion.Test:

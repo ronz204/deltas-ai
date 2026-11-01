@@ -39,7 +39,7 @@ func TestReport(t *testing.T) {
 		"b": "---\nformat: 1\nslice: b\nstatus: verified\n---\n",
 		"c": "not a spec",
 	}
-	rows, err := New(specs).Report(context.Background())
+	rows, err := New(specs, nil).Report(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,13 +55,30 @@ func TestReport(t *testing.T) {
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
 	}
-	if a := scopes[0]; !a.Covers("a/x.go") || a.Covers("b/x.go") || !a.Covers("deltas/a.spec.md") {
-		t.Fatalf("the scope of a = %+v, want what go test ./a looks at, and its spec", a)
+	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/a.spec.md") {
+		t.Fatalf("the scope of a = %+v, want every code file and its spec", a)
+	}
+}
+
+func TestReportNarrowsOnlyTheSlicesDeltaConfLists(t *testing.T) {
+	specs := fake{
+		"a": "---\nformat: 1\nslice: a\nstatus: approved\n---\n",
+		"b": "---\nformat: 1\nslice: b\nstatus: approved\n---\n",
+	}
+	rows, err := New(specs, map[string][]string{"a": {"a", "shared"}}).Report(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := rows[0].Scope; !a.Covers("shared/x.go") || a.Covers("b/x.go") {
+		t.Errorf("a = %+v, want only a, shared and its spec", a)
+	}
+	if b := rows[1].Scope; !b.Covers("a/x.go") {
+		t.Errorf("b = %+v, want every code file: delta.conf says nothing about it", b)
 	}
 }
 
 func TestReportOfAnEmptyProject(t *testing.T) {
-	rows, err := New(fake{}).Report(context.Background())
+	rows, err := New(fake{}, nil).Report(context.Background())
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("Report = %v, %v", rows, err)
 	}

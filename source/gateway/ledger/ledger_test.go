@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
@@ -34,14 +33,9 @@ func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, err
 	return strings.Join(parts, ";"), len(parts) > 0, t.err
 }
 
-func scopeOf(slice, command string) linkcheck.Scope {
-	claims := []assertion.Claim{{Tag: assertion.Tag{Method: assertion.Test, Arg: command}}}
-	return linkcheck.ScopeOf("deltas/"+slice+".spec.md", claims)
-}
-
 var (
-	billing  = scopeOf("billing", "go test ./billing")
-	payments = scopeOf("payments", "go test ./payments")
+	billing  = linkcheck.NewScope("deltas/billing.spec.md", []string{"billing"})
+	payments = linkcheck.NewScope("deltas/payments.spec.md", []string{"payments"})
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {

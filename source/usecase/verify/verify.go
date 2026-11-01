@@ -19,6 +19,7 @@ type Specs interface {
 
 type Tests interface {
 	TestFiles(ctx context.Context) ([]linkcheck.File, error)
+	IsTest(rel string) bool
 }
 
 // Runner runs a claim's command and returns its exit code. An error means it did not finish.
@@ -42,16 +43,21 @@ type Marks interface {
 const CodeRecord = "CHECK-RECORD"
 
 type Checker struct {
-	specs Specs
-	tests Tests
-	run   Runner
-	marks Marks
+	specs  Specs
+	tests  Tests
+	run    Runner
+	marks  Marks
+	scopes map[string][]string
 }
 
-// New builds the checker; marks may be nil, and then checks are not remembered.
-func New(specs Specs, tests Tests, run Runner, marks Marks) *Checker {
-	return &Checker{specs: specs, tests: tests, run: run, marks: marks}
+// New builds the checker. marks may be nil, and then checks are not remembered. scopes holds, for the slices
+// that have them, the paths delta.conf says they depend on; any other slice depends on every code file.
+func New(specs Specs, tests Tests, run Runner, marks Marks, scopes map[string][]string) *Checker {
+	return &Checker{specs: specs, tests: tests, run: run, marks: marks, scopes: scopes}
 }
+
+// IsTest says whether a file of the project is a test file.
+func (v *Checker) IsTest(rel string) bool { return v.tests.IsTest(rel) }
 
 type loaded struct {
 	slice string
@@ -145,7 +151,7 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 			rep.Diags = append(rep.Diags, l.diags...)
 			continue
 		}
-		s := Seen{Slice: l.slice, Scope: linkcheck.ScopeOf(l.file, l.spec.Claims)}
+		s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file, v.scopes[l.slice])}
 		for _, c := range l.spec.Claims {
 			if err := ctx.Err(); err != nil {
 				return rep, err

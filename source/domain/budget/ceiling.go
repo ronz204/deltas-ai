@@ -2,6 +2,7 @@
 package budget
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -19,7 +20,12 @@ func Defaults() Ceilings {
 	return Ceilings{Total: 3500, Router: 80, Rule: 50, Skill: 1024, Agent: 1024}
 }
 
-// ParseCeilings reads the always-loaded keys of a budget.conf over the defaults: always_tokens,
+var keys = []string{"always_tokens", "claude_lines", "rule_always_lines", "skill_desc_chars", "agent_desc_chars"}
+
+// IsKey says whether key is one of the ceilings ParseCeilings reads.
+func IsKey(key string) bool { return slices.Contains(keys, key) }
+
+// ParseCeilings reads the always-loaded keys of a budget.conf or delta.conf over the defaults: always_tokens,
 // claude_lines, rule_always_lines, skill_desc_chars and agent_desc_chars. Other keys, comments
 // and values that are not numbers are ignored.
 func ParseCeilings(conf string) Ceilings {

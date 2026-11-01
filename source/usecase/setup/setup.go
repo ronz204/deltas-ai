@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+
+	"github.com/ronz204/deltas-ai/source/domain/conffile"
 )
 
 const (
@@ -40,19 +42,26 @@ type Installer struct {
 	git   Git
 	hooks Hooks
 	bin   Binary
+	conf  conffile.Conf
 }
 
-func New(files Files, git Git, hooks Hooks, bin Binary) *Installer {
-	return &Installer{files: files, git: git, hooks: hooks, bin: bin}
+// New builds the installer of a project whose delta.conf says conf.
+func New(files Files, git Git, hooks Hooks, bin Binary, conf conffile.Conf) *Installer {
+	return &Installer{files: files, git: git, hooks: hooks, bin: bin, conf: conf}
 }
 
 // Check lists what is wrong with how delta is installed here, one sentence each; an empty list
 // means all is well. It never fails: what it cannot read is reported as a problem too.
 func (i *Installer) Check(ctx context.Context) []string {
-	var problems []string
+	problems := append([]string(nil), i.conf.Problems...)
+	for _, tool := range i.conf.Tools {
+		if path, _ := i.bin.Locate(tool); path == "" {
+			problems = append(problems, fmt.Sprintf("%s is required by delta.conf and is not on the PATH", tool))
+		}
+	}
 	current, err := i.git.HooksPath(ctx)
 	if err != nil {
-		return []string{"could not read git's configuration: " + err.Error()}
+		return append(problems, "could not read git's configuration: "+err.Error())
 	}
 	_, err = i.files.ReadFile(ctx, hookPath)
 	missing := errors.Is(err, fs.ErrNotExist)
