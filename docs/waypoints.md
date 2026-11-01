@@ -10,13 +10,13 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 26 de 67 tareas, 39 %**
+**Avance total: 29 de 67 tareas, 43 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
-| 2 | Hooks | 🔄 En progreso | 3/13, 23 % |
+| 2 | Hooks | 🔄 En progreso | 6/13, 46 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/9, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
@@ -110,7 +110,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 2: hooks
 
-**Estado: 🔄 En progreso, 3/13.**
+**Estado: 🔄 En progreso, 6/13.**
 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
@@ -120,9 +120,9 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [ ] Hook `PostToolUse` con el linter del proyecto. *Pendiente: sin archivo de configuración no se sabe qué linter correr (`blueprint.md`, §16).*
 - [ ] Hook `Stop` que exige evidencia de que `delta check` corrió tras el último cambio. *Pendiente: pide un registro de la última verificación.*
 - [x] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno. *Hoy `delta init` hace solo esto; el esqueleto, el `CLAUDE.md` y la regeneración de `.claude/` siguen en su propia tarea. Si falta `delta`, el hook avisa y deja pasar el commit.*
-- [ ] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`.
-- [ ] `delta commit-msg` en CI sobre el rango del PR.
-- [ ] `delta budget` como gate.
+- [x] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`. *`setup.Check` lista: hook sin instalar, `core.hooksPath` sin fijar o apuntando a otro lado, `delta` fuera del `PATH` y un programa distinto con el mismo nombre (git-delta). `status` los imprime en stderr como `warning:` sin fallar, y `SessionStart` los suma al contexto. Que el propio binario falte solo lo ve Claude Code, como un 127 que no bloquea.*
+- [x] `delta commit-msg` en CI sobre el rango del PR. *Trabajo `commits` de `ci.yml`, solo en pull requests: recorre `base..head` sin merges y valida cada mensaje. El mismo script, extraído del YAML, se probó en local contra el historial real (pasa) y contra un repositorio con un commit malo (falla y dice cuál); el trabajo en sí aún no ha corrido en GitHub.*
+- [x] `delta budget` como gate. *Falla con exit 1 si se supera un techo de lo siempre cargado, y corre en CI. Porta la parte "siempre cargada" de `budget.sh` (detalle y límites en `blueprint.md`, §8.6).*
 - [ ] `delta init` con defaults sensatos (esqueleto determinista, `CLAUDE.md` mínimo), que además regenera `.claude/` desde `source/harness/`.
 
 **Cierra cuando**

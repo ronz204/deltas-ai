@@ -153,7 +153,7 @@ Un binario único, sin runtime. Propuesta de comandos:
 | `delta approve <slice>` | Pasa el spec a `approved` (lo hace la persona) | Punto de control humano formal |
 
 Notas de diseño:
-- Para el presupuesto alcanza con contar por caracteres (~4 caracteres por token). Un tokenizer exacto no vale la complejidad.
+- Para el presupuesto alcanza con contar por caracteres (~3,3 caracteres por token, la razón con que se calibraron los techos). Un tokenizer exacto no vale la complejidad.
 - El CLI no depende de Claude Code. Los hooks son un adaptador fino encima. Eso deja la puerta abierta a otros agentes sin que sea una meta. La estructura del proyecto Go, las capas y las librerías están en `blueprint.md`.
 
 ### 6.2 Hooks de Claude Code

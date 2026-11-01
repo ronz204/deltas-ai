@@ -63,13 +63,15 @@ deltas-ai/
 │   │   ├── drift/               # regla de stale: archivos cambiados vs referenciados
 │   │   ├── linkcheck/           # reglas de coherencia entre specs y tests
 │   │   ├── commits/             # validador de Conventional Commits
-│   │   └── budget/              # conteo de caracteres y techo
+│   │   ├── knowledge/           # qué archivos son de la base de conocimiento
+│   │   └── budget/              # pesa lo siempre cargado contra sus techos
 │   ├── usecase/                 # orquestación; declara los puertos (interfaces) que necesita
 │   │   ├── setup/               # delta init
 │   │   ├── author/              # spec new, spec write, link, approve
 │   │   ├── verify/              # lint, check
 │   │   ├── status/              # status, stale
-│   │   └── guard/               # decisiones de hooks: qué se permite, qué se bloquea
+│   │   ├── guard/               # decisiones de hooks: qué se permite, qué se bloquea
+│   │   └── measure/             # pesa lo siempre cargado: delta budget
 │   ├── gateway/                 # los únicos efectos: implementan los puertos
 │   │   ├── files/               # lectura y escritura atómica de la KB
 │   │   ├── runner/              # os/exec sin shell, con timeout
@@ -148,7 +150,8 @@ type Runner interface {
 | `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs |
 | `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
-| `budget` | Presupuesto de contexto | `Count(text) int` (caracteres entre 4), `Check(total, ceiling) Outcome` |
+| `knowledge` | Qué archivos son de la KB | `Covers(path) bool` |
+| `budget` | Presupuesto de contexto | `Measure(files, ceilings) Report` pesa el router, las reglas sin `paths:` y las descripciones de skills y agentes; `Report.Findings()` nombra cada techo superado; `ParseCeilings` lee `budget.conf` |
 
 Observaciones:
 
@@ -163,11 +166,12 @@ Observaciones:
 
 | Paquete | Comandos | Qué orquesta |
 |---|---|---|
-| `setup` | `delta init` | Escribe el esqueleto, instala el harness desde `bundle`, fija `core.hooksPath` sin pisar uno ajeno. Es idempotente |
+| `setup` | `delta init`, y el aviso de `status` y `SessionStart` | `Run` escribe el esqueleto, instala el harness desde `bundle` y fija `core.hooksPath` sin pisar uno ajeno; es idempotente. `Check` lista los problemas de instalación, sin fallar |
 | `author` | `delta spec new`, `spec write`, `link`, `approve` | Valida con `domain` y escribe con `files`. Es el único camino de escritura de la KB |
 | `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `judgment.Judge` |
 | `status` | `delta status`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git` |
-| `guard` | `delta hook`, `commit-msg`, `budget` | Responde "¿se permite esto?" para cada evento: editar la KB, commitear, terminar la sesión |
+| `guard` | `delta hook` | Responde "¿se permite esto?" para cada evento: editar la KB, commitear, empezar la sesión |
+| `measure` | `delta budget` | Lee los archivos que se cargan siempre y los pesa contra los techos de `.claude/budget.conf`, o contra los valores por defecto |
 
 ### 5.3 `gateway`
 
@@ -202,7 +206,7 @@ Observaciones:
 | `delta check [slice]` | `cmd` | `verify` | `judgment`, `linkcheck` |
 | `delta status` | `cmd` | `status` | `lifecycle`, `judgment`, `drift` |
 | `delta stale` | `cmd` | `status` | `drift` |
-| `delta budget` | `cmd` | `guard` | `budget` |
+| `delta budget` | `cmd` | `measure` | `budget` |
 | `delta commit-msg <archivo>` | `cmd` | (ninguno: `cmd` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
 | `delta approve <slice>` | `cmd` | `author` | `lifecycle` |
 | `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
@@ -284,7 +288,7 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 
 | Evento | Qué hace hoy |
 |---|---|
-| `SessionStart` | Imprime el resumen de los slices (estado y claims por tag) y el hecho de que la KB no se edita directo |
+| `SessionStart` | Imprime el resumen de los slices (estado y claims por tag), los problemas de instalación (`setup.Check`) y el hecho de que la KB no se edita directo |
 | `PreToolUse` con `Write` o `Edit` | Bloquea (2) si el archivo es de la KB (`knowledge.Covers`); una persona sí puede editarla a mano |
 | `PreToolUse` con `Bash` | Si la línea es un `git commit` con un mensaje legible (`commits.FromCommand`), lo valida y bloquea (2) si no cumple |
 | `PostToolUse` | Sin decisión todavía (el linter y `stale`) |
@@ -296,6 +300,22 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 - *Shortcut: el hook ve la línea de comando, no sus efectos; un `sed -i` o un `cat >` sobre un spec desde Bash no se detecta.*
 - El mensaje de commit se lee de `-m` y `--message` (también varios) y de la forma `$(cat <<'EOF' ... EOF)`. Con `-F`, con `--amend` sin `-m` o con otra sustitución de shell no se puede leer y se deja pasar: lo cubren el git hook y CI.
 - `settings.json` no usa el filtro `if` de los hooks (`Bash(git commit*)`): no pude confirmar cómo evalúa comandos compuestos, y si no coincide el commit no se vigila. Se paga un proceso `delta` por cada llamada a Bash.
+
+### 8.6 `delta budget`
+
+Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún techo; es el gate de la sección 6.7 y corre en CI. Lo siempre cargado es el router (`CLAUDE.md`), las reglas sin `paths:` y la descripción de cada skill y de cada agente. El cuerpo de un skill y las reglas con `paths:` no cuestan nada hasta que se usan.
+
+| Clave de `.claude/budget.conf` (por defecto) | Techo de |
+|---|---|
+| `always_tokens` (3500) | el total de lo siempre cargado |
+| `claude_lines` (80) | líneas de `CLAUDE.md` |
+| `rule_always_lines` (50) | líneas de una regla sin `paths:` |
+| `skill_desc_chars`, `agent_desc_chars` (1024) | caracteres de una descripción |
+
+- Sin `budget.conf` se usan esos valores, y una clave en 0 apaga su techo.
+- Los tokens se estiman a **3,3 caracteres por token**, la razón con que se calibraron los techos contra `/context`, y no a 4 como decía la nota de la sección 6.1 de `direction.md`.
+- Es el port de la parte "siempre cargada" de `budget.sh`. *Shortcut: siguen en el script, hasta portarse, las clases `scoped`, `invoke` y `demand`, los punteros rotos y los globs muertos.*
+- Sobre este repositorio coincide con el script al carácter, salvo en dos descripciones con rayas largas (`—`): el script las cuenta en bytes porque su `awk` corre en la configuración regional C, y `delta budget` cuenta caracteres, que es lo que dice el nombre de la clave.
 
 ---
 
@@ -438,4 +458,4 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 9. **Separar `Kind` y `TagKind` en `assertion`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.
 10. **`Stop` y la evidencia.** Exigir que `delta check` corrió tras el último cambio pide un registro de la última verificación. *Propuesta:* `delta check` anota la hora en un archivo dentro de `.git/`, y `Stop` la compara con la modificación más reciente de specs y tests; hay que respetar `stop_hook_active` y el tope de 8 continuaciones.
 11. **`PostToolUse` y el linter.** Sin archivo de configuración (pendiente 2) no se sabe qué linter correr tras una edición; depende de esa decisión.
-12. **El nombre del binario.** `delta` también es el nombre de un paginador de git muy usado (git-delta). Si está antes en el `PATH`, el hook `commit-msg` correría el programa equivocado. Decidir si el binario cambia de nombre, o si el hook verifica que `delta` sea este.
+12. **El nombre del binario.** *Mitigado, no resuelto:* `delta status` y `SessionStart` ya avisan cuando el `delta` del `PATH` no es este programa. `delta` también es el nombre de un paginador de git muy usado (git-delta). Si está antes en el `PATH`, el hook `commit-msg` correría el programa equivocado. Decidir si el binario cambia de nombre, o si el hook verifica que `delta` sea este.
