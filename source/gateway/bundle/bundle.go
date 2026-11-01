@@ -6,3 +6,7 @@ import "github.com/ronz204/deltas-ai/source/harness"
 type Bundle struct{}
 
 func (Bundle) Spec() ([]byte, error) { return harness.FS.ReadFile("core/templates/spec.md") }
+
+func (Bundle) GitHook(name string) ([]byte, error) {
+	return harness.FS.ReadFile("core/githooks/" + name)
+}

@@ -20,5 +20,22 @@
       "Bash(git push *)",
       "Bash(git pull *)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+      }
+    ]
   }
 }

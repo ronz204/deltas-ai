@@ -35,6 +35,24 @@ func TestSpecIsTheSpecTemplate(t *testing.T) {
 	}
 }
 
+// A CR before the newline would break the hook's shebang on Unix.
+func TestCommitMsgHookIsAShellScriptThatCallsDelta(t *testing.T) {
+	src, err := Bundle{}.GitHook("commit-msg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	if !strings.HasPrefix(text, "#!/bin/sh\n") || strings.Contains(text, "\r") || !strings.Contains(text, `exec delta commit-msg "$1"`) {
+		t.Fatalf("the hook is not what delta init should install:\n%s", text)
+	}
+	if !strings.Contains(text, "exit 0") {
+		t.Fatal("a missing delta must let the commit through, with a warning")
+	}
+	if _, err := (Bundle{}).GitHook("nope"); err == nil {
+		t.Fatal("an unknown hook was found")
+	}
+}
+
 // The spec template is what delta spec new will start from, so it must already be a valid spec.
 func TestSpecTemplateParses(t *testing.T) {
 	src := render(t, "spec.md", struct{ Slice string }{"billing"})

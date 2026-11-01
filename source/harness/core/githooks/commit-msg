@@ -1,0 +1,7 @@
+#!/bin/sh
+# Installed by delta init: checks the commit message with delta.
+if ! command -v delta >/dev/null 2>&1; then
+  echo "delta is not installed: the commit message was not checked" >&2
+  exit 0
+fi
+exec delta commit-msg "$1"
