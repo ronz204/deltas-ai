@@ -88,7 +88,7 @@ func (s *Vault) Create(_ context.Context, slice string, content []byte) error {
 	if _, err := os.Stat(p); err == nil {
 		return fmt.Errorf("%s already exists", s.Path(slice))
 	}
-	return writeAtomic(p, content)
+	return writeAtomic(p, content, 0o644)
 }
 
 func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
@@ -96,11 +96,38 @@ func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(p, content)
+	return writeAtomic(p, content, 0o644)
+}
+
+// inside turns a project path written with forward slashes into a file path, and refuses one that
+// leaves the project.
+func (s *Vault) inside(rel string) (string, error) {
+	local := filepath.FromSlash(rel)
+	if strings.Contains(rel, `\`) || !filepath.IsLocal(local) {
+		return "", fmt.Errorf("%q is not a path inside the project", rel)
+	}
+	return filepath.Join(s.root, local), nil
+}
+
+// ReadFile returns a project file; the error wraps fs.ErrNotExist when it is not there.
+func (s *Vault) ReadFile(_ context.Context, rel string) ([]byte, error) {
+	p, err := s.inside(rel)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(p)
+}
+
+func (s *Vault) WriteFile(_ context.Context, rel string, content []byte, perm fs.FileMode) error {
+	p, err := s.inside(rel)
+	if err != nil {
+		return err
+	}
+	return writeAtomic(p, content, perm)
 }
 
 // writeAtomic renames a temporary file over path, so readers see the old content or the new, never half.
-func writeAtomic(path string, data []byte) error {
+func writeAtomic(path string, data []byte, perm fs.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -118,7 +145,7 @@ func writeAtomic(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+	if err := os.Chmod(tmp.Name(), perm); err != nil {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
