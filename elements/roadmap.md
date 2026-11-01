@@ -44,13 +44,13 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 **Entregables**
 - Quitar Cursor del About del repo y del README.
 - Quitar la plantilla `ROADMAP.md` (ningún skill la lee).
-- Renombrar los skills: Specifier → Quill, Executor → Forge, Sentinel → Seal. Carpetas, `description`, README y toda referencia cruzada entre skills, rules y docs.
+- Crear `harness/` como copia ya renombrada de lo que hoy vive en `.claude/` (Specifier → Quill, Executor → Forge, Sentinel → Seal): carpetas, `description` y referencias cruzadas entre skills, rules y docs. `.claude/` no se toca: contiene las reglas que rigen el trabajo en este repo y se regenera desde `harness/` cuando exista `delta init` (Fase 2).
 - Poner `paths:` en las rules existentes (§7.1).
 - Reescribir el README con la tesis nueva y tres roles, mencionando el preset `base` solo como efecto secundario (§7.4).
 - Añadir `.gitattributes` para fijar finales de línea LF en el repo, incluidos `elements/*.md` y `.githooks/*` (Git ya avisa de CRLF en los documentos de `elements/`).
 
 **Cierra cuando**
-- Una búsqueda de `Specifier`, `Executor`, `Sentinel` y `Cursor` no devuelve resultados fuera de los documentos de `elements/` que los citan como historia.
+- Una búsqueda de `Specifier`, `Executor`, `Sentinel` y `Cursor` no devuelve resultados fuera de `.claude/` (que se regenera en la Fase 2) y de los documentos de `elements/` que los citan como historia.
 - Cada skill se llama por su nombre nuevo y su `description` nombra el verbo (redactar, construir, verificar), no solo la metáfora.
 
 **Cuidado:** el disparo de un skill depende de su `description`, no de su nombre. Revisar que renombrar no la degrade.
@@ -61,7 +61,8 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
-**Entregables** (§6.1, §6.4, §6.5)
+**Entregables** (§6.1, §6.4, §6.5; estructura y orden de implementación en `deterministic.md`)
+- Esqueleto del proyecto Go: `go.mod` en la raíz, `entries/`, `internal/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `harness/`, más el test que hace cumplir la regla de dependencia entre capas.
 - Formato de spec con `format: 1`, IDs por claim y tags `test: <comando>`, `manual`, `none`.
 - Parser EARS y de Given/When/Then.
 - Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`.
@@ -83,6 +84,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
 **Entregables**
+- `delta hook <evento>`: el adaptador que lee el JSON de cada evento y decide con `usecase/guard`. Antes de escribirlo, verificar el formato real del JSON en la documentación de hooks vigente.
 - Hooks de Claude Code en `.claude/settings.json`: `SessionStart`, `PreToolUse` sobre la KB, `PreToolUse` sobre `git commit`, `PostToolUse` con el linter, `Stop` que exige evidencia de `delta check`. Todos bloquean con exit **2**, no 1.
 - `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
 - Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`.

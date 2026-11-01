@@ -148,12 +148,13 @@ Un binario único, sin runtime. Propuesta de comandos:
 | `delta stale` | Compara archivos modificados contra los que cada spec referencia y marca slices desactualizados | Nada (es nuevo) |
 | `delta budget` | Mide lo siempre cargado y falla si pasa el techo | `budget.sh` como gate |
 | `delta commit-msg <archivo>` | Valida un mensaje contra Conventional Commits (tipos permitidos, longitud, imperativo). Lo llaman el hook del agente, el git hook y CI | La regla `commit-messages` como texto |
+| `delta hook <evento>` | Adaptador de los hooks de Claude Code: lee el JSON del evento por stdin, consulta la regla y sale con 0 o 2. No lleva lógica propia | Scripts sueltos por hook |
 | `delta context <slice>` | Imprime solo lo necesario para trabajar ese slice | Carga bajo demanda real |
 | `delta approve <slice>` | Pasa el spec a `approved` (lo hace la persona) | Punto de control humano formal |
 
 Notas de diseño:
 - Para el presupuesto alcanza con contar por caracteres (~4 caracteres por token). Un tokenizer exacto no vale la complejidad.
-- El CLI no depende de Claude Code. Los hooks son un adaptador fino encima. Eso deja la puerta abierta a otros agentes sin que sea una meta.
+- El CLI no depende de Claude Code. Los hooks son un adaptador fino encima. Eso deja la puerta abierta a otros agentes sin que sea una meta. La estructura del proyecto Go, las capas y las librerías están en `deterministic.md`.
 
 ### 6.2 Hooks de Claude Code
 
