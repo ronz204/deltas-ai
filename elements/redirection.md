@@ -101,7 +101,7 @@ Hay dos clases de fiabilidad y no hay que mezclarlas:
 | **Contratos vivos, sin bitácora** | Es la idea fundacional: lo reemplazado desaparece, git guarda el pasado |
 | **Slices** (un contrato por capacidad, dimensionado como bounded context) | Evita specs por capa o por archivo |
 | **Claims en EARS + aceptación Given/When/Then** | Estructura fija = se puede validar con un parser |
-| **Tags de verificación** (`test`, `check`, `manual`, `none`) | Es la base de la fiabilidad; ahora con IDs y con ejecución real |
+| **Tags de verificación** (`test`, `manual`, `none`; desaparece `check`) | Es la base de la fiabilidad; ahora con IDs y con ejecución real |
 | **Quill** (antes Specifier) | La entrevista es trabajo genuinamente de LLM |
 | **Seal** (antes Sentinel) | Se queda como rol, pero se parte en dos (ver 6.5) |
 | **Forge** (antes Executor) | Plan aprobado, tests primero, código después; nunca edita specs |
@@ -119,7 +119,7 @@ Hay dos clases de fiabilidad y no hay que mezclarlas:
 | Qué se va | Por qué |
 |---|---|
 | **Archivist como skill de LLM** | Era un LLM haciendo lo que un validador hace mejor. Su función ("único escritor, con la forma correcta") pasa al CLI, sin costo de tokens y sin variabilidad |
-| **Surveyor como skill de LLM** | La parte determinista (crear la estructura) pasa a `delta init`. La parte creativa (redactar docs de orientación) queda como decisión abierta |
+| **Surveyor como skill de LLM** | La parte determinista (crear la estructura) pasa a `delta init`. La parte creativa (redactar docs de orientación) nace a demanda, cuando Quill la necesita (decisión 2) |
 | **El catálogo de reglas opcionales dentro del núcleo** | Pasa a "presets" opt-in fuera del camino principal. Cada regla se propone mostrando su costo en tokens |
 | **La regla `commit-messages` como texto** (~1 079 t) | Es lo más caro del presupuesto y se cumplía 1 de 3 veces. Un git hook la cumple siempre y libera ese presupuesto |
 | **`code-lean-change` como regla única** (~922 t) | Se disuelve en R1, R2 y el preset `base` (alcance, fiabilidad) y se reescribe con peldaños propios. Detalle en 7.6 |
@@ -141,9 +141,9 @@ Un binario único, sin runtime. Propuesta de comandos:
 | `delta spec new <slice>` | Crea un spec desde la plantilla con frontmatter y estado `draft` | Parte de Archivist |
 | `delta spec lint [slice]` | Valida estructura, notación EARS, IDs únicos y tags válidos | Revisión manual |
 | `delta spec write` | Único punto de escritura de la KB; valida antes de escribir | Archivist |
-| `delta link <claim-id> <test>` | Enlaza un claim con su test o check (solo toca esa línea) | El paso que nadie podía hacer |
-| `delta lint` | Cruza specs y tests: tests sin ID de claim, tags que apuntan a tests inexistentes, claims sin tag | Nada (es nuevo; respalda la regla de fidelidad) |
-| `delta check [slice]` | Ejecuta los tests/checks enlazados y reporta `Holds` / `Violated`; lo no ejecutable queda `Unverified` | La parte determinista de Sentinel (hoy Seal) |
+| `delta link <claim-id> <comando>` | Enlaza un claim con el comando de su test (solo toca esa línea) | El paso que nadie podía hacer |
+| `delta lint` | Cruza specs y tests: claims `test` cuyo ID no aparece en ningún archivo de tests, tests con ID de claim inexistente, claims sin tag; avisa de `skip`/`only` en archivos que citan IDs | Nada (es nuevo; respalda la regla de fidelidad) |
+| `delta check [slice]` | Ejecuta el comando de cada claim `test` y reporta `Holds` / `Violated`; lo no ejecutable, o sin test que cite el ID, queda `Unverified` (ver 6.5) | La parte determinista de Sentinel (hoy Seal) |
 | `delta status` | Tabla de slices: estado, cobertura, si está `stale` | `links.sh` ampliado |
 | `delta stale` | Compara archivos modificados contra los que cada spec referencia y marca slices desactualizados | Nada (es nuevo) |
 | `delta budget` | Mide lo siempre cargado y falla si pasa el techo | `budget.sh` como gate |
@@ -219,27 +219,37 @@ Formato propuesto (*borrador, a ajustar*):
 
 ```markdown
 ---
+format: 1
 slice: facturacion
 status: approved
 ---
 
 ## Invariantes
-- INV-01 [test: facturacion/total_test.go::TestRedondeo]
+- INV-01 [test: go test ./facturacion]
   Cuando se emite una factura, el sistema debe redondear cada línea a 2 decimales antes de sumar.
 - INV-02 [none]
   El sistema no debe emitir dos facturas con el mismo consecutivo.
 
 ## Aceptación
-- ACC-01 [check: delta-checks/consecutivo.sh]
+- ACC-01 [test: go test ./e2e/consecutivo]
   Dado que existe la factura 1001, cuando se intenta emitir otra con 1001, entonces se rechaza.
 ```
 
-`[none]` sigue siendo válido, pero queda visible en `delta status` como deuda de verificación. Y el test `TestRedondeo` debería citar `INV-01` en su nombre o en un comentario, para que `delta lint` pueda cruzarlos.
+**Tags de verificación: `test`, `manual` y `none`.** No hay tag `check`: un e2e es un test con un comando más grande, y distinguirlos no aportaba nada.
+
+- **`test: <comando>`** es cualquier comando que salga con 0 si el claim se cumple. Delta lo ejecuta desde la raíz del repo, directo con `os/exec` y sin pasar por un shell, para que funcione igual en Windows, Mac y Linux. *Shortcut: sin shell, el comando no admite pipes, redirecciones ni `$VAR`; si hace falta algo así, se escribe como programa o como script del proyecto.* Delta no instala ni elige el runner: cada proyecto usa el suyo.
+- **`manual`** y **`none`** no tienen comando. `none` sigue siendo válido, pero queda visible en `delta status` como deuda de verificación. No hace falta montar un harness de tests el primer día.
+
+**Reglas para que el comando no mienta** (decisión 8): el tag apunta a un archivo, paquete o directorio, **sin filtros por nombre** (`go test ./facturacion`, no `-run`), para eliminar el caso de un filtro que no coincide con nada y sale con 0. Delta no lee la salida del runner, porque ese formato es de un tercero y puede cambiar. Lo que sí hace `delta lint` es comprobar de forma estática que el ID del claim aparece en un archivo de tests (por convención de nombre: `*_test.go`, `*.test.*`, `*.spec.*`, configurable), en el nombre del test o en un comentario. La coincidencia es tolerante a separadores (`INV-01`, `INV_01`, `INV01`, con un límite al final para que `INV01` no coincida con `INV011`), porque algunos lenguajes no admiten guiones en los nombres (`TestINV01_Redondeo` en Go).
 
 ### 6.5 Seal partido en dos
 
-- **Parte determinista** (`delta check`): ejecuta lo que tiene comando. Pasa o falla. Sin modelo.
-- **Parte con LLM:** solo para claims `manual` o `none`, donde alguien tiene que leer el código y opinar. Sigue reportando, nunca corrige.
+- **Parte determinista** (`delta check`): ejecuta el comando de cada claim `test`. Sin modelo. El resultado depende solo del código de salida y del chequeo estático de `delta lint`:
+  - sale con 0 y el ID aparece en un archivo de tests: `Holds`;
+  - sale con error: `Violated`;
+  - sale con 0 pero ningún test cita el ID: `Unverified`, con el motivo escrito;
+  - `manual` y `none`: `Unverified`.
+- **Parte con LLM:** solo para claims `manual` o `none` (los `Unverified` sin comando), donde alguien tiene que leer el código y opinar. Sigue reportando, nunca corrige.
 
 Efecto colateral buscado: escribir claims verificables se vuelve lo cómodo, porque son los que el sistema puede comprobar solo.
 
@@ -308,7 +318,7 @@ Cada regla, con el fallo que previene y cómo se detecta. El texto final convien
 - *Nota:* los cambios que tocan código referenciado por el spec de *otro* slice no necesitan texto; lo cubre `delta stale`.
 
 **R2. Honestidad: nada de "listo" sin evidencia.**
-- *Idea:* no se declara terminado sin haber corrido los tests y checks y mostrar el resultado. No se inventan APIs: se verifica que existen. El cierre dice qué claims se tocaron, en qué estado quedaron y qué quedó sin verificar.
+- *Idea:* no se declara terminado sin haber corrido los tests y mostrar el resultado. No se inventan APIs: se verifica que existen. El cierre dice qué claims se tocaron, en qué estado quedaron y qué quedó sin verificar.
 - *Previene:* el fallo "dice que pasó y no corrió", y trabajo omitido que parece terminado.
 - *Se detecta:* hook `Stop` que exige que `delta check` haya corrido tras el último cambio; el estado de claims sale de `delta status`, no de la memoria del modelo.
 
@@ -376,7 +386,7 @@ Delta no parte de cero: toma ideas de la competencia. Está bien, mientras quede
 |---|---|---|
 | **Spec Kit / OpenSpec** | Un proceso guiado: spec → aprobar → plan → tests → código | Se mantiene en cuatro pasos, sin constitución ni puertas rígidas por fase. Si el flujo engorda, Delta se vuelve un clon de ellos. El producto es el contrato verificado, no el proceso |
 | **Ponytail** | La idea de escalera (reusar antes de escribir) y la prueba "cada regla le gana a la versión sin ella" | La escalera se reescribe con peldaños de contrato (7.5) y se atribuye. La prueba de entrada (7.2) la aplica a todo el core |
-| **Ponytail como complemento** | Recomendarlo opcionalmente para quien quiera menos código | *Hipótesis sin probar:* dos escaleras cargadas a la vez podrían pisarse o sumar costo. Habría que probarlas juntas antes de recomendarlo |
+| **Ponytail como complemento** | Nada: no se recomienda | Dos escaleras cargadas a la vez podrían pisarse o sumar costo, y la meta es que Delta se baste solo (decisión 6) |
 | **Token Consumption Analyzer** (extensión de Spec Kit) | Medir tokens y calidad juntos al comparar configuraciones | Opcional; es de un autor individual y versión 0.1.0 |
 | **Hooks de Claude Code** | Enforcement determinista para lo que no debe fallar | Es parte del diseño, no una adopción externa |
 
@@ -413,6 +423,8 @@ verified   (si el código cambia después -> stale, avisado solo)
 - Que Forge se dispare cuando no se lo invoca explícitamente.
 - La calidad de los claims que redacta Quill.
 - La honestidad: el hook exige evidencia de que se corrieron los checks, pero no que el agente interprete bien el resultado.
+- Que un `Holds` pruebe que el test del claim se ejecutó: prueba que el comando salió con 0 y que existe un test que cita el ID, no que ese test corrió (un `skip` o un comando que apunta a otro archivo pasarían). `delta lint` avisa de `skip`/`only`, pero es una heurística. *Mejora futura si aparece un falso `Holds` real:* un archivo de evidencia, donde cada test avisa a Delta (variable de entorno más un helper de una línea por lenguaje), que depende solo de un protocolo propio.
+- Que el agente no debilite un test para que pase. Se ve en el diff, pero ninguna regla de ruta lo impide, porque cada proyecto ubica sus tests donde quiere.
 - La detección de deriva por archivos referenciados es **heurística**: puede marcar `stale` de más (cambio irrelevante) o no marcarlo de menos (cambio de comportamiento sin tocar los archivos nombrados).
 
 Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los problemas no pasan desapercibidos", no "no hay problemas".
@@ -421,16 +433,16 @@ Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los
 
 ## 11. Decisiones abiertas
 
-1. **Orden de principios:** ¿fiabilidad > claridad > adopción > costo está bien o preferís adopción por encima?
-2. **Qué pasa con la orientación inicial** (lo que hacía Surveyor): ¿`delta init` genera solo el esqueleto y un `CLAUDE.md` mínimo, y los docs curados nacen a demanda cuando Quill los necesita? ¿O mantenemos un skill de escaneo opcional? *Mi inclinación:* esqueleto determinista y docs a demanda; es más ligero.
+1. ~~**Orden de principios**~~ **Resuelta:** se mantiene fiabilidad > claridad > adopción > costo.
+2. ~~**Orientación inicial** (lo que hacía Surveyor)~~ **Resuelta:** `delta init` genera un esqueleto determinista y un `CLAUDE.md` mínimo; los docs curados nacen a demanda cuando Quill los necesita. No hay skill de escaneo.
 3. ~~**Las cuatro reglas core**~~ **Resuelta:** el core son R1 (fidelidad) y R2 (honestidad); alcance y fiabilidad pasan al preset `base`, que carga por ruta. La de "cambio seguro" sigue fuera. Queda por confirmar solo el texto final.
-4. **Idioma del texto de las reglas:** las del repo están en inglés; este documento y la conversación, en español. Decidir uno para las reglas finales.
-5. **Techo del core:** confirmar el orden de ~600 tokens (core) y ~600 más (`base`) con `delta budget`.
-6. **Ponytail como complemento recomendado:** ¿se prueba antes de recomendarlo, o simplemente se menciona sin garantía?
-7. **Granularidad del `stale`:** ¿por archivo referenciado, por directorio o por símbolo? Empezar por archivo es lo simple.
-8. **Dónde viven los checks ejecutables** (`delta-checks/` u otra convención).
-9. **Nombre y versión del formato de spec:** si se versiona, el CLI puede migrar specs viejos.
-10. **Medir o no medir:** el experimento barato que ya habías anotado (~3 USD, 30 corridas, repo real de 30 a 100 archivos, con y sin KB) queda disponible, pero ya no bloquea nada. Ver también la medición de fidelidad en 13.
+4. ~~**Idioma**~~ **Resuelta:** las reglas, skills y el repo en inglés; estos documentos y la conversación en español.
+5. ~~**Techo del core**~~ **Resuelta:** ~600 tokens (core) y ~600 más (`base`) como estimación; se ajusta con `delta budget` sobre la marcha.
+6. ~~**Ponytail como complemento**~~ **Resuelta:** no se recomienda. La meta es que Delta sea suficientemente bueno por sí solo.
+7. ~~**Granularidad del `stale`**~~ **Resuelta:** por archivo referenciado, por simplicidad. Se afina si genera ruido.
+8. ~~**Dónde viven los checks ejecutables**~~ **Resuelta por eliminación:** desaparece el tag `check`. Un e2e es un `test` con un comando más grande, y cada proyecto ubica sus tests donde quiera. El comando se ejecuta sin shell y sin filtros por nombre, y `delta check` no lee la salida del runner: `Holds` exige exit 0 más un test que cite el ID (6.4 y 6.5). Mejora futura anotada en §10.
+9. ~~**Nombre y versión del formato de spec**~~ **Resuelta:** se mantiene el nombre actual y el formato se versiona en el frontmatter (`format: 1`), para que el CLI pueda migrar specs viejos.
+10. ~~**Medir o no medir**~~ **Resuelta:** no se mide nada por ahora. El experimento viejo (~3 USD, 30 corridas) se descarta, y la medición de fidelidad de la sección 13 queda pospuesta.
 
 ---
 
@@ -445,6 +457,7 @@ Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los
 **Fase 1: núcleo del CLI**
 - Formato de spec con IDs y tags; parser EARS; `spec lint`, `spec write`, `link`, `lint`, `check`, `status`.
 - Tests unitarios del CLI (gratis, sin API). Esto ya es fiabilidad demostrable.
+- Suite de compatibilidad de `delta check`: proyectos mínimos reales (Go y TypeScript) con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`, para comprobar que los resultados son los de 6.5.
 
 **Fase 2: hooks**
 - `PreToolUse` que protege la KB, `PreToolUse` sobre `git commit`, `.githooks/commit-msg` con `core.hooksPath` fijado por `delta init`, aviso de `SessionStart` si falta, `delta commit-msg` en CI, `budget` como gate, `PostToolUse` con linter, `Stop` que exige evidencia.
@@ -474,7 +487,7 @@ Sin benchmark de modelo obligatorio. Criterios que se pueden comprobar:
 - Lo siempre cargado respeta el techo sin sacar reglas a la fuerza.
 - Alguien ajeno al proyecto puede hacer `delta init` y entender el flujo sin ayuda (adopción).
 
-**Medición opcional y barata de "resultado" (fidelidad al contrato):** construir los mismos slices con y sin las reglas core y contar, con `delta check`, cuántos claims quedan `Violated` o `Unverified`. Es determinista, no necesita juez LLM y mide justo lo que Delta promete. No sustituye un benchmark de calidad general, pero permite afirmar "fidelidad al contrato" con un número. Convendría repetir cada corrida varias veces (el agente no es determinista) y cuidar que el baseline no quede contaminado por los hooks de Delta, que fue justo el error que ponytail documentó en el suyo.
+**Medición opcional y barata de "resultado" (fidelidad al contrato). Pospuesta por ahora (decisión 10); queda anotada por si se retoma:** construir los mismos slices con y sin las reglas core y contar, con `delta check`, cuántos claims quedan `Violated` o `Unverified`. Es determinista, no necesita juez LLM y mide justo lo que Delta promete. No sustituye un benchmark de calidad general, pero permite afirmar "fidelidad al contrato" con un número. Convendría repetir cada corrida varias veces (el agente no es determinista) y cuidar que el baseline no quede contaminado por los hooks de Delta, que fue justo el error que ponytail documentó en el suyo.
 
 Los umbrales numéricos concretos los definís vos al arrancar la Fase 6; es mejor fijarlos *antes* de medir, no después.
 
@@ -514,7 +527,7 @@ Los umbrales numéricos concretos los definís vos al arrancar la Fase 6; es mej
 - **Contrato vivo (spec):** archivo que dice qué es verdad ahora; se edita en sitio y no acumula historia.
 - **Claim:** una afirmación del contrato (invariante o criterio de aceptación) con ID y tag.
 - **EARS:** notación para escribir requisitos con estructura fija ("Cuando X, el sistema debe Y").
-- **Tag de verificación:** `test`, `check`, `manual` o `none`; dice cómo se comprueba el claim.
+- **Tag de verificación:** `test: <comando>`, `manual` o `none`; dice cómo se comprueba el claim.
 - **Deriva (drift):** diferencia entre lo que dice el contrato y lo que hace el código.
 - **Stale:** slice cuyo contrato o código cambió sin que se haya vuelto a verificar.
 - **Regla core:** regla corta y siempre cargada sobre la relación entre código y contrato (hoy R1 fidelidad y R2 honestidad).

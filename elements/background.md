@@ -91,7 +91,7 @@ El punto de equilibrio es simple: Delta se paga si ahorra más de esos ~4.2k tok
 8. Notamos que Delta adopta ideas de la competencia y decidimos no volverlas el centro.
 9. Detectamos que los contratos no cubrían la **generación de código** y definimos reglas core propias, una escalera propia y presets.
 10. `code-lean-change` se disuelve en esas reglas.
-11. (31 de octubre) Los tres skills se renombran Quill, Forge y Seal. Los hooks de git se comparten con `core.hooksPath` más una capa propia para el agente. El core baja a dos reglas (fidelidad, honestidad) y el resto pasa al preset `base`, porque mejorar el código es un beneficio secundario de Delta. En este documento, "Specifier, Sentinel, Executor" son los nombres previos a ese cambio.
+11. (31 de octubre) Los tres skills se renombran Quill, Forge y Seal. Los hooks de git se comparten con `core.hooksPath` más una capa propia para el agente. El core baja a dos reglas (fidelidad, honestidad) y el resto pasa al preset `base`, porque mejorar el código es un beneficio secundario de Delta. Además se elimina el tag `check` (un e2e es un `test` con otro comando) y la verificación no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID del claim. En este documento, "Specifier, Sentinel, Executor" son los nombres previos a ese cambio, y la lista de tags de la sección 1 describe el Delta actual.
 
 El diseño resultante de todo esto está en `redirection.md`.
 
