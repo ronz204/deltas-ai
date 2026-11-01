@@ -22,6 +22,7 @@ type world struct {
 	onPath   string
 	self     bool
 	tools    map[string]bool // other programs on the PATH
+	assets   []Asset         // what the harness ships; the default two when nil
 }
 
 func newWorld() *world {
@@ -46,6 +47,13 @@ func (w *world) ReadFile(_ context.Context, rel string) ([]byte, error) {
 
 func (w *world) WriteFile(_ context.Context, rel string, content []byte, perm fs.FileMode) error {
 	w.files[rel], w.perms[rel] = content, perm
+	w.writes++
+	return nil
+}
+
+func (w *world) RemoveFile(_ context.Context, rel string) error {
+	delete(w.files, rel)
+	delete(w.perms, rel)
 	w.writes++
 	return nil
 }
@@ -78,7 +86,7 @@ func TestAFreshProjectGetsTheHookAndThePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []Step{{true, "installed .githooks/commit-msg"}, {true, "set core.hooksPath to .githooks"}, {true, "installed 3 files from the harness"}, {true, "installed .claude/settings.json"}}
+	want := []Step{{true, "installed .githooks/commit-msg"}, {true, "set core.hooksPath to .githooks"}, {true, "installed 3 files from the harness"}, {true, "recorded the installed harness files in deltas/deltas.manifest"}, {true, "installed .claude/settings.json"}}
 	if fmt.Sprint(steps) != fmt.Sprint(want) {
 		t.Fatalf("steps = %v, want %v", steps, want)
 	}
@@ -285,9 +293,12 @@ func TestCheckReportsWhatDeltaConfGotWrong(t *testing.T) {
 func (w *world) Name() string { return "acme" }
 
 func (w *world) Assets(project string) ([]Asset, error) {
+	if w.assets != nil {
+		return w.assets, nil
+	}
 	return []Asset{
-		{Path: ".claude/rules/one.md", Content: []byte("# " + project + "\n"), Mode: 0o644},
-		{Path: ".claude/skills/x/run.sh", Content: []byte("#!/bin/sh\n"), Mode: 0o755},
+		{Path: ".claude/rules/one.md", Content: []byte("# " + project + "\n"), Mode: 0o644, Managed: true},
+		{Path: ".claude/skills/x/run.sh", Content: []byte("#!/bin/sh\n"), Mode: 0o755, Managed: true},
 	}, nil
 }
 

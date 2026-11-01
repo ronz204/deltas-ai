@@ -21,7 +21,8 @@ const (
 type Files interface {
 	ReadFile(ctx context.Context, rel string) ([]byte, error)
 	WriteFile(ctx context.Context, rel string, content []byte, perm fs.FileMode) error
-	Name() string // what the project is called
+	RemoveFile(ctx context.Context, rel string) error // also the folders it leaves empty
+	Name() string                                     // what the project is called
 }
 
 type Git interface {
@@ -29,11 +30,13 @@ type Git interface {
 	SetHooksPath(ctx context.Context, path string) error
 }
 
-// Asset is a file the harness puts in a project: where, what and with which permissions.
+// Asset is a file the harness puts in a project: where, what and with which permissions. A managed asset is
+// kept up to date by delta update; any other is installed once and then belongs to the project.
 type Asset struct {
 	Path    string
 	Content []byte
 	Mode    fs.FileMode
+	Managed bool // kept up to date by delta update; any other asset is installed once and is then the project's
 }
 
 // Harness is what delta ships to install.
@@ -93,6 +96,11 @@ func (i *Installer) Check(ctx context.Context) []string {
 	case !self:
 		problems = append(problems, fmt.Sprintf("the delta on the PATH (%s) is not this program, so the git hook would run it instead", path))
 	}
+	if pending, err := i.Pending(ctx); err != nil {
+		problems = append(problems, "could not compare the installed harness with this program's: "+err.Error())
+	} else if len(pending) > 0 {
+		problems = append(problems, fmt.Sprintf("the installed harness is out of date (%d %s would change): run delta update", len(pending), noun(len(pending))))
+	}
 	return problems
 }
 
@@ -149,7 +157,11 @@ func (i *Installer) Run(ctx context.Context) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(append(steps, copied...), settings), nil
+	recorded, err := i.record(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return append(append(append(steps, copied...), recorded...), settings), nil
 }
 
 // copy writes the assets that are not there yet. One that exists and differs is a choice of the project's.

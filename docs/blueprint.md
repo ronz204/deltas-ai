@@ -49,7 +49,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 17 | `deltas/deltas.config` (antes `deltas.config` en la raíz), claves planas, que absorbe a `budget.conf` y trae los patrones de archivos de test (sección 8.8) | Decidido, hecho |
 | 18 | ~~Varios `deltas/` por proyecto~~ Retirado: un solo `deltas/` en la raíz, también en un monorepo, para que la KB no se disperse. Un slice es un nombre sin carpeta y sus comandos corren desde la raíz | Decidido, hecho |
 | 19 | `deltas/`, `specifies/` y `.spec.md` son el formato del producto y quedan fijos; lo que ata a un lenguaje (qué es un archivo de test) se configura | Decidido |
-| 20 | Todo lo de Delta que no es de Claude Code vive en `deltas/`: `deltas.config`, `deltas.manifest` (reservado, ver abajo) y `specifies/` con los specs. La raíz del proyecto solo gana el `CLAUDE.md`. Hay un único `deltas/`, el de la raíz (decisión 18) | Decidido, hecho (el manifest, reservado) |
+| 20 | Todo lo de Delta que no es de Claude Code vive en `deltas/`: `deltas.config`, `deltas.manifest` (sección 12) y `specifies/` con los specs. La raíz del proyecto solo gana el `CLAUDE.md`. Hay un único `deltas/`, el de la raíz (decisión 18) | Decidido, hecho |
 | 20 | Los hooks de `settings.json` tienen un límite de 20 s | Decidido, hecho |
 
 ---
@@ -177,7 +177,7 @@ Observaciones:
 
 | Paquete | Comandos | Qué orquesta |
 |---|---|---|
-| `setup` | `delta init`, y el aviso de `status` y `SessionStart` | `Run` escribe el esqueleto, instala el harness desde `bundle` y fija `core.hooksPath` sin pisar uno ajeno; es idempotente. `Check` lista los problemas de instalación, sin fallar. `Check` incluye también los problemas de `deltas.config` y las herramientas que pide y no están en el `PATH` |
+| `setup` | `delta init`, y el aviso de `status` y `SessionStart` | `Run` escribe el esqueleto, instala el harness desde `bundle` y fija `core.hooksPath` sin pisar uno ajeno; es idempotente. `Update` y `Pending` mantienen al día el harness con `deltas.manifest` (sección 12). `Check` lista los problemas de instalación, sin fallar. `Check` incluye también los problemas de `deltas.config`, las herramientas que pide y no están en el `PATH`, y el aviso de harness desactualizado |
 | `author` | `delta spec new`, `spec write`, `link`, `approve`, `built` | Valida con `domain` y escribe con `vaults`. Es el único camino de escritura de la KB, y aplica las reglas de estado de `spec write` (sección 7.2) |
 | `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `judgment.Judge` y anota qué slices revisó y si hubo violación (`ledger`) |
 | `status` | `delta status`, `ready`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git`. `Ready` dice si un slice puede construirse |
@@ -209,7 +209,8 @@ Observaciones:
 
 | Comando | Adaptador | Caso de uso | Dominio que decide |
 |---|---|---|---|
-| `delta init` | `cmd` | `setup` | `lifecycle`, `specfile` (plantilla) |
+| `delta init` | `cmd` | `setup` | `lifecycle`, `specfile` (plantilla), `manifest` |
+| `delta update [--check]` | `cmd` | `setup` | `manifest` |
 | `delta spec new <slice>` | `cmd` | `author` | `specfile`, `lifecycle` |
 | `delta spec lint [slice]` | `cmd` | `verify` | `specfile`, `assertion` |
 | `delta spec write` | `cmd` | `author` | `specfile` |
@@ -471,7 +472,17 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 - `.claude/settings.json` es la excepción: se **fusiona**. Se añaden los grupos de hooks que no corran ya los mismos comandos con el mismo `matcher` (un `timeout` distinto es decisión del proyecto), las reglas de permisos que falten y las claves de primer nivel que no existan. No se quita ni se cambia nada; al reescribir el archivo se ordenan sus claves. Si el archivo no es un JSON con la forma esperada, se deja como está y se dice.
 - Antes de escribir nada se fija `core.hooksPath`, de modo que fuera de un repositorio git `init` falla sin dejar archivos.
 
-**`deltas/deltas.manifest`.** El nombre queda reservado para el registro de lo que `delta init` instaló (ruta y hash de cada archivo del harness), que hará falta para un futuro `delta update`: sin él `init` no distingue un archivo viejo de uno que el proyecto editó (hoy deja ambos como están). Todavía no se escribe ni se lee; `knowledge.Covers` ya lo trata como parte de la KB.
+**`deltas/deltas.manifest` y `delta update`.** El manifest (paquete `manifest`) anota, por cada archivo *gestionado*, el SHA-256 que tenía cuando Delta lo escribió (líneas `<hash>  <ruta>`, ordenadas, con los saltos de línea leídos como LF). Son gestionados el hook `.githooks/commit-msg`, los skills y las reglas. Son *semilla* y quedan fuera: `CLAUDE.md`, `deltas.config` y `specifies/.gitkeep`, que se instalan una vez y después son del proyecto. `delta init` lo escribe, anotando solo los archivos que quedaron idénticos al harness. `delta update` decide cada archivo gestionado con tres hashes: el anotado (M), el actual (C) y el del harness de este binario (N):
+
+| Situación | `update` |
+|---|---|
+| falta C | lo instala |
+| C = N | ya está al día |
+| C = M y N ≠ M | lo reemplaza (el proyecto no lo tocó) |
+| C ≠ M y C ≠ N, o sin entrada en el manifest | lo conserva y lo nombra |
+| está en M y el harness ya no lo trae | lo borra, con sus carpetas vacías, si C = M; si no, lo conserva y lo olvida |
+
+`delta update --check` no escribe: lista lo que cambiaría y sale con 1 si hay algo. `status` y `SessionStart` avisan con la misma comparación ("the installed harness is out of date: run delta update"), que cuenta lo que se reemplazaría o borraría y, en un proyecto que ya tiene manifest, lo que falta. *Shortcuts: `update` agrega a `.claude/settings.json` los hooks y permisos nuevos pero no retira los que el harness dejó de traer; no hay mezcla de contenido (se reemplaza el archivo entero o se conserva); un archivo instalado antes de que existiera el manifest y que difiere del harness queda como del proyecto hasta que se borre a mano y se corra `update`.*
 
 **Este repositorio no usa lo que instala** (decisión 10): `source/harness/` es la fuente y `delta init` lo escribe en *otros* proyectos. Aquí no hay `.claude/`, `deltas/`, `deltas.config` ni hook de git, y los tests lo prueban en repositorios temporales: instalan el harness, comprueban que `delta budget` pasa sobre él y que `delta status` funciona. Para cambiar una regla o un skill se cambia el harness.
 

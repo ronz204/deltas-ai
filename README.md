@@ -127,6 +127,8 @@ Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repos
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
 - `deltas/deltas.config`, a minimal `CLAUDE.md` and the `deltas/specifies/` folder.
 
+After upgrading the `delta` binary, run `delta update` to bring those files up to date: it replaces the ones you have not touched, removes those the harness no longer ships, and keeps your changes (`delta update --check` only lists what would change).
+
 Then:
 
 1. *"let's spec out `<feature>`"* → Quill interviews, Archivist writes `<slice>.spec.md`.

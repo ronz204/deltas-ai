@@ -143,6 +143,23 @@ func (s *Vault) WriteFile(_ context.Context, rel string, content []byte, perm fs
 	return writeAtomic(p, content, perm)
 }
 
+// RemoveFile deletes a project file, and then the folders it leaves empty, except the top-level ones.
+func (s *Vault) RemoveFile(_ context.Context, rel string) error {
+	p, err := s.inside(rel)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	for dir := filepath.Dir(p); filepath.Dir(dir) != s.root && dir != s.root; dir = filepath.Dir(dir) {
+		if os.Remove(dir) != nil { // not empty, or not ours to remove
+			break
+		}
+	}
+	return nil
+}
+
 // Glob reads the project files whose path matches any pattern, where * stands for part of one folder
 // or file name. Paths come back relative to the root and with forward slashes.
 func (s *Vault) Glob(_ context.Context, patterns []string) ([]budget.File, error) {

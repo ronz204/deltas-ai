@@ -8,7 +8,7 @@ import (
 func TestInitReportsEachStep(t *testing.T) {
 	m := newMemory()
 	out, _, err := m.run("", "init")
-	if err != nil || out != "installed .githooks/commit-msg\nset core.hooksPath to .githooks\ninstalled 1 file from the harness\ninstalled .claude/settings.json\n" {
+	if err != nil || out != "installed .githooks/commit-msg\nset core.hooksPath to .githooks\ninstalled 1 file from the harness\nrecorded the installed harness files in deltas/deltas.manifest\ninstalled .claude/settings.json\n" {
 		t.Fatalf("out = %q, err = %v", out, err)
 	}
 	if _, ok := m.project[".githooks/commit-msg"]; !ok || m.hooksDir != ".githooks" {

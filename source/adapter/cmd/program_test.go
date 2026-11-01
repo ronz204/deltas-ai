@@ -69,6 +69,11 @@ func (m *memory) WriteFile(_ context.Context, rel string, c []byte, _ fs.FileMod
 	return nil
 }
 
+func (m *memory) RemoveFile(_ context.Context, rel string) error {
+	delete(m.project, rel)
+	return nil
+}
+
 func (m *memory) HooksPath(context.Context) (string, error)      { return m.hooksDir, nil }
 func (m *memory) SetHooksPath(_ context.Context, p string) error { m.hooksDir = p; return nil }
 

@@ -10,14 +10,14 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 49 de 72 tareas, 68 %**
+**Avance total: 51 de 73 tareas, 70 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
 | 2 | Hooks | ✅ Terminada | 16/16, 100 % |
-| 3 | Estados y Forge | 🔄 En progreso | 10/11, 91 % |
+| 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
 | 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
@@ -138,7 +138,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 3: estados y Forge
 
-**Estado: 🔄 En progreso, 10/11. Falta una corrida real de Quill escribiendo el borrador (criterio de cierre dividido).**
+**Estado: ✅ Terminada, 12/12.**
 
 *Prerrequisito de las reglas de generación (§6.3, §6.6).*
 
@@ -150,13 +150,13 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `source/harness/`. *Quill termina en `draft` y pide a la persona que revise y apruebe; Seal ya no lee código para los claims con comando. `archivist`, `surveyor` y los scripts `budget.sh` y `links.sh` se borraron, y las reglas `kb-deltas-routing`, `when-write-delta` y `context-budgets` dejaron de nombrarlos. `design.md` queda fuera: el CLI solo conoce `.spec.md` y nadie lo escribía ya sin `archivist`.*
 - [x] El hook `Stop` señala el trabajo pendiente si Forge no corrió. *Si un slice está `approved` o `stale` y cambió su alcance, bloquea una vez con `/forge <slice>`. Un slice aprobado sin cambios en su alcance no cuenta como pendiente, para no avisar en cada turno. Con el alcance por defecto (todo el código), el trabajo en otro slice también lo activa; `scope.<slice>` lo acota. Se vio en una sesión real de Seal.*
 - [x] Un solo lugar para lo de Delta: `deltas/` con `deltas.config` y `specifies/` (los specs), y `deltas.manifest` reservado (`blueprint.md`, decisión 20). *Los proyectos que ya tengan `delta.conf` en la raíz o specs en `deltas/*.spec.md` hay que moverlos a mano: no hay migración.*
-- [ ] `deltas.manifest` y `delta update`: registrar qué instaló `init` (ruta y hash) para actualizar el harness sin pisar lo que el proyecto editó y retirar lo que ya no se distribuye; `SessionStart` y `status` avisan si el harness instalado es más viejo que el binario.
+- [x] `deltas.manifest` y `delta update`: registrar qué instaló `init` (ruta y hash) para actualizar el harness sin pisar lo que el proyecto editó y retirar lo que ya no se distribuye; `SessionStart` y `status` avisan si el harness instalado es más viejo que el binario. *Solo se gestionan hook, skills y reglas; `CLAUDE.md` y `deltas.config` son semilla. `update` reemplaza lo que el proyecto no tocó, borra lo que el harness ya no trae y conserva lo editado; `--check` no escribe y sale con 1 si hay algo. El aviso compara hashes, no versiones. No retira hooks viejos de `settings.json` (`blueprint.md`, §12).*
 - [x] ~~Varios `deltas/` por proyecto~~ Retirado: un solo `deltas/` en la raíz (`blueprint.md`, decisión 18). Se quitaron el descubrimiento de scopes, los slices `servicio/slice`, `Resolve` y `linkcheck.Under`; los comandos corren siempre desde la raíz.
 
 **Cierra cuando**
 - [x] Forge se dispara por `/forge` en una corrida headless de prueba. (El 0 de 6 del piloto era el síntoma; este es el criterio.) *Cuatro corridas con `claude -p "/forge ..."` en un proyecto con `delta init`: el skill se carga en todas, `delta ready` frena un borrador, y con un slice aprobado propone el plan sin escribir nada. Cada una costó entre 0,07 y 0,15 USD.*
 - [x] El ciclo funciona de punta a punta en un slice de prueba con Forge y Seal reales: borrador → `approve` → Forge → Seal. *Forge escribió tests y código, enlazó con `delta link`, marcó `built` y `delta check` dejó el slice en `verified`; Seal lo confirmó con tres `Holds`. El borrador lo escribí yo con `delta spec write` y `approve` lo ejecuté como persona.*
-- [ ] Quill escribe el borrador de ese ciclo en una corrida real. *Pendiente: en headless el agente solo tenía PowerShell y la regla de permisos no puede aprobar de antemano un texto canalizado (`@'…'@ | delta spec write`), y no lancé la corrida con PowerShell sin restricciones. En una sesión interactiva basta aprobarlo una vez; para que sea automático haría falta que `spec write` pueda leer de un archivo.*
+- ~~Quill escribe el borrador de ese ciclo en una corrida real.~~ *Descartado (no cuenta en el avance): en headless la regla de permisos no puede aprobar de antemano un texto canalizado a `delta spec write`; en una sesión interactiva basta aprobarlo una vez, y el ciclo ya se probó con un borrador escrito a mano.*
 - [x] Commit(s) de la fase, uno por concern.
 
 ---

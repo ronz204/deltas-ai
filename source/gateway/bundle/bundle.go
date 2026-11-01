@@ -44,11 +44,15 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 				return err
 			}
 		}
-		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest)})
+		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p)})
 		return nil
 	})
 	return out, err
 }
+
+// managed says whether delta keeps a harness file up to date once it is installed: the skills and the rules.
+// The CLAUDE.md and deltas.config it starts a project with are the project's from then on.
+func managed(p string) bool { return strings.HasPrefix(p, "skills/") || strings.HasPrefix(p, "rules/") }
 
 // destination maps a path in the harness to its place in a project; not every file is copied.
 func destination(p string) (string, bool) {
