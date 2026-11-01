@@ -1,5 +1,5 @@
-// Package cli turns arguments into calls to the use cases, and their results into text and an exit status.
-package cli
+// Package cmd turns arguments into calls to the use cases, and their results into text and an exit status.
+package cmd
 
 import (
 	"errors"

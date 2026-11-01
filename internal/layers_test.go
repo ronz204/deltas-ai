@@ -63,7 +63,7 @@ func TestViolation(t *testing.T) {
 		{"domain imports third party", "domain", "github.com/spf13/cobra", true},
 		{"usecase imports domain", "usecase", module + "/internal/domain/specfile", false},
 		{"usecase imports gateway", "usecase", module + "/internal/gateway/runner", true},
-		{"usecase imports adapter", "usecase", module + "/internal/adapter/cli", true},
+		{"usecase imports adapter", "usecase", module + "/internal/adapter/cmd", true},
 		{"gateway implements usecase ports", "gateway", module + "/internal/usecase/verify", false},
 		{"gateway reads the harness", "gateway", module + "/harness", false},
 		{"gateway imports adapter", "gateway", module + "/internal/adapter/hook", true},

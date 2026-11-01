@@ -18,8 +18,8 @@ func TestHelperProcess(t *testing.T) {
 	}
 }
 
-// cmd is a claim command that exits 0 (pass) or 1 (fail); extra words are ignored by the helper but can name a path.
-func cmd(mode string, extra ...string) string {
+// command is a claim command that exits 0 (pass) or 1 (fail); extra words are ignored by the helper but can name a path.
+func command(mode string, extra ...string) string {
 	return strings.Join(append([]string{fmt.Sprintf(`"%s" -test.run=^TestHelperProcess$ %s`, os.Args[0], mode)}, extra...), " ")
 }
 
@@ -126,9 +126,9 @@ func TestSpecNewLintAndWrite(t *testing.T) {
 func TestCheckGivesEveryKindOfVerdict(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/billing.spec.md", spec("billing",
-		claimOf("INV-01", "test: "+cmd("pass")),
-		claimOf("INV-02", "test: "+cmd("fail")),
-		claimOf("INV-03", "test: "+cmd("pass")),
+		claimOf("INV-01", "test: "+command("pass")),
+		claimOf("INV-02", "test: "+command("fail")),
+		claimOf("INV-03", "test: "+command("pass")),
 		claimOf("INV-04", "manual: read the invoice"),
 		claimOf("INV-05", "none"),
 		claimOf("INV-06", "test: definitely-not-a-command-xyz"),
@@ -155,7 +155,7 @@ func TestCheckGivesEveryKindOfVerdict(t *testing.T) {
 
 func TestCheckExitsZeroWhenNothingIsViolated(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+cmd("pass")), claimOf("INV-02", "none")))
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass")), claimOf("INV-02", "none")))
 	p.write("billing/total_test.go", "// INV-01\n")
 	if code, out, _ := p.delta("", "check"); code != 0 {
 		t.Fatalf("exit %d with nothing violated\n%s", code, out)
@@ -164,8 +164,8 @@ func TestCheckExitsZeroWhenNothingIsViolated(t *testing.T) {
 
 func TestACitationOnlyCountsUnderTheCommandsPaths(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+cmd("pass", "./billing"))))
-	p.write("deltas/payments.spec.md", spec("payments", claimOf("INV-01", "test: "+cmd("pass", "./payments"))))
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("deltas/payments.spec.md", spec("payments", claimOf("INV-01", "test: "+command("pass", "./payments"))))
 	p.write("billing/total_test.go", "// INV-01\n")
 	p.write("payments/pay_test.go", "// nothing cited\n")
 
@@ -185,7 +185,7 @@ func TestLinkThenCheckClosesTheLoop(t *testing.T) {
 	if code, _, _ := p.delta("", "check"); code != 0 {
 		t.Fatal("a spec with only a none claim must check clean")
 	}
-	if code, out, errOut := p.delta("", "link", "billing", "INV-01", cmd("pass")); code != 0 {
+	if code, out, errOut := p.delta("", "link", "billing", "INV-01", command("pass")); code != 0 {
 		t.Fatalf("link = %d %q %q", code, out, errOut)
 	}
 	if !strings.Contains(p.read("deltas/billing.spec.md"), "- INV-01 [test: ") {
@@ -195,14 +195,14 @@ func TestLinkThenCheckClosesTheLoop(t *testing.T) {
 	if code != 0 || verdict(out, "billing", "INV-01") != "Holds" {
 		t.Fatalf("after link: exit %d\n%s", code, out)
 	}
-	if code, _, _ := p.delta("", "link", "billing", "INV-09", cmd("pass")); code != 2 {
+	if code, _, _ := p.delta("", "link", "billing", "INV-09", command("pass")); code != 2 {
 		t.Fatalf("linking an unknown claim = %d, want 2", code)
 	}
 }
 
 func TestLint(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+cmd("pass"))))
+	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	code, _, errOut := p.delta("", "lint")
 	if code != 1 || !strings.Contains(errOut, "LINT-NO-CITE") {
 		t.Fatalf("an uncited test claim = %d %q, want 1 and LINT-NO-CITE", code, errOut)
