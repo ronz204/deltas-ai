@@ -1,0 +1,5 @@
+{
+  "name": "compat",
+  "private": true,
+  "type": "module"
+}
