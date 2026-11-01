@@ -35,3 +35,39 @@ func TestInitTakesNoArguments(t *testing.T) {
 		t.Fatal("init accepted an argument")
 	}
 }
+
+func healthyProject() *memory {
+	m := newMemory()
+	m.project[".githooks/commit-msg"] = []byte("#!/bin/sh\n")
+	m.hooksDir = ".githooks"
+	m.onPath, m.self = "/usr/bin/delta", true
+	return m
+}
+
+func TestStatusWarnsOnStderrAboutTheSetup(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = head + claim("INV-01", "none")
+	out, errOut, err := m.run("", "status")
+	if err != nil || !strings.Contains(out, "billing") {
+		t.Fatalf("out = %q, err = %v; a warning must not fail the command", out, err)
+	}
+	for _, want := range []string{
+		"warning: git does not check commit messages yet: run delta init",
+		"warning: delta is not on the PATH, so the git hook cannot run it",
+	} {
+		if !strings.Contains(errOut, want) {
+			t.Errorf("stderr lacks %q:\n%s", want, errOut)
+		}
+	}
+	if strings.Contains(out, "warning") {
+		t.Errorf("a warning leaked into the table:\n%s", out)
+	}
+}
+
+func TestStatusIsSilentWhenDeltaIsSetUp(t *testing.T) {
+	m := healthyProject()
+	m.specs["billing"] = head + claim("INV-01", "none")
+	if _, errOut, err := m.run("", "status"); err != nil || errOut != "" {
+		t.Fatalf("stderr = %q, err = %v; want silence", errOut, err)
+	}
+}

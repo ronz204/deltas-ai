@@ -30,14 +30,50 @@ type Hooks interface {
 	GitHook(name string) ([]byte, error)
 }
 
+// Binary finds a program on the PATH and says whether it is the one running.
+type Binary interface {
+	Locate(name string) (path string, self bool)
+}
+
 type Installer struct {
 	files Files
 	git   Git
 	hooks Hooks
+	bin   Binary
 }
 
-func New(files Files, git Git, hooks Hooks) *Installer {
-	return &Installer{files: files, git: git, hooks: hooks}
+func New(files Files, git Git, hooks Hooks, bin Binary) *Installer {
+	return &Installer{files: files, git: git, hooks: hooks, bin: bin}
+}
+
+// Check lists what is wrong with how delta is installed here, one sentence each; an empty list
+// means all is well. It never fails: what it cannot read is reported as a problem too.
+func (i *Installer) Check(ctx context.Context) []string {
+	var problems []string
+	current, err := i.git.HooksPath(ctx)
+	if err != nil {
+		return []string{"could not read git's configuration: " + err.Error()}
+	}
+	_, err = i.files.ReadFile(ctx, hookPath)
+	missing := errors.Is(err, fs.ErrNotExist)
+	pointed := strings.TrimPrefix(current, "./") == hooksDir
+	switch {
+	case current == "" && missing:
+		problems = append(problems, "git does not check commit messages yet: run delta init")
+	case current == "":
+		problems = append(problems, "core.hooksPath is not set, so git ignores "+hookPath+": run delta init")
+	case pointed && missing:
+		problems = append(problems, hookPath+" is missing: run delta init")
+	case !pointed:
+		problems = append(problems, fmt.Sprintf("core.hooksPath is %s, so %s does not run on its own", current, hookPath))
+	}
+	switch path, self := i.bin.Locate("delta"); {
+	case path == "":
+		problems = append(problems, "delta is not on the PATH, so the git hook cannot run it")
+	case !self:
+		problems = append(problems, fmt.Sprintf("the delta on the PATH (%s) is not this program, so the git hook would run it instead", path))
+	}
+	return problems
 }
 
 // Step says what was done, or why something was left as it was.

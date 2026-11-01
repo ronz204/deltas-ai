@@ -13,9 +13,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
+	"github.com/ronz204/deltas-ai/source/usecase/measure"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
@@ -37,6 +39,9 @@ type memory struct {
 	exits    map[string]int
 	project  map[string][]byte // files read and written by path, like the git hook
 	hooksDir string
+	kb       []budget.File // what the always-loaded files are
+	onPath   string        // where the delta on the PATH is; empty means none
+	self     bool
 }
 
 func newMemory() *memory {
@@ -44,6 +49,10 @@ func newMemory() *memory {
 }
 
 func (m *memory) GitHook(string) ([]byte, error) { return []byte("#!/bin/sh\n"), nil }
+
+func (m *memory) Locate(string) (string, bool) { return m.onPath, m.self }
+
+func (m *memory) Glob(context.Context, []string) ([]budget.File, error) { return m.kb, nil }
 
 func (m *memory) ReadFile(_ context.Context, rel string) ([]byte, error) {
 	if b, ok := m.project[rel]; ok {
@@ -93,12 +102,14 @@ func (m *memory) TestFiles(context.Context) ([]linkcheck.File, error) { return m
 func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
 
 func (m *memory) run(stdin string, args ...string) (out, errOut string, err error) {
+	installer := setup.New(m, m, m, m)
 	cmd := New(Deps{
 		Author:    author.New(m, m),
 		Checker:   verify.New(m, m, m),
 		Report:    status.New(m),
-		Guard:     guard.New(root, status.New(m)),
-		Installer: setup.New(m, m, m),
+		Guard:     guard.New(root, status.New(m), installer),
+		Installer: installer,
+		Meter:     measure.New(m),
 	})
 	var o, e bytes.Buffer
 	cmd.SetArgs(args)

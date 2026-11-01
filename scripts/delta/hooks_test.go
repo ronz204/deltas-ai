@@ -200,3 +200,18 @@ func TestTheHookLetsACommitThroughWhenDeltaIsMissing(t *testing.T) {
 		t.Fatalf("err = %v, stderr = %q; want exit 0 with a warning", err, stderr.String())
 	}
 }
+
+func TestStatusWarnsUntilInitHasRun(t *testing.T) {
+	p := gitProject(t)
+	_, _, errOut := p.delta("", "status")
+	if !strings.Contains(errOut, "warning: git does not check commit messages yet: run delta init") {
+		t.Fatalf("before init: stderr = %q", errOut)
+	}
+	if code, _, e := p.delta("", "init"); code != 0 {
+		t.Fatalf("init = %d %q", code, e)
+	}
+	_, _, errOut = p.delta("", "status")
+	if strings.Contains(errOut, "commit messages") || strings.Contains(errOut, "core.hooksPath") {
+		t.Fatalf("after init the hook warnings should be gone: %q", errOut)
+	}
+}

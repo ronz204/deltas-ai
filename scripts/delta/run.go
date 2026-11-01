@@ -14,6 +14,7 @@ import (
 	"github.com/ronz204/deltas-ai/source/gateway/vaults"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
+	"github.com/ronz204/deltas-ai/source/usecase/measure"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
@@ -28,12 +29,15 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	root := vaults.FindRoot(cwd)
 	vault := vaults.New(root)
 	report := status.New(vault)
+	programs := runner.New(root, commandTimeout, errOut)
+	installer := setup.New(vault, gitcli.New(root), bundle.Bundle{}, programs)
 	app := cmd.New(cmd.Deps{
 		Author:    author.New(vault, bundle.Bundle{}),
-		Checker:   verify.New(vault, vault, runner.New(root, commandTimeout, errOut)),
+		Checker:   verify.New(vault, vault, programs),
 		Report:    report,
-		Guard:     guard.New(root, report),
-		Installer: setup.New(vault, gitcli.New(root), bundle.Bundle{}),
+		Guard:     guard.New(root, report, installer),
+		Installer: installer,
+		Meter:     measure.New(vault),
 	})
 	app.SetArgs(args)
 	app.SetIn(in)

@@ -27,12 +27,21 @@ type Decision struct {
 	Context string // facts Claude gets at the start of a session
 }
 
+// Health lists what is wrong with how delta is installed in the project.
+type Health interface {
+	Check(ctx context.Context) []string
+}
+
 type Guard struct {
 	root   string
 	slices *status.Reporter
+	health Health
 }
 
-func New(root string, slices *status.Reporter) *Guard { return &Guard{root: root, slices: slices} }
+// New builds the guard of the project at root. health may be nil, and then no setup problem is reported.
+func New(root string, slices *status.Reporter, health Health) *Guard {
+	return &Guard{root: root, slices: slices, health: health}
+}
 
 var fileTools = map[string]bool{"Write": true, "Edit": true}
 
@@ -89,11 +98,20 @@ func (g *Guard) relative(path string) (string, bool) {
 
 func (g *Guard) start(ctx context.Context) (Decision, error) {
 	rows, err := g.slices.Report(ctx)
-	if err != nil || len(rows) == 0 {
+	if err != nil {
 		return Decision{}, err
 	}
+	var problems []string
+	if g.health != nil {
+		problems = g.health.Check(ctx)
+	}
+	if len(rows) == 0 && len(problems) == 0 {
+		return Decision{}, nil
+	}
 	var b strings.Builder
-	b.WriteString("Delta slices:\n")
+	if len(rows) > 0 {
+		b.WriteString("Delta slices:\n")
+	}
 	for _, r := range rows {
 		state := string(r.Status)
 		if state == "" {
@@ -104,6 +122,12 @@ func (g *Guard) start(ctx context.Context) (Decision, error) {
 			fmt.Fprintf(&b, ", %d problems in its spec", r.Issues)
 		}
 		b.WriteByte('\n')
+	}
+	if len(problems) > 0 {
+		b.WriteString("Delta setup problems:\n")
+		for _, p := range problems {
+			b.WriteString("- " + p + "\n")
+		}
 	}
 	b.WriteString("The knowledge base is not edited directly: specs are written with delta spec write and tests are linked with delta link.")
 	return Decision{Context: b.String()}, nil

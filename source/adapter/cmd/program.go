@@ -11,6 +11,7 @@ import (
 	"github.com/ronz204/deltas-ai/source/domain/findings"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
+	"github.com/ronz204/deltas-ai/source/usecase/measure"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
@@ -30,6 +31,7 @@ type Deps struct {
 	Report    *status.Reporter
 	Guard     *guard.Guard
 	Installer *setup.Installer
+	Meter     *measure.Meter
 }
 
 // New builds the delta command. Findings go to stderr and results to stdout.
@@ -41,7 +43,7 @@ func New(d Deps) *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
-	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd(), installCmd(d), guardsCmd(d))
+	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd(), installCmd(d), guardsCmd(d), budgetCmd(d))
 	return root
 }
 

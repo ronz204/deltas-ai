@@ -17,6 +17,8 @@ type world struct {
 	hooksDir string
 	notARepo bool
 	writes   int
+	onPath   string
+	self     bool
 }
 
 func newWorld() *world {
@@ -45,6 +47,8 @@ func (w *world) WriteFile(_ context.Context, rel string, content []byte, perm fs
 	return nil
 }
 
+func (w *world) Locate(string) (string, bool) { return w.onPath, w.self }
+
 func (w *world) HooksPath(context.Context) (string, error) { return w.hooksDir, nil }
 
 func (w *world) SetHooksPath(_ context.Context, path string) error {
@@ -55,7 +59,7 @@ func (w *world) SetHooksPath(_ context.Context, path string) error {
 	return nil
 }
 
-func installer(w *world) *Installer { return New(w, w, w) }
+func installer(w *world) *Installer { return New(w, w, w, w) }
 
 func TestAFreshProjectGetsTheHookAndThePath(t *testing.T) {
 	w := newWorld()
@@ -130,3 +134,65 @@ func TestNothingIsWrittenOutsideAGitRepository(t *testing.T) {
 		t.Fatalf("files were left behind: %v", w.files)
 	}
 }
+
+func healthy() *world {
+	w := newWorld()
+	w.files[".githooks/commit-msg"] = []byte(hook)
+	w.hooksDir = ".githooks"
+	w.onPath, w.self = "/usr/bin/delta", true
+	return w
+}
+
+func TestAHealthyInstallationHasNothingToReport(t *testing.T) {
+	if got := installer(healthy()).Check(ctx); len(got) != 0 {
+		t.Fatalf("Check = %v, want nothing", got)
+	}
+}
+
+func TestCheckExplainsEachWayTheHookCanBeMissing(t *testing.T) {
+	cases := []struct {
+		name  string
+		tweak func(*world)
+		want  string
+	}{
+		{"nothing installed", func(w *world) { w.hooksDir = ""; delete(w.files, ".githooks/commit-msg") }, "git does not check commit messages yet: run delta init"},
+		{"hook present but git not pointed at it", func(w *world) { w.hooksDir = "" }, "core.hooksPath is not set, so git ignores .githooks/commit-msg: run delta init"},
+		{"pointed but the hook is gone", func(w *world) { delete(w.files, ".githooks/commit-msg") }, ".githooks/commit-msg is missing: run delta init"},
+		{"git points somewhere else", func(w *world) { w.hooksDir = ".husky" }, "core.hooksPath is .husky, so .githooks/commit-msg does not run on its own"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := healthy()
+			c.tweak(w)
+			got := installer(w).Check(ctx)
+			if len(got) != 1 || got[0] != c.want {
+				t.Fatalf("Check = %q, want [%q]", got, c.want)
+			}
+		})
+	}
+}
+
+func TestCheckWarnsWhenDeltaIsNotTheOneOnThePath(t *testing.T) {
+	w := healthy()
+	w.onPath = ""
+	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "delta is not on the PATH, so the git hook cannot run it" {
+		t.Fatalf("not on the path: %q", got)
+	}
+	w.onPath, w.self = "/opt/git-delta/delta", false
+	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "the delta on the PATH (/opt/git-delta/delta) is not this program, so the git hook would run it instead" {
+		t.Fatalf("another program: %q", got)
+	}
+}
+
+func TestCheckReportsWhatItCannotReadInsteadOfFailing(t *testing.T) {
+	w := healthy()
+	got := New(w, brokenGit{}, w, w).Check(ctx)
+	if len(got) != 1 || got[0] != "could not read git's configuration: no git" {
+		t.Fatalf("Check = %q", got)
+	}
+}
+
+type brokenGit struct{}
+
+func (brokenGit) HooksPath(context.Context) (string, error)  { return "", errors.New("no git") }
+func (brokenGit) SetHooksPath(context.Context, string) error { return errors.New("no git") }

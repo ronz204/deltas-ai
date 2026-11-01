@@ -35,7 +35,7 @@ func (s specs) Load(_ context.Context, slice string) ([]byte, error) {
 func newGuard(t *testing.T, s specs) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(s)), root
+	return New(root, status.New(s), nil), root
 }
 
 func TestFileToolsCannotEditTheKnowledgeBase(t *testing.T) {
@@ -124,5 +124,38 @@ func TestSessionStartSaysNothingWithoutSlices(t *testing.T) {
 	g, _ := newGuard(t, nil)
 	if d, err := g.Decide(ctx, Event{Name: "SessionStart"}); err != nil || d.Context != "" || d.Block {
 		t.Fatalf("%+v, %v", d, err)
+	}
+}
+
+type health []string
+
+func (h health) Check(context.Context) []string { return h }
+
+func TestSessionStartAddsTheSetupProblems(t *testing.T) {
+	root := t.TempDir()
+	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}), health{"git does not check commit messages yet: run delta init"})
+	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"- billing: approved", "Delta setup problems:", "- git does not check commit messages yet: run delta init"} {
+		if !strings.Contains(d.Context, want) {
+			t.Errorf("the context lacks %q:\n%s", want, d.Context)
+		}
+	}
+}
+
+func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
+	g := New(t.TempDir(), status.New(specs{}), health{"delta is not on the PATH, so the git hook cannot run it"})
+	d, _ := g.Decide(ctx, Event{Name: "SessionStart"})
+	if strings.Contains(d.Context, "Delta slices:") || !strings.Contains(d.Context, "delta is not on the PATH") {
+		t.Fatalf("context = %q, want the problem and no slice list", d.Context)
+	}
+}
+
+func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
+	g := New(t.TempDir(), status.New(specs{}), health{})
+	if d, _ := g.Decide(ctx, Event{Name: "SessionStart"}); d.Context != "" {
+		t.Fatalf("context = %q, want none", d.Context)
 	}
 }
