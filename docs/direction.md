@@ -163,8 +163,8 @@ Notas de diseño:
 | `SessionStart` | Inyecta el router mínimo y el resultado de `delta status` (qué slices están `stale` o sin verificar). Avisa si `core.hooksPath` no apunta a `.githooks` o si `delta` no está en el PATH |
 | `PreToolUse` (Write/Edit sobre la KB) | Bloquea la edición directa de specs y docs por parte del agente (exit **2**, no 1). La persona sí puede editar a mano |
 | `PreToolUse` (Bash con `git commit`) | Valida el mensaje con `delta commit-msg` y bloquea con exit **2** si no cumple. Es la capa que protege los commits del agente |
-| `PostToolUse` (Write/Edit sobre código) | Los linters de lenguaje los maneja cada proyecto, no Delta. Llamará `delta stale` (Fase 5); falta decidir si corre `delta lint` |
-| `Stop` | Exige evidencia de que `delta check` corrió sobre el estado actual del árbol (regla de honestidad): compara la huella del árbol con la que `delta check` anotó, y bloquea una sola vez. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
+| `PostToolUse` (Write/Edit sobre un archivo de test) | Corre `delta lint` y le cuenta a Claude los problemas de ese archivo (un `skip`, un ID desconocido). Los linters de lenguaje los maneja cada proyecto, no Delta. En la Fase 5 llamará además `delta stale` |
+| `Stop` | Exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol (regla de honestidad): compara la huella de esa parte del árbol con la que `delta check` anotó, y bloquea una sola vez. Los documentos y el código de otros slices no cuentan. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
 
 Estos hooks viven en `.claude/settings.json`, que se versiona: **quien clone el repo los tiene sin configurar nada.**
 
@@ -463,7 +463,7 @@ Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los
 - Suite de compatibilidad de `delta check`: proyectos mínimos reales (Go y TypeScript) con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`, para comprobar que los resultados son los de 6.5.
 
 **Fase 2: hooks**
-- `PreToolUse` que protege la KB, `PreToolUse` sobre `git commit`, `.githooks/commit-msg` con `core.hooksPath` fijado por `delta init`, aviso de `SessionStart` si falta, `delta commit-msg` en CI, `budget` como gate, `Stop` que exige evidencia sobre el árbol actual, y el hook `commit-msg` que comprueba que `delta` sea este programa. `PostToolUse` queda por decidir.
+- `PreToolUse` que protege la KB, `PreToolUse` sobre `git commit`, `.githooks/commit-msg` con `core.hooksPath` fijado por `delta init`, aviso de `SessionStart` si falta, `delta commit-msg` en CI, `budget` como gate, `PostToolUse` que corre `delta lint` sobre los tests que Claude escribe, `Stop` que exige evidencia sobre lo que cada slice mira del árbol, y el hook `commit-msg` que comprueba que `delta` sea este programa.
 
 **Fase 3: estados y Forge**
 - Máquina de estados, `approve`, entrada explícita para Forge (`/forge`), `delta link` desde Forge. Es prerrequisito de las reglas de generación.

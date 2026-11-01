@@ -43,11 +43,13 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
 | 13 | Archivos de código de `domain` y de `adapter/cmd` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
-| 14 | Los linters de lenguaje los maneja cada proyecto; `PostToolUse` no corre ninguno | Decidido |
+| 14 | Los linters de lenguaje los maneja cada proyecto. `PostToolUse` no corre ninguno: corre `delta lint` cuando Claude escribe un archivo de test, y le cuenta solo los problemas de ese archivo | Decidido, hecho (sección 8.5) |
 | 15 | El binario conserva el nombre `delta`; el hook `commit-msg` comprueba la primera línea de `delta version` antes de ejecutarlo | Decidido, hecho |
-| 16 | `Stop` exige un `delta check` sobre el estado actual del árbol; la marca vive en la caché del usuario, no en el proyecto ni en `.git` | Decidido, hecho (sección 8.7) |
-| 17 | `delta.conf` en la raíz, claves planas, que absorbe a `budget.conf` (sección 16) | Decidido el diseño, por implementar |
+| 16 | `Stop` exige un `delta check` sobre lo que cada slice mira del árbol; la marca vive en la caché del usuario, no en el proyecto ni en `.git` | Decidido, hecho (sección 8.7) |
+| 17 | `delta.conf` en la raíz, claves planas, que absorbe a `budget.conf` y trae los patrones de archivos de test (sección 16) | Decidido el diseño, por implementar |
 | 18 | Varios `deltas/` por proyecto: descubrimiento con `git ls-files` y comandos desde la carpeta de cada scope (sección 16) | Decidido el diseño, por implementar |
+| 19 | `deltas/` y `.spec.md` son el formato del producto y quedan fijos; lo que ata a un lenguaje (qué es un archivo de test) se configura | Decidido |
+| 20 | Los hooks de `settings.json` tienen un límite de 20 s | Decidido, hecho |
 
 ---
 
@@ -154,7 +156,7 @@ type Runner interface {
 | `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool` |
 | `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome`; `Mark` (el árbol que vio un `delta check` y si hubo violación) y `Mark.At(tree)`, que dice si es `Unchecked`, `Failing` o `Passing` para el árbol de ahora |
 | `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
-| `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs |
+| `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs. `Scope`/`ScopeOf` es la parte del proyecto de la que depende un slice: las rutas que nombran sus comandos más su propio spec; el Markdown no cuenta |
 | `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
 | `knowledge` | Qué archivos son de la KB | `Covers(path) bool` |
 | `budget` | Presupuesto de contexto | `Measure(files, ceilings) Report` pesa el router, las reglas sin `paths:` y las descripciones de skills y agentes; `Report.Findings()` nombra cada techo superado; `ParseCeilings` lee `budget.conf` |
@@ -185,7 +187,7 @@ Observaciones:
 |---|---|---|
 | `vaults` | Lee y escribe la KB y los archivos del proyecto | Escritura atómica: archivo temporal en la misma carpeta y renombrado. Conserva LF. Localiza la raíz del repo. Ningún camino sale del proyecto |
 | `runner` | Ejecuta comandos | `os/exec` con `context` y timeout. Parte el comando en argumentos sin expandir variables. *Shortcut: sin shell, no admite pipes ni redirecciones; si hacen falta, se escribe un programa* |
-| `gitcli` | Llama a `git` | Leer y fijar `core.hooksPath`, y `Tree`: la huella del árbol de trabajo (sección 8.7). Se usa el binario de git, no una librería |
+| `gitcli` | Llama a `git` | Leer y fijar `core.hooksPath`, y `Tree(scope)`: la huella de la parte del árbol de trabajo que cubre un `Scope` (sección 8.7). Se usa el binario de git, no una librería |
 | `ledger` | Recuerda qué árbol revisó cada `delta check` | Un archivo JSON por proyecto en `os.UserCacheDir()/delta/`, con la ruta de la raíz como clave. Si falta o se daña, `Stop` pide un nuevo `delta check`; nunca falla un comando |
 | `bundle` | Entrega el harness | Envuelve el `embed.FS` de `source/harness/` y sabe a qué ruta del proyecto va cada archivo |
 
@@ -293,6 +295,7 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 - **Configuración:** `hooks.<Evento>` es una lista de grupos `{ matcher, hooks: [{ type: "command", command, timeout }] }`. El `matcher` es una lista exacta separada por `|` (`Write|Edit`); cualquier otro carácter lo convierte en una expresión regular.
 - **Entrada por stdin:** `hook_event_name`, `cwd`, `session_id`, `transcript_path` y `permission_mode`, más `tool_name` y `tool_input` en los eventos de herramienta (`command` en Bash; `file_path` absoluto en Write y Edit). `PostToolUse` añade `tool_response`; `Stop`, `stop_hook_active` y `last_assistant_message`; `SessionStart`, `source`.
 - **Salida:** exit **2** bloquea (en `PreToolUse` la acción no ocurre y el stderr llega a Claude; en `Stop` impide parar). Cualquier otro código, incluido el 1 y el 127 de "comando no encontrado", **no bloquea**. En `SessionStart`, el stdout con exit 0 se suma al contexto de Claude.
+- **`PostToolUse`:** el exit 2 no bloquea nada (la herramienta ya corrió) pero el stderr llega a Claude; con exit 0 Claude no ve ni el stdout ni el stderr. Verificado el 1 de noviembre de 2026 en la misma página.
 - **`Stop`:** `stop_hook_active` es verdadero cuando Claude ya continúa por un hook de parada; hay que mirarlo para no bloquear algo que nunca se resolverá, y Claude Code corta tras 8 continuaciones seguidas.
 
 | Evento | Qué hace hoy |
@@ -300,10 +303,11 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 | `SessionStart` | Imprime el resumen de los slices (estado y claims por tag), los problemas de instalación (`setup.Check`) y el hecho de que la KB no se edita directo |
 | `PreToolUse` con `Write` o `Edit` | Bloquea (2) si el archivo es de la KB (`knowledge.Covers`); una persona sí puede editarla a mano |
 | `PreToolUse` con `Bash` | Si la línea es un `git commit` con un mensaje legible (`commits.FromCommand`), lo valida y bloquea (2) si no cumple |
-| `PostToolUse` | Sin decisión: los linters de lenguaje son del proyecto. Falta decidir si corre `delta lint` tras editar un test o un spec (sección 16) |
-| `Stop` | Bloquea (2), una sola vez, si hay cambios en el árbol y algún slice con claims `test` no tiene un `delta check` sobre ellos, o lo tiene con violaciones (sección 8.7) |
+| `PostToolUse` con `Write` o `Edit` | Si el archivo es de test (`linkcheck.IsTestFile`), corre `delta lint` y le cuenta a Claude (exit 2: la herramienta ya corrió, pero Claude sí ve el stderr) los problemas de **ese** archivo. Los de otros archivos no se dicen: un claim sin test aún es normal mientras se escriben los tests |
+| `Stop` | Bloquea (2), una sola vez, si hay cambios en lo que un slice con claims `test` mira del árbol y no hay un `delta check` sobre ellos, o lo hay con violaciones (sección 8.7) |
 
 **Decisiones y límites:**
+- Todos los hooks de `settings.json` llevan `timeout: 20` (segundos): `PostToolUse` lee todos los archivos de test y `Stop` hace una pasada de git por slice. El valor por defecto de Claude Code sería de 600.
 - Un fallo propio (JSON ilegible, error de disco) sale con **1**, nunca con 2: un delta roto no debe bloquear al agente. Si `delta` no está instalado, el shell sale con 127, que tampoco bloquea.
 - `Write` y `Edit` son las únicas herramientas de archivo cubiertas, porque son las dos cuyo `file_path` confirmé. `MultiEdit` y `NotebookEdit` no se cubren hasta ver sus campos.
 - *Shortcut: el hook ve la línea de comando, no sus efectos; un `sed -i` o un `cat >` sobre un spec desde Bash no se detecta.*
@@ -330,16 +334,20 @@ Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún tech
 
 `Stop` quiere saber si el agente corrió `delta check` sobre lo que cambió. Cada hook es un proceso nuevo sin memoria, así que `delta check` deja una marca y `Stop` la lee.
 
-1. **Huella del árbol** (`gitcli.Tree`). Un hash de `HEAD` más el contenido de cada archivo que difiere de `HEAD` (incluido lo preparado y lo borrado) o que no está seguido ni ignorado. No sabe de lenguajes ni de tests, y vuelve al mismo valor si se revierte una edición. Con el árbol limpio (por ejemplo tras un commit) no hay huella y no hay nada que probar.
-2. **Marca** (`ledger.Record`). Al terminar, `delta check` anota por slice revisado la huella y si hubo un `Violated`. Se calcula después de correr los comandos, para incluir lo que ellos generen.
-3. **Decisión** (`guard`, evento `Stop`). Se mira solo a los slices con claims `test` y sin problemas en su spec. Si el árbol tiene cambios, `judgment.Mark.At` dice por slice: `Unchecked` (pide `delta check`), `Failing` (pide arreglar o avisar a la persona) o `Passing` (deja pasar).
-4. **Una sola vez.** Si `stop_hook_active` es verdadero, deja terminar sin mirar nada: así no hay bucles ni se llega al tope de 8 continuaciones. Un fallo propio sale con 1 y no bloquea.
+1. **Alcance de un slice** (`linkcheck.ScopeOf`). Lo que el slice mira: las rutas que nombran los comandos de sus claims `test` (las mismas con que `Holds` acepta una cita) más su propio spec. Si algún comando no nombra ruta, o nombra `.`, el alcance es todo el proyecto. El Markdown no cuenta, salvo el spec del slice: documentación no cambia si el código cumple el contrato.
+2. **Huella** (`gitcli.Tree(scope)`). Un hash de `HEAD` más el contenido de cada archivo del alcance que difiere de `HEAD` (incluido lo preparado y lo borrado) o que no está seguido ni ignorado. No sabe de lenguajes, y vuelve al mismo valor si se revierte una edición. Si nada del alcance cambió (por ejemplo tras un commit) no hay huella y no hay nada que probar.
+3. **Marca** (`ledger.Record`). Al terminar, `delta check` anota por slice revisado la huella de su alcance y si hubo un `Violated`. Se calcula después de correr los comandos, para incluir lo que ellos generen.
+4. **Decisión** (`guard`, evento `Stop`). Se mira solo a los slices con claims `test` y sin problemas en su spec. Para cada uno, `ledger.Standings` dice: `Passing` (nada de su alcance cambió, o una marca lo cubre), `Unchecked` (pide `delta check`) o `Failing` (pide arreglar o avisar a la persona).
+5. **Una sola vez.** Si `stop_hook_active` es verdadero, deja terminar sin mirar nada: así no hay bucles ni se llega al tope de 8 continuaciones. Un fallo propio sale con 1 y no bloquea.
 
 **Dónde vive la marca.** En `os.UserCacheDir()/delta/<hash de la ruta del repo>.json`: fuera del proyecto y de `.git`, nada que ignorar ni versionar. Perderla solo cuesta un `delta check` más. Un fallo al escribirla no cambia el resultado del check.
 
+**Qué evita.** Cambiar un README, o el código de otro slice cuando los comandos nombran rutas, no pide un nuevo `delta check`. Con `go test ./...` o `npm test` el alcance es todo el código, así que ahí solo se salvan los documentos.
+
 **Límites.**
-- *Shortcut: la huella cubre todo el árbol, así que un cambio ajeno al spec (un README) también pide un nuevo `delta check` una vez. Se afina por scope cuando existan varios `deltas/`.*
-- *Shortcut: `Tree` lee cada archivo cambiado; un binario grande sin seguir lo vuelve lento. Se afina con tamaño y fecha.*
+- *Shortcut: el código al que un comando llega sin nombrarlo (un paquete compartido) queda fuera del alcance de ese slice; si cambia, `Stop` no lo nota. Se afina con una lista de rutas extra por slice en `delta.conf`.*
+- *Shortcut: hay una pasada de git por slice, y `Tree` lee cada archivo cambiado del alcance; un binario grande sin seguir lo vuelve lento. Se afina calculando los cambios una vez y hasheando tamaño y fecha.*
+- *Shortcut: "documentación" es el Markdown; se afina con patrones de ignorado en `delta.conf`.*
 - Prueba que `delta check` corrió sobre este estado, no que el test se ejecutó: es el mismo límite que `Holds`.
 - Dos árboles de trabajo del mismo repo en rutas distintas llevan marcas separadas.
 
@@ -475,14 +483,19 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 
 **Abiertos**
 
-1. **Qué convenciones son fijas.** Hoy están en el código `deltas/`, `.spec.md`, los patrones de nombre de un test (`*_test.go`, `*.test.*`, una lista de extensiones de script), `.claude/` y `.githooks/`. El núcleo (`spec`, `lint`, `check`, `status`, `commit-msg`) no depende de `.claude/`; solo `budget` y `hook`, que son el adaptador de Claude Code. *Propuesta:* dejar `deltas/` y `.spec.md` fijos (son el formato del producto, y que sean iguales en todos los proyectos permite funcionar sin configurar nada) y hacer configurable en `delta.conf` lo que ata a un lenguaje: los patrones de archivos de test, con los actuales por defecto. Falta que Roney confirme qué es lo que no le gusta.
-2. **`PostToolUse`.** Los linters de lenguaje son del proyecto (decidido). Falta decidir si, tras editar un test o un spec, corre `delta lint`: es barato y no necesita configuración.
-3. **Quién dispara `approved → built` y `built → verified`.** *Aprobado para la Fase 3:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando.
-4. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. *Espera a la Fase 3:* un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado.
+1. **Quién dispara `approved → built` y `built → verified`.** *Aprobado para la Fase 3:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando.
+2. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. *Espera a la Fase 3:* un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado.
 
 **Decididos, por implementar**
 
-- **`delta.conf`.** Un archivo plano en la raíz, `clave=valor` (el formato de `budget.conf`), que absorbe a `budget.conf`. Para empezar: el tiempo límite de los comandos, los techos del presupuesto, una lista de herramientas requeridas que `delta status` verifica y, opcionalmente, la carpeta de ejecución de cada scope. Sin plantillas de comando con `{id}` o `{paths}`: el filtro de un test cambia entre runners (`-run` en Go, `-t` en jest) y la regla de que el comando nombre sus rutas se rompería. Se añade una clave solo cuando una necesidad real la pida.
+- **`delta.conf`.** Un archivo plano en la raíz, `clave=valor` (el formato de `budget.conf`), que absorbe a `budget.conf`. Para empezar:
+  - `test_files`: los patrones de nombre de un archivo de test. Hoy están en el código (`*_test.go`, `test_*.py`, `*.test.*`, `*.spec.*` sobre una lista de extensiones de script); pasan a ser el valor por defecto, para que un proyecto en Rust, Java u otro con su propia convención pueda citar IDs.
+  - el tiempo límite de los comandos,
+  - los techos del presupuesto,
+  - una lista de herramientas requeridas que `delta status` verifica,
+  - opcionalmente, la carpeta de ejecución de cada scope.
+
+  Sin plantillas de comando con `{id}` o `{paths}`: el filtro de un test cambia entre runners (`-run` en Go, `-t` en jest) y la regla de que el comando nombre sus rutas se rompería. Se añade una clave solo cuando una necesidad real la pida. `deltas/` y `.spec.md` **no** se configuran: son el formato del producto, y que sean iguales en todos los proyectos es lo que permite funcionar sin configurar nada. `.claude/` es del adaptador de Claude Code, no del núcleo: solo `budget` y `hook` lo conocen.
 - **Varios `deltas/`.**
   - *Descubrimiento:* `git ls-files '*.spec.md'` (respeta `.gitignore` y no recorre `node_modules`). Cada carpeta que contiene un `deltas/` es un scope.
   - *Nombres:* con un solo `deltas/` en la raíz el slice sigue siendo `invoicing`. Con varios es `billing/invoicing`, y el prefijo solo se exige si el nombre se repite.
@@ -497,4 +510,5 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 - **Códigos de diagnóstico.** No es una decisión sino una práctica: ya existen `SPEC-*`, `LINT-*`, `COMMIT-*`, `BUDGET-*` y `CHECK-RECORD`, y cada comando nuevo añade los suyos (sección 7.3).
 - **`Kind` y `TagKind` en `assertion`.** `TagKind` pasó a llamarse `Method` y el campo `Tag.Kind` a `Tag.Method`, para no confundirlo con `ID.Kind()` (invariante o aceptación).
 - **El nombre del binario.** Se conserva `delta`. `delta version` imprime `delta (deltas-ai) <versión>` en su primera línea, y el hook `commit-msg` la comprueba antes de ejecutar nada: si el `delta` del `PATH` es otro (git-delta), avisa y deja pasar el commit en vez de cancelarlo. `delta status` y `SessionStart` también avisan (`setup.Check`).
-- **`Stop` y la evidencia.** Sección 8.7: huella del árbol, marca en la caché del usuario y un solo bloqueo.
+- **`Stop` y la evidencia.** Sección 8.7: huella del alcance de cada slice, marca en la caché del usuario y un solo bloqueo.
+- **`PostToolUse`.** Corre `delta lint` cuando Claude escribe un archivo de test y le cuenta los problemas de ese archivo (sección 8.5). Los linters de lenguaje los maneja cada proyecto.

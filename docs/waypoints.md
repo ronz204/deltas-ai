@@ -10,13 +10,13 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 32 de 71 tareas, 45 %**
+**Avance total: 33 de 71 tareas, 46 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
-| 2 | Hooks | 🔄 En progreso | 9/16, 56 % |
+| 2 | Hooks | 🔄 En progreso | 10/16, 63 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/10, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
@@ -110,18 +110,18 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 2: hooks
 
-**Estado: 🔄 En progreso, 9/16.**
+**Estado: 🔄 En progreso, 10/16.**
 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
 **Entregables**
-- [x] `delta hook`: el adaptador que lee el JSON de un evento y decide con `usecase/guard`. *Sin argumento: el evento llega en `hook_event_name`. El formato se verificó en la documentación vigente (`blueprint.md`, §8.5). Decide `SessionStart` (resumen de slices), `PreToolUse` (la KB y `git commit`) y `Stop`; `PostToolUse` pasa sin decisión hasta su tarea.*
+- [x] `delta hook`: el adaptador que lee el JSON de un evento y decide con `usecase/guard`. *Sin argumento: el evento llega en `hook_event_name`. El formato se verificó en la documentación vigente (`blueprint.md`, §8.5). Decide `SessionStart` (resumen de slices), `PreToolUse` (la KB y `git commit`), `PostToolUse` (lint de los tests que Claude escribe) y `Stop`.*
 - [x] Hooks de Claude Code `SessionStart` y `PreToolUse` (sobre `Write|Edit` de la KB y sobre `Bash` para `git commit`), en el fragmento `source/harness/core/configs/settings.json`. Bloquean con exit **2**, no 1. *El `.claude/` de este repo no se toca hasta que `delta init` lo regenere (decisión 10 de `blueprint.md`). No usan el filtro `if`: no pude confirmar cómo evalúa comandos compuestos como `git add . && git commit`, y fallar en silencio dejaría pasar commits.*
-- [ ] Hook `PostToolUse`. *Los linters de lenguaje los maneja cada proyecto (decidido). Falta decidir si corre `delta lint` tras editar un test o un spec (`blueprint.md`, §16).*
-- [x] Hook `Stop` que exige evidencia de que `delta check` corrió sobre el estado actual del árbol. *`delta check` anota por slice la huella del árbol (`gitcli.Tree`) y si hubo violación, en la caché del usuario (`gateway/ledger`); `Stop` bloquea una sola vez si hay cambios y falta la marca o hay violaciones. Probado de extremo a extremo con un repositorio real: bloquea, `delta check`, deja pasar, un cambio, bloquea de nuevo (`blueprint.md`, §8.7).*
+- [x] Hook `PostToolUse`. *Cuando Claude escribe un archivo de test corre `delta lint` y le cuenta (exit 2, que el stderr llegue a Claude está verificado en la documentación) solo los problemas de ese archivo. Los linters de lenguaje los maneja cada proyecto. Probado con un test que salta y con un archivo que no es de test (`blueprint.md`, §8.5).*
+- [x] Hook `Stop` que exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol. *`delta check` anota por slice la huella de su alcance (las rutas de sus comandos y su spec; el Markdown no cuenta) y si hubo violación, en la caché del usuario (`gateway/ledger`); `Stop` bloquea una sola vez si cambió algo de ese alcance y falta la marca o hay violaciones. Probado de extremo a extremo con un repositorio real, incluido que un README o el código de otro slice no pidan un nuevo check (`blueprint.md`, §8.7).*
 - [x] `delta version` y un `commit-msg` que comprueba que el `delta` del `PATH` sea este programa y no git-delta. *Si no lo es, avisa y deja pasar el commit. Probado con un `delta` falso que sale con error, y la prueba falla contra el hook anterior.*
 - [x] `golangci-lint` en CI (`.golangci.yml`, trabajo `lint`). *Probado en local con la misma versión; el trabajo aún no ha corrido en GitHub.*
-- [ ] `delta.conf` en la raíz, que absorbe a `budget.conf` (`blueprint.md`, §16).
+- [ ] `delta.conf` en la raíz, que absorbe a `budget.conf` y trae los patrones de archivos de test (`blueprint.md`, §16).
 - [x] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno. *Hoy `delta init` hace solo esto; el esqueleto, el `CLAUDE.md` y la regeneración de `.claude/` siguen en su propia tarea. Si falta `delta`, el hook avisa y deja pasar el commit.*
 - [x] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`. *`setup.Check` lista: hook sin instalar, `core.hooksPath` sin fijar o apuntando a otro lado, `delta` fuera del `PATH` y un programa distinto con el mismo nombre (git-delta). `status` los imprime en stderr como `warning:` sin fallar, y `SessionStart` los suma al contexto. Que el propio binario falte solo lo ve Claude Code, como un 127 que no bloquea.*
 - [x] `delta commit-msg` en CI sobre el rango del PR. *Trabajo `commits` de `ci.yml`, solo en pull requests: recorre `base..head` sin merges y valida cada mensaje. El mismo script, extraído del YAML, se probó en local contra el historial real (pasa) y contra un repositorio con un commit malo (falla y dice cuál); el trabajo en sí aún no ha corrido en GitHub.*
