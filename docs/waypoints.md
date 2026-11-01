@@ -67,8 +67,8 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Quitar Cursor del README (no había menciones; se verificó con una búsqueda).
 - [x] Quitar Cursor del About del repo. Es un ajuste de GitHub, no un archivo, y es visible públicamente, así que lo hace Roney o se confirma el texto antes.
 - [x] Quitar la plantilla `ROADMAP.md` de la raíz (ningún skill la lee).
-- [x] Crear `sources/harness/` como copia ya renombrada de lo que hoy vive en `.claude/` (Specifier → Quill, Executor → Forge, Sentinel → Seal): carpetas, `description` y referencias cruzadas entre skills, rules y docs. `.claude/` no se toca: contiene las reglas que rigen el trabajo en este repo y se regenera desde `sources/harness/` cuando exista `delta init` (Fase 2). *`archivist` y `surveyor` van en la copia de forma transitoria hasta que el CLI los reemplace.*
-- [x] Reorganizar `sources/harness/` con `core/{configs,githooks,templates}` para los archivos de soporte (`blueprint.md`, §3 y §12). Hoy solo existe `core/configs/` (`settings.json` y `budget.conf`); `templates/` llega en la Fase 1 y `githooks/` en la Fase 2.
+- [x] Crear `source/harness/` como copia ya renombrada de lo que hoy vive en `.claude/` (Specifier → Quill, Executor → Forge, Sentinel → Seal): carpetas, `description` y referencias cruzadas entre skills, rules y docs. `.claude/` no se toca: contiene las reglas que rigen el trabajo en este repo y se regenera desde `source/harness/` cuando exista `delta init` (Fase 2). *`archivist` y `surveyor` van en la copia de forma transitoria hasta que el CLI los reemplace.*
+- [x] Reorganizar `source/harness/` con `core/{configs,githooks,templates}` para los archivos de soporte (`blueprint.md`, §3 y §12). Hoy solo existe `core/configs/` (`settings.json` y `budget.conf`); `templates/` llega en la Fase 1 y `githooks/` en la Fase 2.
 - [x] Poner `paths:` en las rules existentes (§7.1). *Tres ya lo tenían; se añadió a `code-lean-change`. `commit-messages` queda global a propósito: un hook la reemplaza.*
 - [x] Reescribir el README con la tesis nueva y tres roles, mencionando el preset `base` solo como efecto secundario (§7.4).
 - [x] Ampliar `.gitattributes` para fijar LF también en `*.go`, `go.mod`, `go.sum` y las carpetas de git hooks. `*.md` (incluidos los de `docs/`) ya estaba cubierto.
@@ -89,7 +89,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
 **Entregables** (§6.1, §6.4, §6.5; estructura y orden de implementación en `blueprint.md`)
-- [x] Esqueleto del proyecto Go: `go.mod` en la raíz, `scripts/`, `sources/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `sources/harness/` con su `harness.go` y `core/templates/` (spec y `CLAUDE.md`), más el test que hace cumplir la regla de dependencia entre capas. *Hoy solo existe la capa `domain`; las otras tres nacen con su primer paquete, y el test ya las cubre.*
+- [x] Esqueleto del proyecto Go: `go.mod` en la raíz, `scripts/`, `source/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `source/harness/` con su `harness.go` y `core/templates/` (spec y `CLAUDE.md`), más el test que hace cumplir la regla de dependencia entre capas. *Hoy solo existe la capa `domain`; las otras tres nacen con su primer paquete, y el test ya las cubre.*
 - [x] Formato de spec con `format: 1`, IDs por claim y tags `test: <comando>`, `manual`, `none`. *`domain/{findings,lifecycle,assertion,specfile}`, con fuzzing del parser.*
 - [x] Parser EARS y de Given/When/Then. *En `domain/assertion`; se ejecuta dentro de `specfile.Parse`.*
 - [x] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`. *Con `cobra` en `adapter/cmd`. `link` lleva el slice primero (`delta link <slice> <claim-id> <comando>`) porque los IDs solo son únicos por spec; `commit-msg` llama a `domain/commit` sin pasar por `guard`, que nace en la Fase 2.*
@@ -117,11 +117,11 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 **Entregables**
 - [ ] `delta hook <evento>`: el adaptador que lee el JSON de cada evento y decide con `usecase/guard`. Antes de escribirlo, verificar el formato real del JSON en la documentación de hooks vigente.
 - [ ] Hooks de Claude Code en `.claude/settings.json`: `SessionStart`, `PreToolUse` sobre la KB, `PreToolUse` sobre `git commit`, `PostToolUse` con el linter, `Stop` que exige evidencia de `delta check`. Todos bloquean con exit **2**, no 1.
-- [ ] `sources/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
+- [ ] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
 - [ ] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`.
 - [ ] `delta commit-msg` en CI sobre el rango del PR.
 - [ ] `delta budget` como gate.
-- [ ] `delta init` con defaults sensatos (esqueleto determinista, `CLAUDE.md` mínimo), que además regenera `.claude/` desde `sources/harness/`.
+- [ ] `delta init` con defaults sensatos (esqueleto determinista, `CLAUDE.md` mínimo), que además regenera `.claude/` desde `source/harness/`.
 
 **Cierra cuando**
 - [ ] Un commit del agente con formato inválido es bloqueado, y uno de una persona también (con el hook instalado).
@@ -142,7 +142,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [ ] `delta approve <slice>` (lo ejecuta la persona).
 - [ ] Forge con entrada explícita (`/forge <slice>`) y sin arrancar si el spec no está `approved` y limpio.
 - [ ] Forge usa `delta link` para enlazar los tests que escribe, sin editar la KB.
-- [ ] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `sources/harness/`.
+- [ ] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `source/harness/`.
 - [ ] El hook `Stop` señala el trabajo pendiente si Forge no corrió.
 
 **Cierra cuando**
