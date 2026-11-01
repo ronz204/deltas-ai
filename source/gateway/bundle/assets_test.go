@@ -1,10 +1,14 @@
 package bundle
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/conffile"
+	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 )
 
@@ -65,11 +69,21 @@ func TestClaudeMdNamesTheProject(t *testing.T) {
 	}
 }
 
-// The file init installs is read by delta itself, so it has to be one delta accepts.
-func TestTheDeltaConfThatIsInstalledHasNoProblems(t *testing.T) {
+// The delta.conf that init installs states delta's defaults, so a project starts with what delta would do
+// without the file, and the file has to be one delta accepts.
+func TestTheDeltaConfThatIsInstalledStatesTheDefaults(t *testing.T) {
 	c := conffile.Parse(string(assetsOf(t)["delta.conf"].Content))
-	if len(c.Problems) != 0 || c.Budget.Total != 3500 || c.Budget.Rule != 50 {
-		t.Fatalf("delta.conf: %+v", c)
+	if len(c.Problems) != 0 {
+		t.Fatalf("delta.conf has problems: %v", c.Problems)
+	}
+	if !reflect.DeepEqual(c.TestFiles, linkcheck.DefaultTestFiles) {
+		t.Errorf("test_files = %v, want %v", c.TestFiles, linkcheck.DefaultTestFiles)
+	}
+	if c.Timeout != 10*time.Minute || len(c.Tools) != 0 || len(c.Scopes) != 0 {
+		t.Errorf("timeout = %v, tools = %v, scopes = %v; want 10m and none", c.Timeout, c.Tools, c.Scopes)
+	}
+	if c.Budget != budget.Defaults() {
+		t.Errorf("budget = %+v, want %+v", c.Budget, budget.Defaults())
 	}
 }
 

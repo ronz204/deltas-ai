@@ -13,27 +13,21 @@ type File struct{ Path, Text string }
 
 var scriptExts = map[string]bool{".go": true, ".py": true, ".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}
 
-// IsTestFile ignores *.spec.md contracts: only script extensions count.
-func IsTestFile(p string) bool {
-	base := path.Base(p)
-	ext := path.Ext(base)
-	stem := strings.TrimSuffix(base, ext)
-	switch {
-	case ext == ".go":
-		return strings.HasSuffix(stem, "_test")
-	case ext == ".py":
-		return strings.HasPrefix(stem, "test_") || strings.HasSuffix(stem, "_test")
-	case scriptExts[ext]:
-		return strings.HasSuffix(stem, ".test") || strings.HasSuffix(stem, ".spec")
-	}
-	return false
-}
+// DefaultTestFiles is delta's own rule for what a test file is, as name patterns: the same as the test_files
+// that delta.conf installs.
+var DefaultTestFiles = []string{"*_test.go", "test_*.py", "*_test.py", "*.test.*", "*.spec.*"}
+
+var defaultMatcher = TestMatcher(nil)
+
+// IsTestFile applies DefaultTestFiles.
+func IsTestFile(p string) bool { return defaultMatcher(p) }
 
 // TestMatcher says which files are tests: those whose name matches one of the patterns (as in path.Match,
-// on the name alone), or delta's own rule when there are none. A Markdown file never is one.
+// on the name alone), or DefaultTestFiles when there are none. A Markdown file never is one, so a
+// *.spec.md contract is not.
 func TestMatcher(patterns []string) func(string) bool {
 	if len(patterns) == 0 {
-		return IsTestFile
+		patterns = DefaultTestFiles
 	}
 	return func(p string) bool {
 		base := path.Base(p)
