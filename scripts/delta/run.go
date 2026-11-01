@@ -9,8 +9,8 @@ import (
 
 	"github.com/ronz204/deltas-ai/sources/adapter/cmd"
 	"github.com/ronz204/deltas-ai/sources/gateway/bundle"
-	"github.com/ronz204/deltas-ai/sources/gateway/files"
 	"github.com/ronz204/deltas-ai/sources/gateway/runner"
+	"github.com/ronz204/deltas-ai/sources/gateway/vaults"
 	"github.com/ronz204/deltas-ai/sources/usecase/author"
 	"github.com/ronz204/deltas-ai/sources/usecase/status"
 	"github.com/ronz204/deltas-ai/sources/usecase/verify"
@@ -21,12 +21,12 @@ const commandTimeout = 10 * time.Minute
 
 // run executes one command line and returns the exit status: 0 ok, 1 problems found, 2 error.
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, cwd string) int {
-	root := files.FindRoot(cwd)
-	store := files.New(root)
+	root := vaults.FindRoot(cwd)
+	vault := vaults.New(root)
 	app := cmd.New(cmd.Deps{
-		Author:  author.New(store, bundle.Bundle{}),
-		Checker: verify.New(store, store, runner.New(root, commandTimeout, errOut)),
-		Report:  status.New(store),
+		Author:  author.New(vault, bundle.Bundle{}),
+		Checker: verify.New(vault, vault, runner.New(root, commandTimeout, errOut)),
+		Report:  status.New(vault),
 	})
 	app.SetArgs(args)
 	app.SetIn(in)

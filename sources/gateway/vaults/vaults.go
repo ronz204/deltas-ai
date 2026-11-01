@@ -1,5 +1,5 @@
-// Package files reads and writes a project's knowledge base on disk.
-package files
+// Package vaults reads and writes a project's knowledge base on disk.
+package vaults
 
 import (
 	"context"
@@ -23,9 +23,9 @@ const (
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
 
 // shortcut: contracts are read from <root>/deltas only; a repo split into services is not supported yet.
-type Store struct{ root string }
+type Vault struct{ root string }
 
-func New(root string) *Store { return &Store{root: root} }
+func New(root string) *Vault { return &Vault{root: root} }
 
 func FindRoot(start string) string {
 	for dir := start; ; {
@@ -40,17 +40,17 @@ func FindRoot(start string) string {
 	}
 }
 
-func (s *Store) Path(slice string) string { return dirName + "/" + slice + suffix }
+func (s *Vault) Path(slice string) string { return dirName + "/" + slice + suffix }
 
 // file refuses a name that could point outside deltas/.
-func (s *Store) file(slice string) (string, error) {
+func (s *Vault) file(slice string) (string, error) {
 	if !specfile.ValidSlice(slice) {
 		return "", fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens", slice)
 	}
 	return filepath.Join(s.root, dirName, slice+suffix), nil
 }
 
-func (s *Store) List(context.Context) ([]string, error) {
+func (s *Vault) List(context.Context) ([]string, error) {
 	entries, err := os.ReadDir(filepath.Join(s.root, dirName))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -67,7 +67,7 @@ func (s *Store) List(context.Context) ([]string, error) {
 	return names, nil
 }
 
-func (s *Store) Load(_ context.Context, slice string) ([]byte, error) {
+func (s *Vault) Load(_ context.Context, slice string) ([]byte, error) {
 	p, err := s.file(slice)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (s *Store) Load(_ context.Context, slice string) ([]byte, error) {
 }
 
 // shortcut: check-then-write, so two simultaneous creates could both pass; one person runs the CLI at a time.
-func (s *Store) Create(_ context.Context, slice string, content []byte) error {
+func (s *Vault) Create(_ context.Context, slice string, content []byte) error {
 	p, err := s.file(slice)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (s *Store) Create(_ context.Context, slice string, content []byte) error {
 	return writeAtomic(p, content)
 }
 
-func (s *Store) Save(_ context.Context, slice string, content []byte) error {
+func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
 	p, err := s.file(slice)
 	if err != nil {
 		return err
@@ -125,7 +125,7 @@ func writeAtomic(path string, data []byte) error {
 }
 
 // shortcut: every test file is held in memory; for a very large repo read only the files under the claims' paths.
-func (s *Store) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
+func (s *Vault) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
 	var out []linkcheck.File
 	err := filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

@@ -60,7 +60,7 @@ func TestViolation(t *testing.T) {
 		{"stdlib anywhere", "domain", "strings", false},
 		{"domain imports domain", "domain", module + "/sources/domain/assertion", false},
 		{"domain imports usecase", "domain", module + "/sources/usecase/verify", true},
-		{"domain imports gateway", "domain", module + "/sources/gateway/files", true},
+		{"domain imports gateway", "domain", module + "/sources/gateway/vaults", true},
 		{"domain imports third party", "domain", "github.com/spf13/cobra", true},
 		{"usecase imports domain", "usecase", module + "/sources/domain/specfile", false},
 		{"usecase imports gateway", "usecase", module + "/sources/gateway/runner", true},
