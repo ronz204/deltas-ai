@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/internal/domain/messages"
+	"github.com/ronz204/deltas-ai/internal/domain/commits"
 )
 
 // commitMsgCmd is what a git commit-msg hook runs: git passes the path of the message file.
@@ -19,7 +19,7 @@ func commitMsgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ds := messages.Validate(args[0], string(message))
+			ds := commits.Validate(args[0], string(message))
 			printDiags(cmd.ErrOrStderr(), ds)
 			return foundIn(ds)
 		},

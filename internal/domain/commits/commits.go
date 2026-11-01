@@ -1,5 +1,5 @@
-// Package messages checks a commit message against the project's Conventional Commits rules.
-package messages
+// Package commits checks a commit message against the project's Conventional Commits rules.
+package commits
 
 import (
 	"fmt"

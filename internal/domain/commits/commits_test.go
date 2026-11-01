@@ -1,4 +1,4 @@
-package messages
+package commits
 
 import (
 	"reflect"
