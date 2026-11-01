@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/ronz204/deltas-ai/source/adapter/cmd"
 	"github.com/ronz204/deltas-ai/source/gateway/bundle"
 	"github.com/ronz204/deltas-ai/source/gateway/gitcli"
+	"github.com/ronz204/deltas-ai/source/gateway/ledger"
 	"github.com/ronz204/deltas-ai/source/gateway/runner"
 	"github.com/ronz204/deltas-ai/source/gateway/vaults"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
@@ -30,12 +32,15 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	vault := vaults.New(root)
 	report := status.New(vault)
 	programs := runner.New(root, commandTimeout, errOut)
-	installer := setup.New(vault, gitcli.New(root), bundle.Bundle{}, programs)
+	git := gitcli.New(root)
+	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
+	checks := ledger.New(cache, root, git)
+	installer := setup.New(vault, git, bundle.Bundle{}, programs)
 	app := cmd.New(cmd.Deps{
 		Author:    author.New(vault, bundle.Bundle{}),
-		Checker:   verify.New(vault, vault, programs),
+		Checker:   verify.New(vault, vault, programs, checks),
 		Report:    report,
-		Guard:     guard.New(root, report, installer),
+		Guard:     guard.New(root, report, installer, checks),
 		Installer: installer,
 		Meter:     measure.New(vault),
 		Version:   version,

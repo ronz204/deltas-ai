@@ -3,10 +3,13 @@ package guard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
 
@@ -35,7 +38,7 @@ func (s specs) Load(_ context.Context, slice string) ([]byte, error) {
 func newGuard(t *testing.T, s specs) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(s), nil), root
+	return New(root, status.New(s), nil, nil), root
 }
 
 func TestFileToolsCannotEditTheKnowledgeBase(t *testing.T) {
@@ -133,7 +136,7 @@ func (h health) Check(context.Context) []string { return h }
 
 func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 	root := t.TempDir()
-	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}), health{"git does not check commit messages yet: run delta init"})
+	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}), health{"git does not check commit messages yet: run delta init"}, nil)
 	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +149,7 @@ func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 }
 
 func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}), health{"delta is not on the PATH, so the git hook cannot run it"})
+	g := New(t.TempDir(), status.New(specs{}), health{"delta is not on the PATH, so the git hook cannot run it"}, nil)
 	d, _ := g.Decide(ctx, Event{Name: "SessionStart"})
 	if strings.Contains(d.Context, "Delta slices:") || !strings.Contains(d.Context, "delta is not on the PATH") {
 		t.Fatalf("context = %q, want the problem and no slice list", d.Context)
@@ -154,8 +157,81 @@ func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
 }
 
 func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}), health{})
+	g := New(t.TempDir(), status.New(specs{}), health{}, nil)
 	if d, _ := g.Decide(ctx, Event{Name: "SessionStart"}); d.Context != "" {
 		t.Fatalf("context = %q, want none", d.Context)
+	}
+}
+
+type evidence struct {
+	dirty bool
+	by    map[string]judgment.Standing
+	err   error
+	asked []string
+}
+
+func (e *evidence) Standings(_ context.Context, slices []string) (bool, map[string]judgment.Standing, error) {
+	e.asked = slices
+	return e.dirty, e.by, e.err
+}
+
+const withTests = "---\nformat: 1\nslice: %s\nstatus: approved\n---\n- INV-01 [test: go test ./%s]\n  When x, y.\n"
+
+func stopGuard(t *testing.T, ev Evidence, slices ...string) *Guard {
+	t.Helper()
+	s := specs{}
+	for _, name := range slices {
+		s[name] = fmt.Sprintf(withTests, name, name)
+	}
+	return New(t.TempDir(), status.New(s), nil, ev)
+}
+
+func TestStopAsksForACheckOfEverySliceThatIsNotCheckedYet(t *testing.T) {
+	ev := &evidence{dirty: true, by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Passing}}
+	d, err := stopGuard(t, ev, "billing", "payments").Decide(ctx, Event{Name: "Stop"})
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing") || strings.Contains(d.Reason, "payments") || !strings.Contains(d.Reason, "delta check") {
+		t.Fatalf("Decide = %+v, %v; want a block that names only billing", d, err)
+	}
+	if !reflect.DeepEqual(ev.asked, []string{"billing", "payments"}) {
+		t.Fatalf("asked about %v", ev.asked)
+	}
+}
+
+func TestStopSaysWhenAClaimWasViolated(t *testing.T) {
+	ev := &evidence{dirty: true, by: map[string]judgment.Standing{"billing": judgment.Failing}}
+	d, _ := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop"})
+	if !d.Block || !strings.Contains(d.Reason, "violated") || !strings.Contains(d.Reason, "billing") {
+		t.Fatalf("Decide = %+v, want a block about violated claims", d)
+	}
+}
+
+func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
+	passing := &evidence{dirty: true, by: map[string]judgment.Standing{"billing": judgment.Passing}}
+	cases := map[string]*Guard{
+		"every slice passes":           stopGuard(t, passing, "billing"),
+		"the tree has no changes":      stopGuard(t, &evidence{dirty: false}, "billing"),
+		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"}), nil, &evidence{dirty: true}),
+		"there are no slices":          stopGuard(t, &evidence{dirty: true}),
+		"there is no evidence to read": stopGuard(t, nil, "billing"),
+	}
+	for name, g := range cases {
+		if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
+			t.Errorf("%s: Decide = %+v, %v; want it allowed", name, d, err)
+		}
+	}
+}
+
+func TestStopAsksOnlyOnce(t *testing.T) {
+	ev := &evidence{dirty: true, by: map[string]judgment.Standing{"billing": judgment.Unchecked}}
+	d, err := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop", StopActive: true})
+	if err != nil || d.Block || ev.asked != nil {
+		t.Fatalf("Decide = %+v, %v (asked %v); a Stop already continuing must be let through without a look", d, err, ev.asked)
+	}
+}
+
+func TestStopFailureIsAnErrorNotABlock(t *testing.T) {
+	ev := &evidence{err: errors.New("git is gone")}
+	if d, err := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop"}); err == nil || d.Block {
+		t.Fatalf("Decide = %+v, %v; a broken delta must not block", d, err)
 	}
 }

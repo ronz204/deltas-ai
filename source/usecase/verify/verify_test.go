@@ -65,7 +65,7 @@ const (
 
 var tests = fakeTests{{Path: "billing/total_test.go", Text: "// INV-01\n// INV-02\n"}}
 
-func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run) }
+func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil) }
 
 func TestCheckJudgesEveryKindOfClaim(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing, failing, uncited, manual, untagged)}
@@ -162,5 +162,52 @@ func TestLintReportsOnlySpecProblemsWhenThereAreAny(t *testing.T) {
 		if d.Code == linkcheck.CodeNoCite {
 			t.Fatalf("a broken project was crossed with its tests: %v", d)
 		}
+	}
+}
+
+type fakeMarks struct {
+	got map[string]bool
+	err error
+}
+
+func (f *fakeMarks) Record(_ context.Context, violated map[string]bool) error {
+	f.got = violated
+	return f.err
+}
+
+func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
+	specs := fakeSpecs{
+		"billing":  specOf("billing", passing),
+		"broken":   "no frontmatter",
+		"payments": specOf("payments", failing),
+	}
+	marks := &fakeMarks{}
+	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
+	if _, err := New(specs, tests, run, marks).Check(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
+		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
+	}
+}
+
+func TestCheckStillReportsWhenItCannotBeRemembered(t *testing.T) {
+	specs := fakeSpecs{"billing": specOf("billing", passing)}
+	rep, err := New(specs, tests, &fakeRunner{}, &fakeMarks{err: errors.New("disk full")}).Check(ctx, "")
+	if err != nil || len(rep.Results) != 1 {
+		t.Fatalf("Check = %+v, %v; the results must survive a failed record", rep, err)
+	}
+	if len(rep.Diags) != 1 || rep.Diags[0].Code != CodeRecord || !rep.Diags[0].Warn {
+		t.Fatalf("diags = %+v, want one CHECK-RECORD warning", rep.Diags)
+	}
+}
+
+func TestCheckRecordsNothingWhenNoSliceWasChecked(t *testing.T) {
+	marks := &fakeMarks{}
+	if _, err := New(fakeSpecs{"broken": "no frontmatter"}, tests, &fakeRunner{}, marks).Check(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	if marks.got != nil {
+		t.Fatalf("recorded %v for a project with nothing checked", marks.got)
 	}
 }

@@ -49,6 +49,9 @@ func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
 	if len(matchers["SessionStart"]) != 1 {
 		t.Errorf("SessionStart groups = %v, want one", matchers["SessionStart"])
 	}
+	if len(matchers["Stop"]) != 1 {
+		t.Errorf("Stop groups = %v, want one", matchers["Stop"])
+	}
 	if got := matchers["PreToolUse"]; len(got) != 2 || got[0] != "Write|Edit" || got[1] != "Bash" {
 		t.Errorf("PreToolUse matchers = %q, want Write|Edit and Bash", got)
 	}

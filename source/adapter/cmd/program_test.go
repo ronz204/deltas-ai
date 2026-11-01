@@ -105,9 +105,9 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 	installer := setup.New(m, m, m, m)
 	cmd := New(Deps{
 		Author:    author.New(m, m),
-		Checker:   verify.New(m, m, m),
+		Checker:   verify.New(m, m, m, nil),
 		Report:    status.New(m),
-		Guard:     guard.New(root, status.New(m), installer),
+		Guard:     guard.New(root, status.New(m), installer, nil),
 		Installer: installer,
 		Meter:     measure.New(m),
 		Version:   "test",

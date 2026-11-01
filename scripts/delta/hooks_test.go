@@ -81,6 +81,7 @@ func git(t *testing.T, dir string, args ...string) (string, error) {
 func gitProject(t *testing.T) *project {
 	t.Helper()
 	isolatedGit(t)
+	isolateCache(t)
 	root := t.TempDir()
 	if out, err := git(t, root, "init", "-q"); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)

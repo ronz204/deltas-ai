@@ -28,8 +28,18 @@ type project struct {
 	root string
 }
 
+// isolateCache points the user's cache directory at a temporary one, so no test writes the real one.
+func isolateCache(t *testing.T) {
+	t.Helper()
+	cache := t.TempDir()
+	for _, name := range []string{"LocalAppData", "XDG_CACHE_HOME", "HOME"} {
+		t.Setenv(name, cache)
+	}
+}
+
 func newProject(t *testing.T) *project {
 	t.Helper()
+	isolateCache(t)
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)

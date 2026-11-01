@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ronz204/deltas-ai/source/domain/commits"
+	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/domain/knowledge"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
@@ -18,6 +19,9 @@ type Event struct {
 	Tool    string
 	Path    string // a file the tool is about to touch
 	Command string // the command line a Bash call is about to run
+
+	// StopActive is true when Claude is already continuing because an earlier Stop hook blocked it.
+	StopActive bool
 }
 
 // Decision is the answer to an event.
@@ -32,15 +36,23 @@ type Health interface {
 	Check(ctx context.Context) []string
 }
 
-type Guard struct {
-	root   string
-	slices *status.Reporter
-	health Health
+// Evidence says what the last check of each slice proves about the tree as it is now. dirty is false when
+// the tree has no changes, and then there is nothing to prove.
+type Evidence interface {
+	Standings(ctx context.Context, slices []string) (dirty bool, by map[string]judgment.Standing, err error)
 }
 
-// New builds the guard of the project at root. health may be nil, and then no setup problem is reported.
-func New(root string, slices *status.Reporter, health Health) *Guard {
-	return &Guard{root: root, slices: slices, health: health}
+type Guard struct {
+	root     string
+	slices   *status.Reporter
+	health   Health
+	evidence Evidence
+}
+
+// New builds the guard of the project at root. health and evidence may be nil: then no setup problem is
+// reported and Stop never asks for a check.
+func New(root string, slices *status.Reporter, health Health, evidence Evidence) *Guard {
+	return &Guard{root: root, slices: slices, health: health, evidence: evidence}
 }
 
 var fileTools = map[string]bool{"Write": true, "Edit": true}
@@ -52,8 +64,55 @@ func (g *Guard) Decide(ctx context.Context, e Event) (Decision, error) {
 		return g.start(ctx)
 	case "PreToolUse":
 		return g.before(e), nil
+	case "Stop":
+		return g.stop(ctx, e)
 	}
 	return Decision{}, nil
+}
+
+// stop keeps Claude from finishing while a slice with test claims has not been checked against the tree as
+// it stands. It asks once: when Claude is already continuing because of a stop hook, it lets it finish.
+func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
+	if e.StopActive || g.evidence == nil {
+		return Decision{}, nil
+	}
+	rows, err := g.slices.Report(ctx)
+	if err != nil {
+		return Decision{}, err
+	}
+	var names []string
+	for _, r := range rows {
+		if r.Test > 0 && r.Issues == 0 {
+			names = append(names, r.Slice)
+		}
+	}
+	if len(names) == 0 {
+		return Decision{}, nil
+	}
+	dirty, by, err := g.evidence.Standings(ctx, names)
+	if err != nil || !dirty {
+		return Decision{}, err
+	}
+	var unchecked, failing []string
+	for _, n := range names {
+		switch by[n] {
+		case judgment.Unchecked:
+			unchecked = append(unchecked, n)
+		case judgment.Failing:
+			failing = append(failing, n)
+		}
+	}
+	var lines []string
+	if len(unchecked) > 0 {
+		lines = append(lines, "delta check has not run on the current changes for: "+strings.Join(unchecked, ", ")+". Run it before you finish.")
+	}
+	if len(failing) > 0 {
+		lines = append(lines, "delta check found violated claims for: "+strings.Join(failing, ", ")+". Fix them, or tell the user what is left.")
+	}
+	if len(lines) == 0 {
+		return Decision{}, nil
+	}
+	return Decision{Block: true, Reason: strings.Join(lines, "\n")}, nil
 }
 
 func (g *Guard) before(e Event) Decision {

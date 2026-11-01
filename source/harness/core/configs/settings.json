@@ -36,6 +36,11 @@
         "matcher": "Bash",
         "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 10 }]
+      }
     ]
   }
 }
