@@ -28,8 +28,6 @@ func (f fake) Load(_ context.Context, s string) ([]byte, error) {
 	return nil, errors.New("missing")
 }
 
-const head = "---\nformat: 1\nslice: %s\nstatus: %s\n---\n"
-
 func TestReport(t *testing.T) {
 	specs := fake{
 		"a": "---\nformat: 1\nslice: a\nstatus: approved\n---\n" +
