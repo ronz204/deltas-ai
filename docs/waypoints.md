@@ -10,7 +10,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 56 de 72 tareas, 78 %**
+**Avance total: 59 de 72 tareas, 82 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
 | 2 | Hooks | ✅ Terminada | 15/15, 100 % |
 | 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
-| 4 | Reglas core y preset `base` | 🔄 En progreso | 6/9, 67 % |
+| 4 | Reglas core y preset `base` | ✅ Terminada | 9/9, 100 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
 | 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
 
@@ -163,7 +163,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 4: reglas core y preset `base`
 
-**Estado: 🔄 En progreso, 6/9.**
+**Estado: ✅ Terminada, 9/9.**
 
 *Escribir el texto final, con el peso medido (§7).*
 
@@ -176,9 +176,9 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Reglas, skills y repo en inglés (decisión 4). *Las reglas y skills de `source/harness/` ya estaban en inglés y las nuevas también; `docs/` sigue en español.*
 
 **Cierra cuando**
-- [ ] `delta budget` confirma que lo siempre cargado baja del techo anterior y deja margen. Las cifras de §7.8 son una estimación; aquí se ajustan con medición real.
-- [ ] Cada regla del core responde a "qué fallo previene y cómo se detecta" (prueba de entrada, §7.2).
-- [ ] Commit(s) de la fase, uno por concern.
+- [x] `delta budget` confirma que lo siempre cargado baja del techo anterior y deja margen. Las cifras de §7.8 son una estimación; aquí se ajustan con medición real. *Medido tras `delta init` en un repositorio vacío: antes 1 799 tokens (`commit-messages` solo pesaba 1 079), ahora 1 215, de un techo de 3 500. El core pesa 495 tokens, menos que los ~600 previstos, y `code-lean-change` ya no cuesta nada fuera de código fuente. Se deja el techo en 3 500: el margen es amplio y bajarlo sería ajustar sin evidencia.*
+- [x] Cada regla del core responde a "qué fallo previene y cómo se detecta" (prueba de entrada, §7.2). *R1 (`fidelity`) previene deriva silenciosa y tests huérfanos; se detecta con `delta lint` (test sin ID o tag a un test inexistente) y `delta check` (`Violated`). R2 (`honesty`) previene el "listo" sin haber corrido nada; se detecta con el hook `Stop` (exige que `delta check` haya corrido tras el último cambio) y `delta status`. Ambas detecciones existen desde las fases 1 y 2. Lo que la regla añade y no detecta nada (parar ante una duda, no inventar APIs) es el texto que el modelo sí debe leer; el resto quedó fuera.*
+- [x] Commit(s) de la fase, uno por concern. *`3ad0eff` (reglas y `base=off`) y los de documentación.*
 
 ---
 
