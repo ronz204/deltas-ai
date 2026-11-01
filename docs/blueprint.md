@@ -39,7 +39,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 7 | Se añade el comando `delta hook`, sin argumento: el evento llega en el JSON | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
 | 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`direction.md`, 6.4 y 6.5) |
-| 10 | Este repo no versiona `.claude/`: `source/harness/` es la fuente y `delta init` escribe `.claude/` (ignorado por git) | Decidido, hecho |
+| 10 | Delta no se usa sobre sí mismo por ahora: este repo no tiene `.claude/`, `deltas/`, `delta.conf` ni hook de git. `source/harness/` es la fuente de lo que `delta init` instala en otros proyectos | Decidido, hecho |
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
 | 13 | Archivos de código de `domain` y de `adapter/cmd` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
@@ -105,7 +105,7 @@ deltas-ai/
 
 **Por qué `source`:** es una preferencia de nombre. Al no llamarse `internal`, el compilador ya no impide que otros módulos importen estos paquetes; la API pública de Delta es el CLI y el formato del spec, no los paquetes Go.
 
-**Lo que no está en esta estructura:** `docs/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `source/harness/` cuando exista `delta init` (sección 11).
+**Lo que no está en esta estructura:** `docs/` (documentos de trabajo) sigue en la raíz. Este repo no tiene `.claude/`, `deltas/`, `delta.conf` ni `.githooks/`: Delta no se construye con Delta por ahora (decisión 10); el primer uso real es otro proyecto (Fase 6).
 
 ---
 
@@ -318,7 +318,7 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 
 ### 8.6 `delta budget`
 
-Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún techo; es el gate de la sección 6.7 y corre en CI. Lo siempre cargado es el router (`CLAUDE.md`), las reglas sin `paths:` y la descripción de cada skill y de cada agente. El cuerpo de un skill y las reglas con `paths:` no cuestan nada hasta que se usan.
+Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún techo; es el gate de la sección 6.7. En CI lo cubre una prueba que instala el harness en un repositorio temporal y lo mide. Lo siempre cargado es el router (`CLAUDE.md`), las reglas sin `paths:` y la descripción de cada skill y de cada agente. El cuerpo de un skill y las reglas con `paths:` no cuestan nada hasta que se usan.
 
 | Clave de `delta.conf` (por defecto) | Techo de |
 |---|---|
@@ -456,7 +456,7 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 - `.claude/settings.json` es la excepción: se **fusiona**. Se añaden los grupos de hooks que no corran ya los mismos comandos con el mismo `matcher` (un `timeout` distinto es decisión del proyecto), las reglas de permisos que falten y las claves de primer nivel que no existan. No se quita ni se cambia nada; al reescribir el archivo se ordenan sus claves. Si el archivo no es un JSON con la forma esperada, se deja como está y se dice.
 - Antes de escribir nada se fija `core.hooksPath`, de modo que fuera de un repositorio git `init` falla sin dejar archivos.
 
-**Este repositorio no versiona `.claude/`** (decisión 10, cumplida): `source/harness/` es la fuente y `delta init` escribe `.claude/`, que `.gitignore` excluye. Quien clone el repo corre `go run ./scripts/delta init`; la CI también, antes de medir el presupuesto. Para cambiar una regla o un skill se cambia el harness y se vuelve a instalar (borrando antes el archivo cambiado, porque `init` no pisa).
+**Este repositorio no usa lo que instala** (decisión 10): `source/harness/` es la fuente y `delta init` lo escribe en *otros* proyectos. Aquí no hay `.claude/`, `deltas/`, `delta.conf` ni hook de git, y los tests lo prueban en repositorios temporales: instalan el harness, comprueban que `delta budget` pasa sobre él y que `delta status` funciona. Para cambiar una regla o un skill se cambia el harness.
 
 ---
 

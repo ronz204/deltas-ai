@@ -139,7 +139,6 @@ Archivist and Surveyor still ship with the harness; they become CLI commands in 
 
 | Path | Purpose |
 |---|---|
-| `.claude/` | Not versioned here: `delta init` writes it from `source/harness/`, and `.gitignore` excludes it |
 | `source/harness/` | What `delta init` installs, embedded in the binary: the skills Quill, Forge and Seal (plus Archivist and Surveyor, which retire in phase 3), the rules, the hooks and `delta.conf` |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
 | `scripts/`, `source/` | The Go CLI: `scripts/delta` wires it, `source/` holds the domain, use cases, gateways and adapters |
