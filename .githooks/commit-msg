@@ -1,0 +1,12 @@
+#!/bin/sh
+# Installed by delta init: checks the commit message with delta.
+if ! command -v delta >/dev/null 2>&1; then
+  echo "delta is not installed: the commit message was not checked" >&2
+  exit 0
+fi
+# git-delta, a pager, shares the name and would fail on these arguments and cancel the commit
+if ! delta version </dev/null 2>/dev/null | grep -q '^delta (deltas-ai)'; then
+  echo "the delta on the PATH is not deltas-ai: the commit message was not checked" >&2
+  exit 0
+fi
+exec delta commit-msg "$1"
