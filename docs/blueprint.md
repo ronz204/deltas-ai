@@ -94,7 +94,7 @@ deltas-ai/
 
 **Por qué `sources`:** es una preferencia de nombre. Al no llamarse `internal`, el compilador ya no impide que otros módulos importen estos paquetes; la API pública de Delta es el CLI y el formato del spec, no los paquetes Go.
 
-**Lo que no está en esta estructura:** `records/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `sources/harness/` cuando exista `delta init` (sección 11).
+**Lo que no está en esta estructura:** `docs/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `sources/harness/` cuando exista `delta init` (sección 11).
 
 ---
 

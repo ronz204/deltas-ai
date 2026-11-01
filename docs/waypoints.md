@@ -71,11 +71,11 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Reorganizar `sources/harness/` con `core/{configs,githooks,templates}` para los archivos de soporte (`blueprint.md`, §3 y §12). Hoy solo existe `core/configs/` (`settings.json` y `budget.conf`); `templates/` llega en la Fase 1 y `githooks/` en la Fase 2.
 - [x] Poner `paths:` en las rules existentes (§7.1). *Tres ya lo tenían; se añadió a `code-lean-change`. `commit-messages` queda global a propósito: un hook la reemplaza.*
 - [x] Reescribir el README con la tesis nueva y tres roles, mencionando el preset `base` solo como efecto secundario (§7.4).
-- [x] Ampliar `.gitattributes` para fijar LF también en `*.go`, `go.mod`, `go.sum` y las carpetas de git hooks. `*.md` (incluidos los de `records/`) ya estaba cubierto.
+- [x] Ampliar `.gitattributes` para fijar LF también en `*.go`, `go.mod`, `go.sum` y las carpetas de git hooks. `*.md` (incluidos los de `docs/`) ya estaba cubierto.
 - [x] Commit(s) de la fase, uno por concern.
 
 **Cierra cuando**
-- [x] Una búsqueda de `Specifier`, `Executor`, `Sentinel` y `Cursor` no devuelve resultados fuera de `.claude/` (que se regenera en la Fase 2) y de los documentos de `records/` que los citan como historia. *Salvo el README, que los cita a propósito al describir la generación anterior.*
+- [x] Una búsqueda de `Specifier`, `Executor`, `Sentinel` y `Cursor` no devuelve resultados fuera de `.claude/` (que se regenera en la Fase 2) y de los documentos de `docs/` que los citan como historia. *Salvo el README, que los cita a propósito al describir la generación anterior.*
 - [x] Cada skill se llama por su nombre nuevo y su `description` nombra el verbo (redactar, construir, verificar), no solo la metáfora.
 
 **Cuidado:** el disparo de un skill depende de su `description`, no de su nombre. Revisar que renombrar no la degrade. *Las tres descripciones ya nombraban el verbo y no se tocaron.*
