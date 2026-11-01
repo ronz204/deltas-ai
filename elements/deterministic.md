@@ -341,7 +341,7 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 | Gateways | Contra un directorio temporal real y un repo git temporal | `gateway` |
 | Salida de comandos | Golden files del texto y del JSON | `adapter` |
 | Arquitectura | El test de imports de la sección 4 | todo `internal` |
-| Compatibilidad de `delta check` | Proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip` | extremo a extremo |
+| Compatibilidad de `delta check` | Proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip` (`entries/delta/testdata/compat/{go,ts}`) | extremo a extremo |
 
 La CI corre en Linux, macOS y **Windows** desde el primer día: rutas con espacios, finales de línea y la forma de partir comandos son donde más fácil se rompe.
 

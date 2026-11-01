@@ -10,12 +10,12 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 17 de 64 tareas, 27 %**
+**Avance total: 22 de 65 tareas, 34 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
-| 1 | Núcleo del CLI | 🔄 En progreso | 6/11, 55 % |
+| 1 | Núcleo del CLI | 🔄 En progreso | 11/12, 92 % |
 | 2 | Hooks | 🔲 Pendiente | 0/11, 0 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/9, 0 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
@@ -84,7 +84,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 1: núcleo del CLI
 
-**Estado: 🔄 En progreso, 6/11.**
+**Estado: 🔄 En progreso, 11/12.** Solo falta ver los tests pasar en CI, en el primer push.
 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
@@ -95,13 +95,14 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`. *Con `cobra` en `adapter/cli`. `link` lleva el slice primero (`delta link <slice> <claim-id> <comando>`) porque los IDs solo son únicos por spec; `commit-msg` llama a `domain/commit` sin pasar por `guard`, que nace en la Fase 2.*
 - [x] `delta check` como en §6.5: ejecución directa con `os/exec` (sin shell), `Holds` solo con exit 0 más un test que cita el ID, `Unverified` si falta el test, `Violated` si falla. No lee la salida del runner. *El test debe estar bajo las rutas que el comando nombra: así el `INV-01` de un slice no da `Holds` al de otro.*
 - [x] `delta lint`: coincidencia tolerante del ID (`INV-01`, `INV_01`, `INV01`), aviso de `skip` y `only`. *Además avisa de tests que citan un ID que ningún spec define.*
-- [ ] Tests unitarios del CLI.
-- [ ] Suite de compatibilidad de `delta check`: proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`.
+- [x] Tests unitarios del CLI. *`adapter/cli` con puertos en memoria: la salida, el reparto entre stdout y stderr y los códigos de cada comando, sin tocar disco.*
+- [x] Suite de compatibilidad de `delta check`: proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`. *En `entries/delta/testdata/compat/{go,ts}`. El `skip` da `Holds` (el límite conocido de §10) y `delta lint` lo avisa.*
 
 **Cierra cuando**
-- [ ] Los tests del CLI y la suite de compatibilidad pasan en CI.
-- [ ] Se puede crear un spec, enlazarlo a un test real y obtener `Holds`, `Violated` y `Unverified` en los casos esperados, sin ningún LLM.
-- [ ] Commit(s) de la fase, uno por concern.
+- [x] Flujo de CI en `.github/workflows/ci.yml`: `gofmt`, `go vet` y `go test` en Linux, macOS y Windows, con Node 24 para la suite de TypeScript y `-race` en Linux.
+- [ ] Los tests del CLI y la suite de compatibilidad pasan en CI. *Se comprueba en el primer push: el flujo está escrito, pero no se ha ejecutado.*
+- [x] Se puede crear un spec, enlazarlo a un test real y obtener `Holds`, `Violated` y `Unverified` en los casos esperados, sin ningún LLM. *`run_test.go` y `compat_test.go` lo recorren de punta a punta.*
+- [x] Commit(s) de la fase, uno por concern.
 
 **Aún sin hacer aquí:** `approve`, estados, `context`, `budget` y `stale` (fases 2, 3 y 5).
 
