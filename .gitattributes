@@ -8,6 +8,14 @@
 *.json text eol=lf
 *.conf text eol=lf
 
+# Go sources and the git hooks installed into projects stay LF too: a CRLF
+# in a hook's shebang breaks it on Unix.
+*.go   text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+.githooks/*        text eol=lf
+harness/githooks/* text eol=lf
+
 # Binary files git must not touch.
 *.png  binary
 *.jpg  binary
