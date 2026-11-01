@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
+	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 )
 
 func mustID(t *testing.T, s string) assertion.ID {
@@ -41,6 +42,38 @@ func TestSetTagKeepsCRLFAndBOM(t *testing.T) {
 	want := strings.Replace(src, "- INV-02 [none]", "- INV-02 [manual: read it]", 1)
 	if string(got) != want {
 		t.Fatalf("line endings or BOM changed:\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestSetStatusChangesOnlyThatLine(t *testing.T) {
+	for name, src := range map[string]string{
+		"lf":       validSpec,
+		"crlf+bom": "\xef\xbb\xbf" + strings.ReplaceAll(validSpec, "\n", "\r\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := SetStatus([]byte(src), lifecycle.Built)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := strings.Replace(src, "status: approved", "status: built", 1)
+			if want == src || string(got) != want {
+				t.Fatalf("got %q, want %q", got, want)
+			}
+			if sp, ds := Parse("a", got); len(ds) != 0 || sp.Status != lifecycle.Built {
+				t.Fatalf("the edited spec reads back as %+v, %v", sp, ds)
+			}
+		})
+	}
+}
+
+func TestSetStatusNeedsAStatusLineInTheFrontmatter(t *testing.T) {
+	for name, src := range map[string]string{
+		"no frontmatter": "just text\n",
+		"outside it":     "---\nformat: 1\n---\nstatus: draft\n",
+	} {
+		if _, err := SetStatus([]byte(src), lifecycle.Built); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }
 
