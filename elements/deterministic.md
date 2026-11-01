@@ -78,12 +78,15 @@ deltas-ai/
 │       └── hook/                # JSON de Claude Code por stdin → exit code
 └── harness/                     # lo que `delta init` instala (se embebe en el binario)
     ├── harness.go               # //go:embed
+    ├── core/                    # lo que se instala tal cual, sin ser skill ni regla
+    │   ├── configs/             # settings.json (hooks y permisos) y budget.conf
+    │   ├── githooks/            # commit-msg (se instala como .githooks/)
+    │   └── templates/           # spec.md, CLAUDE.md
     ├── skills/                  # quill, forge, seal
-    ├── rules/                   # core (R1, R2) y base (B1, B2)
-    ├── githooks/                # commit-msg (se instala como .githooks/)
-    ├── settings/                # fragmento de hooks para .claude/settings.json
-    └── templates/               # spec.md, CLAUDE.md
+    └── rules/                   # core (R1, R2) y base (B1, B2)
 ```
+
+`harness/core/` y `harness/rules/core/` no son lo mismo: la primera agrupa los archivos de soporte que `delta init` copia al proyecto; la segunda son las dos reglas siempre cargadas (R1 y R2). Git no versiona carpetas vacías, así que `githooks/` y `templates/` se crean cuando tengan contenido (`templates/` en la Fase 1, con `delta spec new`; `githooks/` en la Fase 2).
 
 **Por qué `entries` y no `cmd`:** es una preferencia de nombre. `go install ./entries/delta` sigue produciendo un binario llamado `delta`, porque el nombre sale de la carpeta que contiene el `main`.
 
@@ -341,16 +344,17 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 |---|---|
 | `skills/{quill,forge,seal}/` | `.claude/skills/...` |
 | `rules/core/`, `rules/base/` | `.claude/rules/...` |
-| `githooks/commit-msg` | `.githooks/commit-msg` |
-| `settings/` | fragmento fusionado en `.claude/settings.json` |
-| `templates/spec.md`, `templates/CLAUDE.md` | un spec nuevo y el `CLAUDE.md` mínimo |
+| `core/githooks/commit-msg` | `.githooks/commit-msg` |
+| `core/configs/settings.json` | fragmento fusionado en `.claude/settings.json` |
+| `core/configs/budget.conf` | `.claude/budget.conf` (transitorio: lo lee `budget.sh` hasta que `delta budget` lo reemplace; ver el pendiente 2 de la sección 16) |
+| `core/templates/spec.md`, `core/templates/CLAUDE.md` | un spec nuevo y el `CLAUDE.md` mínimo |
 
-**El detalle del embed.** `go:embed` no puede subir de carpeta, así que un paquete en `internal/gateway/bundle/` no puede embeber `harness/` desde la raíz. Por eso `harness/harness.go` declara el `embed.FS` y `gateway/bundle` lo importa. Además, `embed` ignora por defecto los archivos que empiezan con `.` o `_`, por eso la carpeta se llama `githooks/` y se instala con el nombre con punto. Lo mismo vale para cualquier plantilla de un archivo con punto.
+**El detalle del embed.** `go:embed` no puede subir de carpeta, así que un paquete en `internal/gateway/bundle/` no puede embeber `harness/` desde la raíz. Por eso `harness/harness.go` declara el `embed.FS` y `gateway/bundle` lo importa. Además, `embed` ignora por defecto los archivos que empiezan con `.` o `_`, por eso la carpeta se llama `core/githooks/` y se instala con el nombre con punto. Lo mismo vale para cualquier plantilla de un archivo con punto.
 
 **Convivencia con el `.claude/` actual** (decisión 10):
 
 1. `.claude/` de este repo no se toca. Contiene las reglas que rigen el trabajo aquí (commits, lean-change).
-2. En la Fase 0, `harness/` nace como copia ya renombrada (Quill, Forge, Seal).
+2. En la Fase 0, `harness/` nace como copia ya renombrada (Quill, Forge, Seal), con los archivos de soporte reubicados bajo `core/configs/`.
 3. Cuando `delta init` exista (Fase 2), se regenera `.claude/` desde `harness/` y se elimina la duplicación. De paso, el repo prueba su propio instalador.
 
 ---

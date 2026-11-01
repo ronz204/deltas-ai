@@ -10,11 +10,11 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 9 de 63 tareas, 14 %**
+**Avance total: 11 de 64 tareas, 17 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
-| 0 | Limpieza y renombrado | 🔄 En progreso | 9/10, 90 % |
+| 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | 🔲 Pendiente | 0/11, 0 % |
 | 2 | Hooks | 🔲 Pendiente | 0/11, 0 % |
 | 3 | Estados y Forge | 🔲 Pendiente | 0/9, 0 % |
@@ -59,7 +59,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 0: limpieza y renombrado
 
-**Estado: 🔄 En progreso, 9/10.** Hecho y commiteado; solo falta pegar el nuevo About en GitHub.
+**Estado: ✅ Terminada, 11/11.**
 
 *Poco esfuerzo, sin código. Deja el repo coherente con la nueva dirección.*
 
@@ -68,6 +68,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Quitar Cursor del About del repo. Es un ajuste de GitHub, no un archivo, y es visible públicamente, así que lo hace Roney o se confirma el texto antes.
 - [x] Quitar la plantilla `ROADMAP.md` de la raíz (ningún skill la lee).
 - [x] Crear `harness/` como copia ya renombrada de lo que hoy vive en `.claude/` (Specifier → Quill, Executor → Forge, Sentinel → Seal): carpetas, `description` y referencias cruzadas entre skills, rules y docs. `.claude/` no se toca: contiene las reglas que rigen el trabajo en este repo y se regenera desde `harness/` cuando exista `delta init` (Fase 2). *`archivist` y `surveyor` van en la copia de forma transitoria hasta que el CLI los reemplace.*
+- [x] Reorganizar `harness/` con `core/{configs,githooks,templates}` para los archivos de soporte (`deterministic.md`, §3 y §12). Hoy solo existe `core/configs/` (`settings.json` y `budget.conf`); `templates/` llega en la Fase 1 y `githooks/` en la Fase 2.
 - [x] Poner `paths:` en las rules existentes (§7.1). *Tres ya lo tenían; se añadió a `code-lean-change`. `commit-messages` queda global a propósito: un hook la reemplaza.*
 - [x] Reescribir el README con la tesis nueva y tres roles, mencionando el preset `base` solo como efecto secundario (§7.4).
 - [x] Ampliar `.gitattributes` para fijar LF también en `*.go`, `go.mod`, `go.sum` y las carpetas de git hooks. `*.md` (incluidos los de `elements/`) ya estaba cubierto.
@@ -88,7 +89,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 *El proyecto Go y la parte determinista. Ya es fiabilidad demostrable sin tocar a Claude Code.*
 
 **Entregables** (§6.1, §6.4, §6.5; estructura y orden de implementación en `deterministic.md`)
-- [ ] Esqueleto del proyecto Go: `go.mod` en la raíz, `entries/`, `internal/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `harness/` con su `harness.go`, más el test que hace cumplir la regla de dependencia entre capas.
+- [ ] Esqueleto del proyecto Go: `go.mod` en la raíz, `entries/`, `internal/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `harness/` con su `harness.go` y `core/templates/` (spec y `CLAUDE.md`), más el test que hace cumplir la regla de dependencia entre capas.
 - [ ] Formato de spec con `format: 1`, IDs por claim y tags `test: <comando>`, `manual`, `none`.
 - [ ] Parser EARS y de Given/When/Then.
 - [ ] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`.
@@ -115,7 +116,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 **Entregables**
 - [ ] `delta hook <evento>`: el adaptador que lee el JSON de cada evento y decide con `usecase/guard`. Antes de escribirlo, verificar el formato real del JSON en la documentación de hooks vigente.
 - [ ] Hooks de Claude Code en `.claude/settings.json`: `SessionStart`, `PreToolUse` sobre la KB, `PreToolUse` sobre `git commit`, `PostToolUse` con el linter, `Stop` que exige evidencia de `delta check`. Todos bloquean con exit **2**, no 1.
-- [ ] `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
+- [ ] `harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno.
 - [ ] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`.
 - [ ] `delta commit-msg` en CI sobre el rango del PR.
 - [ ] `delta budget` como gate.
