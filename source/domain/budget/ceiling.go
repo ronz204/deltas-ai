@@ -20,8 +20,8 @@ func Defaults() Ceilings {
 	return Ceilings{Total: 3500, Router: 80, Rule: 50, Skill: 1024, Agent: 1024}
 }
 
-// keys are the budget keys of delta.conf. The last six are for budget.sh, which still measures the classes
-// delta budget does not (scoped, invoke and demand).
+// keys are the budget keys of delta.conf. The last six belonged to budget.sh, which no longer ships; they stay
+// valid so that a delta.conf written for it keeps loading, and delta budget does not read them.
 var keys = []string{
 	"always_tokens", "claude_lines", "rule_always_lines", "skill_desc_chars", "agent_desc_chars",
 	"rule_scoped_lines", "skill_body_lines", "agent_body_lines", "doc_lines", "reference_lines", "reference_chars",

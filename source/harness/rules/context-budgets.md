@@ -20,7 +20,7 @@ This governs how much context each knowledge-base artifact may cost, and what to
 ## When an artifact is over its ceiling
 
 - Do not ship it over, and do not trim it to fit. Trimming silently deletes information someone wrote on purpose; shipping it over lets the cost grow unnoticed.
-- Fit it by splitting: what is used on every load stays, what is used only sometimes moves to something loaded on demand and is replaced by an explicit pointer that says when to read it. The mechanics per artifact type are in the archivist skill's fitting guide.
+- Fit it by splitting: what is used on every load stays, what is used only sometimes moves to something loaded on demand and is replaced by an explicit pointer that says when to read it. Split a file by what loads always and what loads on demand, and leave a pointer that says when to read the rest.
 - Split by how often content is used, not by how big it is. Moving content that every invocation needs only adds a read step without saving anything.
 - A split is lossless and confirmed: the plan (what stays, what moves where, which pointer replaces it) is shown to the user first, and every moved piece must stay reachable from a pointer that resolves.
 
@@ -31,7 +31,7 @@ This governs how much context each knowledge-base artifact may cost, and what to
 
 ## Measuring
 
-- The budget script bundled with the archivist skill reads the config, classes every file by how it loads, and reports overruns and broken pointers. It only reads, so running it costs no model tokens. Token figures are estimates (about 3.3 characters per token, calibrated against Claude Code's own `/context` report); line and character counts are exact.
+- `delta budget` reads `delta.conf`, weighs what is always loaded and reports overruns. It only reads, so running it costs no model tokens. Token figures are estimates (about 3.3 characters per token, calibrated against Claude Code's own `/context` report); line and character counts are exact.
 
 ---
 

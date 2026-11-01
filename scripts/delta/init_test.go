@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -23,7 +22,6 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 		".githooks/commit-msg", "deltas/.gitkeep", "delta.conf", "CLAUDE.md",
 		".claude/settings.json", ".claude/rules/commit-messages.md",
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/skills/archivist/codebase/budget.sh",
 	} {
 		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); err != nil {
 			t.Errorf("%s was not installed: %v", rel, err)
@@ -41,9 +39,9 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	if err := json.Unmarshal([]byte(p.read(".claude/settings.json")), &settings); err != nil || len(settings.Hooks) != 4 {
 		t.Errorf("settings.json: %v, %d hook events", err, len(settings.Hooks))
 	}
-	if runtime.GOOS != "windows" {
-		if info, err := os.Stat(filepath.Join(p.root, ".claude", "skills", "archivist", "codebase", "budget.sh")); err != nil || info.Mode().Perm()&0o111 == 0 {
-			t.Errorf("budget.sh is not executable: %v, %v", info, err)
+	for _, gone := range []string{"archivist", "surveyor"} {
+		if _, err := os.Stat(filepath.Join(p.root, ".claude", "skills", gone)); err == nil {
+			t.Errorf("the %s skill is still installed", gone)
 		}
 	}
 

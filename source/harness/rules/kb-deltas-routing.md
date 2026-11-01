@@ -7,20 +7,21 @@ paths:
   - ".claude/agents/**"
   - ".claude/skills/**"
   - "deltas/**"
-  - "*/deltas/**"
+  - "**/deltas/**"
 ---
 
 # Delta Knowledge-Base Editing Conventions
 
-These paths are the durable knowledge base this project's delta methodology maintains — `CLAUDE.md`, `.claude/docs/`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/`, and every slice's `spec.md`/`design.md` under `deltas/` at the project root (or, in a repo genuinely split into multiple services, under each service's own `deltas/`). They exist to stay grounded and current; editing them ad hoc is exactly the kind of drift the methodology is meant to prevent.
+These paths are the durable knowledge base this project's delta methodology maintains — `CLAUDE.md`, `.claude/docs/`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/`, and every slice's `spec.md` under a `deltas/` folder (the project's own, or a service's in a repo split into services). They exist to stay grounded and current; editing them ad hoc is exactly the kind of drift the methodology is meant to prevent.
 
 ---
 
 ## Route through the matching skill, don't hand-edit
 
-- Writing or updating `CLAUDE.md`, a doc, a rule, an agent, a skill, or a slice's `spec.md`/`design.md` goes through `archivist`, because it's the one place that knows which shape/template each of these takes and enforces the volatile-reference and writing conventions consistently. A hand-edit skips both.
-- A new or substantially-revised `<slice>.spec.md`/`<slice>.design.md` goes through `quill` first, because intent, invariants, and states/interactions have to come from investigation and user Q&A, not be invented while editing the file. `archivist` still does the actual write once that material exists.
-- Checking whether a slice's `spec.md`/`design.md` still matches the real implementation goes through `seal`, which reports drift — it never edits the file itself; a correction it surfaces still goes back through `archivist`.
+- A hook blocks the agent's `Write` and `Edit` on these paths. A person can edit `CLAUDE.md`, docs, rules, agents and skills by hand; the agent proposes the change and the person makes it.
+- A new or substantially-revised `<slice>.spec.md` goes through `quill`, because intent and invariants have to come from investigation and user Q&A, not be invented while editing the file. `quill` writes it with `delta spec write`, which validates before it saves; the result is a `draft` that a person approves with `delta approve`.
+- Linking a test to a claim is `delta link`, which only changes that claim's tag. Moving a slice along its states is `delta approve`, `delta built` and `delta check`.
+- Checking whether a slice still matches the real implementation goes through `seal`, which reports drift — it never edits the file itself; a correction it surfaces goes back through `quill`.
 
 ## Trivial edits are exempt
 

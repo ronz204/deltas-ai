@@ -32,8 +32,6 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	by := assetsOf(t)
 	for _, want := range []string{
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/skills/archivist/SKILL.md", ".claude/skills/surveyor/SKILL.md",
-		".claude/skills/archivist/references/culture.md",
 		".claude/rules/commit-messages.md", "delta.conf", "CLAUDE.md",
 	} {
 		if _, ok := by[want]; !ok {
