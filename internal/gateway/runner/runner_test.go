@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -86,12 +87,11 @@ func TestRunUsesTheDirectory(t *testing.T) {
 	if _, err := New(dir, time.Minute, &out).Run(context.Background(), helper(t, "pwd")); err != nil {
 		t.Fatal(err)
 	}
-	want, _ := os.Readlink(dir) // resolves a symlinked temp dir; empty when it is not one
-	if want == "" {
-		want = dir
-	}
-	if !strings.Contains(out.String(), want) {
-		t.Fatalf("ran in %q, want %q", strings.TrimSpace(out.String()), want)
+	first, _, _ := strings.Cut(out.String(), "\n")
+	got, gotErr := filepath.EvalSymlinks(strings.TrimSpace(first)) // macOS temp dirs sit behind a symlink
+	want, wantErr := filepath.EvalSymlinks(dir)
+	if gotErr != nil || wantErr != nil || got != want {
+		t.Fatalf("ran in %q, want %q (%v, %v)", got, want, gotErr, wantErr)
 	}
 }
 
