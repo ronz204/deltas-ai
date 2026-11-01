@@ -10,6 +10,8 @@ import (
 
 	"github.com/ronz204/deltas-ai/source/domain/findings"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
+	"github.com/ronz204/deltas-ai/source/usecase/guard"
+	"github.com/ronz204/deltas-ai/source/usecase/setup"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
@@ -17,10 +19,17 @@ import (
 // ErrFound means a command ran fine and found problems, already printed: exit 1 with nothing more.
 var ErrFound = errors.New("problems found")
 
+// ExitError makes the program exit with Code; whatever it had to say is already printed.
+type ExitError struct{ Code int }
+
+func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
+
 type Deps struct {
-	Author  *author.Author
-	Checker *verify.Checker
-	Report  *status.Reporter
+	Author    *author.Author
+	Checker   *verify.Checker
+	Report    *status.Reporter
+	Guard     *guard.Guard
+	Installer *setup.Installer
 }
 
 // New builds the delta command. Findings go to stderr and results to stdout.
@@ -32,7 +41,7 @@ func New(d Deps) *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
-	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd())
+	root.AddCommand(specCmd(d), linkCmd(d), lintCmd(d), checkCmd(d), statusCmd(d), commitMsgCmd(), installCmd(d), guardsCmd(d))
 	return root
 }
 
