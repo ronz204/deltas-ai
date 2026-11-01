@@ -34,7 +34,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 2 | Tres carpetas de código: `entries`, `internal`, `harness` | Decidido |
 | 3 | `go.mod` en la raíz del repo | Decidido |
 | 4 | Cuatro capas dentro de `internal`: `domain`, `usecase`, `gateway`, `adapter` | Decidido |
-| 5 | Nombres de paquete de una palabra, de 4 a 6 letras | Decidido |
+| 5 | Nombres de paquete de una palabra, de longitud pareja: 8 a 9 letras en `domain`, 5 a 6 en las demás capas | Decidido |
 | 6 | CLI con `spf13/cobra` | Decidido |
 | 7 | Se añade el comando `delta hook <evento>` | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`redirection.md`, 6.4) |
@@ -54,14 +54,14 @@ deltas-ai/
 │   └── delta/main.go            # raíz de composición: crea las piezas y las conecta
 ├── internal/
 │   ├── domain/                  # puro: sin I/O, solo librería estándar
-│   │   ├── diag/                # Diagnostic: archivo, línea, código estable y mensaje
-│   │   ├── claim/               # Claim, ID, Tag, enunciado EARS y Given/When/Then
-│   │   ├── spec/                # Spec, Frontmatter, versión de formato, parser y render
-│   │   ├── slice/               # Slice, Status, transiciones válidas
-│   │   ├── proof/               # Verdict (Holds, Violated, Unverified) y la regla de evidencia
+│   │   ├── findings/            # Diagnostic: archivo, línea, código estable y mensaje
+│   │   ├── assertion/           # Claim, ID, Tag, enunciado EARS y Given/When/Then
+│   │   ├── specfile/            # Spec, Frontmatter, versión de formato, parser y render
+│   │   ├── lifecycle/           # Slice, Status, transiciones válidas
+│   │   ├── judgment/            # Verdict (Holds, Violated, Unverified) y la regla de evidencia
 │   │   ├── drift/               # regla de stale: archivos cambiados vs referenciados
-│   │   ├── lint/                # reglas de coherencia entre specs y tests
-│   │   ├── commit/              # validador de Conventional Commits
+│   │   ├── linkcheck/           # reglas de coherencia entre specs y tests
+│   │   ├── messages/            # validador de Conventional Commits
 │   │   └── budget/              # conteo de caracteres y techo
 │   ├── usecase/                 # orquestación; declara los puertos (interfaces) que necesita
 │   │   ├── setup/               # delta init
@@ -139,24 +139,24 @@ type Runner interface {
 
 | Paquete | Responsabilidad | Tipos y funciones principales |
 |---|---|---|
-| `diag` | El hallazgo que todo validador reporta | `Diagnostic` (archivo, línea, código estable, mensaje) |
-| `claim` | El átomo del contrato | `ID`, `ParseID(string) (ID, error)`, `Kind` (`Invariant`, `Acceptance`), `Tag` (`Test` con comando, `Manual`, `None`), `Claim` (ID, tag, texto, línea), `CheckStatement(kind, texto) error` |
-| `spec` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
-| `slice` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool` |
-| `proof` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome` |
+| `findings` | El hallazgo que todo validador reporta | `Diagnostic` (archivo, línea, código estable, mensaje) |
+| `assertion` | El átomo del contrato | `ID`, `ParseID(string) (ID, error)`, `Kind` (`Invariant`, `Acceptance`), `Tag` (`Test` con comando, `Manual`, `None`), `Claim` (ID, tag, texto, línea), `CheckStatement(kind, texto) error` |
+| `specfile` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
+| `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool` |
+| `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome` |
 | `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
-| `lint` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs |
-| `commit` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
+| `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs |
+| `messages` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
 | `budget` | Presupuesto de contexto | `Count(text) int` (caracteres entre 4), `Check(total, ceiling) Outcome` |
 
 Observaciones:
 
-- **`spec` edita por líneas.** Cambiar el estado o el tag de un claim modifica únicamente esa línea y deja el resto del archivo intacto. Es lo que permite que `delta link` y `delta approve` toquen un solo renglón.
+- **`specfile` edita por líneas.** Cambiar el estado o el tag de un claim modifica únicamente esa línea y deja el resto del archivo intacto. Es lo que permite que `delta link` y `delta approve` toquen un solo renglón.
 - **`Judge` es la regla de evidencia en una función:** exit distinto de 0 es `Violated`; exit 0 con un test que cita el ID es `Holds`; exit 0 sin test que cite el ID es `Unverified` con el motivo escrito; `manual` y `none` son `Unverified`. Es la pieza más fácil de probar de todo el proyecto.
-- **`lint` reconoce el ID con coincidencia tolerante** (`INV-01`, `INV_01`, `INV01`, sin distinguir mayúsculas, con un límite al final para que `INV01` no coincida con `INV011`), porque en Go los nombres de función no admiten guiones.
-- **`lint.Cited` acota la cita a las rutas del comando.** Los IDs son únicos solo por spec, así que un test de `facturacion` no puede dar `Holds` al `INV-01` de `pagos`. Una ruta es un argumento que empieza por `./`, `../` o es `.`, o que lleva una barra y termina en un archivo de script; los flags y sus valores no cuentan. *Shortcut: no se interpretan comillas ni rutas con espacios; si ningún argumento parece ruta, vale cualquier test.*
-- **`lint.Check` emite avisos además de errores.** Un claim `test` que nadie cita es un error (`LINT-NO-CITE`). Un test que cita un ID que ningún spec define (`LINT-UNKNOWN-ID`, solo en mayúsculas para no confundirlo con una variable `inv1`) y un archivo que cita IDs y salta o enfoca un test (`LINT-SKIP`) son avisos (`Diagnostic.Warn`): se imprimen pero no fallan la ejecución.
-- **`commit.Validate` ignora las líneas `#`** (git las quita), deja pasar los mensajes que git genera (`Merge `, `Revert "`, `fixup! `, `squash! `) y no comprueba el modo imperativo, porque ninguna regla distingue "embed" de "embedded" sin un diccionario.
+- **`linkcheck` reconoce el ID con coincidencia tolerante** (`INV-01`, `INV_01`, `INV01`, sin distinguir mayúsculas, con un límite al final para que `INV01` no coincida con `INV011`), porque en Go los nombres de función no admiten guiones.
+- **`linkcheck.Cited` acota la cita a las rutas del comando.** Los IDs son únicos solo por spec, así que un test de `facturacion` no puede dar `Holds` al `INV-01` de `pagos`. Una ruta es un argumento que empieza por `./`, `../` o es `.`, o que lleva una barra y termina en un archivo de script; los flags y sus valores no cuentan. *Shortcut: no se interpretan comillas ni rutas con espacios; si ningún argumento parece ruta, vale cualquier test.*
+- **`linkcheck.Check` emite avisos además de errores.** Un claim `test` que nadie cita es un error (`LINT-NO-CITE`). Un test que cita un ID que ningún spec define (`LINT-UNKNOWN-ID`, solo en mayúsculas para no confundirlo con una variable `inv1`) y un archivo que cita IDs y salta o enfoca un test (`LINT-SKIP`) son avisos (`Diagnostic.Warn`): se imprimen pero no fallan la ejecución.
+- **`messages.Validate` ignora las líneas `#`** (git las quita), deja pasar los mensajes que git genera (`Merge `, `Revert "`, `fixup! `, `squash! `) y no comprueba el modo imperativo, porque ninguna regla distingue "embed" de "embedded" sin un diccionario.
 
 ### 5.2 `usecase`
 
@@ -164,7 +164,7 @@ Observaciones:
 |---|---|---|
 | `setup` | `delta init` | Escribe el esqueleto, instala el harness desde `bundle`, fija `core.hooksPath` sin pisar uno ajeno. Es idempotente |
 | `author` | `delta spec new`, `spec write`, `link`, `approve` | Valida con `domain` y escribe con `files`. Es el único camino de escritura de la KB |
-| `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `proof.Judge` |
+| `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `judgment.Judge` |
 | `status` | `delta status`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git` |
 | `guard` | `delta hook`, `commit-msg`, `budget` | Responde "¿se permite esto?" para cada evento: editar la KB, commitear, terminar la sesión |
 
@@ -192,20 +192,20 @@ Observaciones:
 
 | Comando | Adaptador | Caso de uso | Dominio que decide |
 |---|---|---|---|
-| `delta init` | `cli` | `setup` | `slice`, `spec` (plantilla) |
-| `delta spec new <slice>` | `cli` | `author` | `spec`, `slice` |
-| `delta spec lint [slice]` | `cli` | `verify` | `spec`, `claim` |
-| `delta spec write` | `cli` | `author` | `spec` |
-| `delta link <slice> <claim-id> <comando>` | `cli` | `author` | `spec`, `claim` |
-| `delta lint` | `cli` | `verify` | `lint`, `claim` |
-| `delta check [slice]` | `cli` | `verify` | `proof`, `lint` |
-| `delta status` | `cli` | `status` | `slice`, `proof`, `drift` |
+| `delta init` | `cli` | `setup` | `lifecycle`, `specfile` (plantilla) |
+| `delta spec new <slice>` | `cli` | `author` | `specfile`, `lifecycle` |
+| `delta spec lint [slice]` | `cli` | `verify` | `specfile`, `assertion` |
+| `delta spec write` | `cli` | `author` | `specfile` |
+| `delta link <slice> <claim-id> <comando>` | `cli` | `author` | `specfile`, `assertion` |
+| `delta lint` | `cli` | `verify` | `linkcheck`, `assertion` |
+| `delta check [slice]` | `cli` | `verify` | `judgment`, `linkcheck` |
+| `delta status` | `cli` | `status` | `lifecycle`, `judgment`, `drift` |
 | `delta stale` | `cli` | `status` | `drift` |
 | `delta budget` | `cli` | `guard` | `budget` |
-| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/commit`; `guard` nace en la Fase 2, cuando decida algo propio) | `commit` |
-| `delta approve <slice>` | `cli` | `author` | `slice` |
-| `delta context <slice>` | `cli` | `status` | `spec`, `claim` |
-| `delta hook <evento>` | `hook` | `guard` | `slice`, `commit`, `budget`, `proof` |
+| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/messages`; `guard` nace en la Fase 2, cuando decida algo propio) | `messages` |
+| `delta approve <slice>` | `cli` | `author` | `lifecycle` |
+| `delta context <slice>` | `cli` | `status` | `specfile`, `assertion` |
+| `delta hook <evento>` | `hook` | `guard` | `lifecycle`, `messages`, `budget`, `judgment` |
 
 `delta hook` se invoca desde `.claude/settings.json` con un evento (`session-start`, `pre-edit`, `pre-commit`, `post-edit`, `stop`). *Propuesta de nombres; se fijan al implementarlo.*
 
@@ -255,9 +255,9 @@ Es la pieza de la que depende todo lo demás, así que se escribe primero. Traba
 ### 8.2 `delta check <slice>`
 
 1. `verify` carga el spec y lo parsea. Si hay diagnósticos de error, termina con ellos.
-2. Para cada claim con tag `test`, busca en los archivos de tests que el comando ejecuta (por las rutas que nombra) si alguno cita el ID (`lint.Cited`).
+2. Para cada claim con tag `test`, busca en los archivos de tests que el comando ejecuta (por las rutas que nombra) si alguno cita el ID (`linkcheck.Cited`).
 3. `runner` ejecuta el comando desde la raíz del repo y devuelve el código de salida. La salida del comando se muestra a la persona pero **no se interpreta**.
-4. `proof.Judge` combina tag, código de salida y "¿algún test cita el ID?" en un `Outcome`. Un comando que no pudo ejecutarse (no existe, o pasó el tiempo límite) deja el claim `Unverified` con el motivo: no dice nada sobre el claim.
+4. `judgment.Judge` combina tag, código de salida y "¿algún test cita el ID?" en un `Outcome`. Un comando que no pudo ejecutarse (no existe, o pasó el tiempo límite) deja el claim `Unverified` con el motivo: no dice nada sobre el claim.
 5. Los claims `manual` y `none` se reportan como `Unverified`.
 6. Se imprime la tabla y se sale con 1 si hay algún `Violated`.
 
@@ -279,7 +279,7 @@ Cada evento sigue el mismo camino: `hook` lee el JSON, `guard` decide, `hook` tr
 |---|---|
 | `session-start` | Qué slices están `stale` o sin verificar; avisa si falta `core.hooksPath` o el binario |
 | `pre-edit` | Bloquea la edición directa de la KB por el agente |
-| `pre-commit` | Valida el mensaje con `commit.Validate`; bloquea con 2 si no cumple |
+| `pre-commit` | Valida el mensaje con `messages.Validate`; bloquea con 2 si no cumple |
 | `post-edit` | Dispara el linter del proyecto y `stale` |
 | `stop` | Exige evidencia de que `delta check` corrió tras el último cambio |
 
@@ -324,8 +324,8 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 - **Salida determinista.** Nada de recorrer mapas en orden aleatorio; todo se ordena antes de imprimir, para que los golden files sean estables.
 - **Comentarios solo para el porqué**, en una línea. Cuando un atajo tiene un límite conocido: `shortcut: <el límite>, <cuándo mejorarlo>`.
 - **Tamaño.** Cada paquete hace una cosa; si un archivo necesita dos secciones de comentarios para explicarse, son dos paquetes.
-- **Legibilidad antes que brevedad.** Una función cabe en una pantalla (unas 30 líneas) y hace una cosa; un archivo agrupa una responsabilidad (`spec` se lee en `head.go`, `body.go`, `name.go` y `parse.go`); en el adaptador, un comando por archivo. Preferir el flujo plano con retornos tempranos a los `if` anidados, y un `switch` ordenado a una cadena de `else`.
-- **Nombres que no tartamudean ni chocan.** El tipo principal de un paquete no repite su nombre (`verify.Checker`, no `verify.Verify`) y no comparte nombre con un tipo de otro paquete (`status.Reporter`, no `status.Status`, que es `slice.Status`). `New` solo construye: lo que crea un spec se llama `Create`.
+- **Legibilidad antes que brevedad.** Una función cabe en una pantalla (unas 30 líneas) y hace una cosa; un archivo agrupa una responsabilidad (`specfile` se lee en `head.go`, `body.go`, `name.go` y `parse.go`); en el adaptador, un comando por archivo. Preferir el flujo plano con retornos tempranos a los `if` anidados, y un `switch` ordenado a una cadena de `else`.
+- **Nombres que no tartamudean ni chocan.** El tipo principal de un paquete no repite su nombre (`verify.Checker`, no `verify.Verify`) y no comparte nombre con un tipo de otro paquete (`status.Reporter`, no `status.Status`, que es `lifecycle.Status`). `New` solo construye: lo que crea un spec se llama `Create`.
 - **Nada que no se use.** Una función exportada que solo llaman los tests se borra, y los tests prueban lo que el código usa de verdad.
 - **Herramientas.** `go vet`, `golangci-lint` y `gofmt` en CI; tests con `-race`.
 
@@ -336,7 +336,7 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 | Qué | Cómo | Capa |
 |---|---|---|
 | Reglas del dominio | Tests de tabla; la mayoría de los casos se resuelven aquí, sin disco | `domain` |
-| Parser de specs | Tests de tabla, golden files y **fuzzing** | `spec` |
+| Parser de specs | Tests de tabla, golden files y **fuzzing** | `specfile` |
 | Casos de uso | Con puertos falsos escritos a mano (sin librería de mocks) | `usecase` |
 | Gateways | Contra un directorio temporal real y un repo git temporal | `gateway` |
 | Salida de comandos | Golden files del texto y del JSON | `adapter` |
@@ -388,11 +388,11 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 Cada paso termina con sus tests antes de empezar el siguiente:
 
 1. Esqueleto: `go.mod`, las tres carpetas, `main.go` mínimo y el **test de dependencias**.
-2. `domain/claim`, `domain/spec` y `domain/slice`, con el fuzzing del parser.
-3. `domain/lint`, `domain/proof` y los casos de uso `verify` para `delta spec lint` y `delta lint`.
+2. `domain/assertion`, `domain/specfile` y `domain/lifecycle`, con el fuzzing del parser.
+3. `domain/linkcheck`, `domain/judgment` y los casos de uso `verify` para `delta spec lint` y `delta lint`.
 4. `gateway/runner`, `gateway/files` y `delta check`.
 5. `domain/drift` no entra aquí: es de la Fase 5.
-6. `gateway/gitcli`, `domain/commit`, `domain/budget` y sus comandos.
+6. `gateway/gitcli`, `domain/messages`, `domain/budget` y sus comandos.
 7. La suite de compatibilidad con proyectos reales de Go y TypeScript.
 
 `adapter/hook`, `usecase/guard` y `setup` pertenecen a la Fase 2; `author` con `approve` y las transiciones, a la Fase 3.
@@ -420,7 +420,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 3. **Formato del JSON de los hooks** y nombres definitivos de los eventos de `delta hook` (*a verificar*, sección 8.5).
 4. **Versión de Go y ruta del módulo** (`github.com/ronz204/deltas-ai` es la ruta natural del repositorio actual; la versión de Go se fija al crear `go.mod`).
 5. **Configuración de `golangci-lint`**: qué linters se activan.
-6. **Códigos de diagnóstico**: ya existen los de `spec` (`SPEC-*`), `lint` (`LINT-*`) y `commit` (`COMMIT-*`); se completan con cada comando nuevo.
+6. **Códigos de diagnóstico**: ya existen los de `specfile` (`SPEC-*`), `linkcheck` (`LINT-*`) y `messages` (`COMMIT-*`); se completan con cada comando nuevo.
 7. **`spec write` y el estado.** Hoy `spec write` guarda cualquier spec válido, incluido uno que se declare `approved`. Cerrar ese hueco (un spec nuevo solo puede nacer `draft`, y solo `delta approve` cambia el estado) es parte de la máquina de estados de la Fase 3.
 8. **Repos con servicios.** Los contratos se leen solo de `<raíz>/deltas`. Un repo partido en servicios, con un `deltas/` por servicio, no está soportado todavía.
-9. **Separar `Kind` y `TagKind` en `claim`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.
+9. **Separar `Kind` y `TagKind` en `assertion`.** Son dos tipos distintos con nombre parecido; si confunde, `TagKind` podría llamarse `Verify`.
