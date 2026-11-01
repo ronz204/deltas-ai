@@ -72,7 +72,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	}
 }
 
-// loadConf reads delta.conf. Without one it falls back to the budget ceilings of the older .claude/budget.conf,
+// loadConf reads deltas.config. Without one it falls back to the budget ceilings of the older .claude/budget.conf,
 // and a file that cannot be read leaves the defaults and says so.
 func loadConf(root string) conffile.Conf {
 	vault := vaults.New(root)

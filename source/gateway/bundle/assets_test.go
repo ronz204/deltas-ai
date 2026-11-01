@@ -32,7 +32,7 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	by := assetsOf(t)
 	for _, want := range []string{
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/rules/commit-messages.md", "delta.conf", "CLAUDE.md",
+		".claude/rules/commit-messages.md", "deltas/deltas.config", "CLAUDE.md",
 	} {
 		if _, ok := by[want]; !ok {
 			t.Errorf("%s is not installed", want)
@@ -67,12 +67,12 @@ func TestClaudeMdNamesTheProject(t *testing.T) {
 	}
 }
 
-// The delta.conf that init installs states delta's defaults, so a project starts with what delta would do
+// The deltas.config that init installs states delta's defaults, so a project starts with what delta would do
 // without the file, and the file has to be one delta accepts.
 func TestTheDeltaConfThatIsInstalledStatesTheDefaults(t *testing.T) {
-	c := conffile.Parse(string(assetsOf(t)["delta.conf"].Content))
+	c := conffile.Parse(string(assetsOf(t)["deltas/deltas.config"].Content))
 	if len(c.Problems) != 0 {
-		t.Fatalf("delta.conf has problems: %v", c.Problems)
+		t.Fatalf("deltas.config has problems: %v", c.Problems)
 	}
 	if !reflect.DeepEqual(c.TestFiles, linkcheck.DefaultTestFiles) {
 		t.Errorf("test_files = %v, want %v", c.TestFiles, linkcheck.DefaultTestFiles)

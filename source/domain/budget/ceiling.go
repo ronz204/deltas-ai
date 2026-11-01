@@ -20,17 +20,17 @@ func Defaults() Ceilings {
 	return Ceilings{Total: 3500, Router: 80, Rule: 50, Skill: 1024, Agent: 1024}
 }
 
-// keys are the budget keys of delta.conf. The last six belonged to budget.sh, which no longer ships; they stay
-// valid so that a delta.conf written for it keeps loading, and delta budget does not read them.
+// keys are the budget keys of deltas.config. The last six belonged to budget.sh, which no longer ships; they stay
+// valid so that a deltas.config written for it keeps loading, and delta budget does not read them.
 var keys = []string{
 	"always_tokens", "claude_lines", "rule_always_lines", "skill_desc_chars", "agent_desc_chars",
 	"rule_scoped_lines", "skill_body_lines", "agent_body_lines", "doc_lines", "reference_lines", "reference_chars",
 }
 
-// IsKey says whether key is a budget key of delta.conf, whether or not delta budget reads it.
+// IsKey says whether key is a budget key of deltas.config, whether or not delta budget reads it.
 func IsKey(key string) bool { return slices.Contains(keys, key) }
 
-// ParseCeilings reads the always-loaded keys of a budget.conf or delta.conf over the defaults: always_tokens,
+// ParseCeilings reads the always-loaded keys of a budget.conf or deltas.config over the defaults: always_tokens,
 // claude_lines, rule_always_lines, skill_desc_chars and agent_desc_chars. Other keys, comments
 // and values that are not numbers are ignored.
 func ParseCeilings(conf string) Ceilings {

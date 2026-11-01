@@ -19,7 +19,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		".githooks/commit-msg", "deltas/.gitkeep", "delta.conf", "CLAUDE.md",
+		".githooks/commit-msg", "deltas/specifies/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
 		".claude/settings.json", ".claude/rules/commit-messages.md",
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 	} {
@@ -30,8 +30,8 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	if !strings.HasPrefix(p.read("CLAUDE.md"), "# "+filepath.Base(p.root)+"\n") {
 		t.Errorf("CLAUDE.md does not name the project:\n%s", p.read("CLAUDE.md"))
 	}
-	if c := conffile.Parse(p.read("delta.conf")); len(c.Problems) != 0 {
-		t.Errorf("the installed delta.conf has problems: %v", c.Problems)
+	if c := conffile.Parse(p.read("deltas/deltas.config")); len(c.Problems) != 0 {
+		t.Errorf("the installed deltas.config has problems: %v", c.Problems)
 	}
 	var settings struct {
 		Hooks map[string]json.RawMessage `json:"hooks"`

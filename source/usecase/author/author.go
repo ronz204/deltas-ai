@@ -49,7 +49,7 @@ func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 		return "", fmt.Errorf("the spec template is broken: %w", err)
 	}
 	var out bytes.Buffer
-	if err := tpl.Execute(&out, struct{ Slice string }{specfile.Base(slice)}); err != nil {
+	if err := tpl.Execute(&out, struct{ Slice string }{slice}); err != nil {
 		return "", err
 	}
 	if err := a.store.Create(ctx, slice, out.Bytes()); err != nil {

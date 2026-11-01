@@ -193,7 +193,7 @@ func TestTreeLooksOnlyAtTheScopeAndIgnoresDocumentation(t *testing.T) {
 	put(t, dir, "README.md", "one")
 	commit(t, dir)
 	g := New(dir)
-	billing := linkcheck.NewScope("deltas/billing.spec.md", []string{"billing.go"})
+	billing := linkcheck.NewScope("deltas/specifies/billing.spec.md", []string{"billing.go"})
 
 	put(t, dir, "README.md", "two")
 	if hash, dirty, _ := g.Tree(ctx, everything); dirty || hash != "" {

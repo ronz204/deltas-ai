@@ -16,7 +16,7 @@ type Meter struct {
 	ceilings budget.Ceilings
 }
 
-// New builds the meter of a project whose delta.conf sets these ceilings.
+// New builds the meter of a project whose deltas.config sets these ceilings.
 func New(files Files, ceilings budget.Ceilings) *Meter {
 	return &Meter{files: files, ceilings: ceilings}
 }

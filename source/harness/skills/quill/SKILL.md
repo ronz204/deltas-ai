@@ -17,8 +17,8 @@ The slice is `$ARGUMENTS`; if it is empty, ask which slice.
 
 ## Step 0 — Read what already exists
 
-- Run `delta status` to see the slices and their state. A slice in a service's own `deltas/` is named `folder/slice` (for example `services/auth/login`); a bare name works when only one `deltas/` has it.
-- If `<slice>` has a spec (`deltas/<slice>.spec.md`, or `<folder>/deltas/<slice>.spec.md`), read it in full. Every question below must be about a genuine gap or an update, not something already answered. Note its state: rewriting an approved or built contract sends it back to `draft`, and a person must approve it again.
+- Run `delta status` to see the slices and their state.
+- If `<slice>` has a spec (`deltas/specifies/<slice>.spec.md`), read it in full. Every question below must be about a genuine gap or an update, not something already answered. Note its state: rewriting an approved or built contract sends it back to `draft`, and a person must approve it again.
 - If it has none, confirm the slice's name and boundary with the user first. The file is created in Step 4, once there is content for it.
 
 ## Step 1 — Investigate the real implementation

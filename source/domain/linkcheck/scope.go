@@ -2,7 +2,7 @@ package linkcheck
 
 import "strings"
 
-// Scope is the part of a project a slice depends on. Unless delta.conf names paths for the slice, that is
+// Scope is the part of a project a slice depends on. Unless deltas.config names paths for the slice, that is
 // every code file: a change anywhere can break a claim. Markdown is documentation and never counts, except
 // the slice's own spec.
 type Scope struct {

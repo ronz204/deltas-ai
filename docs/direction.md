@@ -137,7 +137,7 @@ Un binario único, sin runtime. Propuesta de comandos:
 
 | Comando | Qué hace | Reemplaza |
 |---|---|---|
-| `delta init` | Crea la estructura base (`CLAUDE.md` router mínimo, `deltas/`, hooks de Claude Code, `.githooks/`, config) y fija `core.hooksPath` en el clon. Es idempotente: se corre de nuevo en cada clon | Parte determinista de Surveyor |
+| `delta init` | Crea la estructura base (`CLAUDE.md` router mínimo, `deltas/` con `specifies/` y `deltas.config`, hooks de Claude Code, `.githooks/`, config) y fija `core.hooksPath` en el clon. Es idempotente: se corre de nuevo en cada clon | Parte determinista de Surveyor |
 | `delta spec new <slice>` | Crea un spec desde la plantilla con frontmatter y estado `draft` | Parte de Archivist |
 | `delta spec lint [slice]` | Valida estructura, notación EARS, IDs únicos y tags válidos | Revisión manual |
 | `delta spec write` | Único punto de escritura de la KB; valida antes de escribir | Archivist |
@@ -164,7 +164,7 @@ Notas de diseño:
 | `PreToolUse` (Write/Edit sobre la KB) | Bloquea la edición directa de specs y docs por parte del agente (exit **2**, no 1). La persona sí puede editar a mano |
 | `PreToolUse` (Bash con `git commit`) | Valida el mensaje con `delta commit-msg` y bloquea con exit **2** si no cumple. Es la capa que protege los commits del agente |
 | `PostToolUse` (Write/Edit sobre un archivo de test) | Corre `delta lint` y le cuenta a Claude los problemas de ese archivo (un `skip`, un ID desconocido). Los linters de lenguaje los maneja cada proyecto, no Delta. En la Fase 5 llamará además `delta stale` |
-| `Stop` | Exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol (regla de honestidad): compara la huella de esa parte del árbol con la que `delta check` anotó, y bloquea una sola vez. Un slice mira todo el código salvo que `delta.conf` declare sus rutas; la documentación no cuenta. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
+| `Stop` | Exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol (regla de honestidad): compara la huella de esa parte del árbol con la que `delta check` anotó, y bloquea una sola vez. Un slice mira todo el código salvo que `deltas/deltas.config` declare sus rutas; la documentación no cuenta. Avisa además si quedan slices `stale` o claims sin verificar (Fase 5) |
 
 Estos hooks viven en `.claude/settings.json`, que se versiona: **quien clone el repo los tiene sin configurar nada.**
 
@@ -238,7 +238,7 @@ status: approved
 
 **Tags de verificación: `test`, `manual` y `none`.** No hay tag `check`: un e2e es un test con un comando más grande, y distinguirlos no aportaba nada.
 
-- **`test: <comando>`** es cualquier comando que salga con 0 si el claim se cumple. Delta lo ejecuta desde la raíz del repo (o desde la carpeta de su scope, si el proyecto tiene varios `deltas/`), directo con `os/exec` y sin pasar por un shell, para que funcione igual en Windows, Mac y Linux. *Shortcut: sin shell, el comando no admite pipes, redirecciones ni `$VAR`; si hace falta algo así, se escribe como programa o como script del proyecto.* Delta no instala ni elige el runner: cada proyecto usa el suyo.
+- **`test: <comando>`** es cualquier comando que salga con 0 si el claim se cumple. Delta lo ejecuta desde la raíz del repo, directo con `os/exec` y sin pasar por un shell, para que funcione igual en Windows, Mac y Linux. *Shortcut: sin shell, el comando no admite pipes, redirecciones ni `$VAR`; si hace falta algo así, se escribe como programa o como script del proyecto.* Delta no instala ni elige el runner: cada proyecto usa el suyo.
 - **`manual`** (que puede llevar el paso a seguir, `manual: <paso>`) y **`none`** no tienen comando. `none` sigue siendo válido, pero queda visible en `delta status` como deuda de verificación. No hace falta montar un harness de tests el primer día.
 
 **Reglas para que el comando no mienta** (decisión 8): el tag apunta a un archivo, paquete o directorio, **sin filtros por nombre** (`go test ./facturacion`, no `-run`), para eliminar el caso de un filtro que no coincide con nada y sale con 0. Delta no lee la salida del runner, porque ese formato es de un tercero y puede cambiar. Lo que sí hace `delta lint` es comprobar de forma estática que el ID del claim aparece en un archivo de tests (por convención de nombre: `*_test.go`, `test_*.py`, `*.test.ts`, `*.spec.ts` y similares), en el nombre del test o en un comentario. La coincidencia es tolerante a separadores y a mayúsculas (`INV-01`, `INV_01`, `INV01`, con un límite al final para que `INV01` no coincida con `INV011`), porque algunos lenguajes no admiten guiones en los nombres (`TestINV01_Redondeo` en Go).

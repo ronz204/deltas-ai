@@ -71,7 +71,7 @@ func TestRunReturnsTheExitCodeAndShowsOutput(t *testing.T) {
 	}{{"", 0}, {"exit3", 3}}
 	for _, c := range cases {
 		out.Reset()
-		got, err := r.Run(context.Background(), helper(t, c.mode), "")
+		got, err := r.Run(context.Background(), helper(t, c.mode))
 		if err != nil || got != c.want {
 			t.Fatalf("mode %q: exit %d, %v; want %d", c.mode, got, err, c.want)
 		}
@@ -84,7 +84,7 @@ func TestRunReturnsTheExitCodeAndShowsOutput(t *testing.T) {
 func TestRunUsesTheDirectory(t *testing.T) {
 	dir := t.TempDir()
 	var out bytes.Buffer
-	if _, err := New(dir, time.Minute, &out).Run(context.Background(), helper(t, "pwd"), ""); err != nil {
+	if _, err := New(dir, time.Minute, &out).Run(context.Background(), helper(t, "pwd")); err != nil {
 		t.Fatal(err)
 	}
 	first, _, _ := strings.Cut(out.String(), "\n")
@@ -97,35 +97,18 @@ func TestRunUsesTheDirectory(t *testing.T) {
 
 func TestRunErrors(t *testing.T) {
 	r := New(t.TempDir(), 300*time.Millisecond, &bytes.Buffer{})
-	if _, err := r.Run(context.Background(), "definitely-not-a-command-xyz", ""); err == nil {
+	if _, err := r.Run(context.Background(), "definitely-not-a-command-xyz"); err == nil {
 		t.Error("a command that cannot start must be an error, not an exit code")
 	}
-	if _, err := r.Run(context.Background(), "", ""); err == nil {
+	if _, err := r.Run(context.Background(), ""); err == nil {
 		t.Error("an empty command must be an error")
 	}
 	start := time.Now()
-	_, err := r.Run(context.Background(), helper(t, "sleep"), "")
+	_, err := r.Run(context.Background(), helper(t, "sleep"))
 	if err == nil || !strings.Contains(err.Error(), "timed out") {
 		t.Fatalf("err = %v, want a timeout", err)
 	}
 	if time.Since(start) > 30*time.Second {
 		t.Fatal("the timeout did not stop the command")
-	}
-}
-
-func TestRunStartsInTheGivenFolderOfTheProject(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "services", "auth"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	if _, err := New(root, time.Minute, &out).Run(context.Background(), helper(t, "pwd"), "services/auth"); err != nil {
-		t.Fatal(err)
-	}
-	first, _, _ := strings.Cut(out.String(), "\n")
-	got, gotErr := filepath.EvalSymlinks(strings.TrimSpace(first))
-	want, wantErr := filepath.EvalSymlinks(filepath.Join(root, "services", "auth"))
-	if gotErr != nil || wantErr != nil || got != want {
-		t.Fatalf("ran in %q, want %q (%v, %v)", got, want, gotErr, wantErr)
 	}
 }

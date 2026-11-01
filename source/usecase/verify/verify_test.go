@@ -15,8 +15,7 @@ var ctx = context.Background()
 
 type fakeSpecs map[string]string
 
-func (f fakeSpecs) Resolve(_ context.Context, s string) (string, error) { return s, nil }
-func (f fakeSpecs) Path(s string) string                                { return "deltas/" + s + ".spec.md" }
+func (f fakeSpecs) Path(s string) string { return "deltas/specifies/" + s + ".spec.md" }
 func (f fakeSpecs) List(context.Context) ([]string, error) {
 	var names []string
 	for _, n := range []string{"billing", "broken", "payments", "svc/auth/sessions"} { // fixed order, like a sorted listing
@@ -48,12 +47,10 @@ type fakeRunner struct {
 	exits map[string]int
 	errs  map[string]error
 	ran   []string
-	dirs  []string
 }
 
-func (f *fakeRunner) Run(_ context.Context, command, dir string) (int, error) {
+func (f *fakeRunner) Run(_ context.Context, command string) (int, error) {
 	f.ran = append(f.ran, command)
-	f.dirs = append(f.dirs, dir)
 	return f.exits[command], f.errs[command]
 }
 
@@ -115,7 +112,7 @@ func TestCheckDoesNotRunABrokenSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Diags) == 0 || rep.Diags[0].File != "deltas/broken.spec.md" {
+	if len(rep.Diags) == 0 || rep.Diags[0].File != "deltas/specifies/broken.spec.md" {
 		t.Fatalf("the broken spec was not reported: %+v", rep.Diags)
 	}
 	if len(rep.Results) != 1 || rep.Results[0].Slice != "billing" {
@@ -203,8 +200,8 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
 	}
-	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/billing.spec.md") || billing.Covers("README.md") {
-		t.Fatalf("the scope of billing = %+v, want every code file and its spec when delta.conf names no paths", billing)
+	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/specifies/billing.spec.md") || billing.Covers("README.md") {
+		t.Fatalf("the scope of billing = %+v, want every code file and its spec when deltas.config names no paths", billing)
 	}
 }
 
@@ -272,26 +269,5 @@ func TestCheckLeavesTheStatusAloneUnlessItIsBuiltAndClean(t *testing.T) {
 				t.Fatalf("Check = %+v, %v; stored %q", rep, err, specs["billing"])
 			}
 		})
-	}
-}
-
-func TestASliceOfAServiceRunsFromItsFolderAndCitesRelativeToIt(t *testing.T) {
-	specs := fakeSpecs{"svc/auth/sessions": specOf("sessions", "- INV-01 [test: go test ./login]\n  When x, y.\n")}
-	run := &fakeRunner{}
-	files := fakeTests{{Path: "svc/auth/login/login_test.go", Text: "// INV-01\n"}}
-	rep, err := New(specs, files, run, nil, nil).Check(ctx, "svc/auth/sessions")
-	if err != nil || len(rep.Results) != 1 || rep.Results[0].Outcome.Verdict != judgment.Holds {
-		t.Fatalf("Check = %+v, %v", rep, err)
-	}
-	if !reflect.DeepEqual(run.dirs, []string{"svc/auth"}) {
-		t.Fatalf("ran from %v, want the service folder", run.dirs)
-	}
-	other := fakeTests{{Path: "svc/billing/login/login_test.go", Text: "// INV-01\n"}}
-	rep, _ = New(specs, other, &fakeRunner{}, nil, nil).Check(ctx, "svc/auth/sessions")
-	if rep.Results[0].Outcome.Verdict != judgment.Unverified {
-		t.Fatalf("a test of another service vouched for this one: %+v", rep.Results[0])
-	}
-	if ds, err := New(specs, files, &fakeRunner{}, nil, nil).Lint(ctx); err != nil || len(ds) != 0 {
-		t.Fatalf("Lint = %v, %v: the citation is under the service folder", ds, err)
 	}
 }

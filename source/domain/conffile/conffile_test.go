@@ -59,13 +59,13 @@ func TestALineThatCannotBeUsedIsToldAndLeftOut(t *testing.T) {
 		t.Errorf("the good line after the bad ones was lost: %v", c.Tools)
 	}
 	want := []string{
-		`delta.conf:1: expected key=value`,
-		`delta.conf:2: unknown key "colour"`,
-		`delta.conf:3: test_files: "[" is not a valid pattern`,
-		`delta.conf:4: command_timeout: "soon" is not a positive duration such as 10m`,
-		`delta.conf:5: command_timeout: "-5m" is not a positive duration such as 10m`,
-		`delta.conf:6: scope.<slice> needs a slice name and at least one path inside the project`,
-		`delta.conf:7: scope.<slice> needs a slice name and at least one path inside the project`,
+		`deltas/deltas.config:1: expected key=value`,
+		`deltas/deltas.config:2: unknown key "colour"`,
+		`deltas/deltas.config:3: test_files: "[" is not a valid pattern`,
+		`deltas/deltas.config:4: command_timeout: "soon" is not a positive duration such as 10m`,
+		`deltas/deltas.config:5: command_timeout: "-5m" is not a positive duration such as 10m`,
+		`deltas/deltas.config:6: scope.<slice> needs a slice name and at least one path inside the project`,
+		`deltas/deltas.config:7: scope.<slice> needs a slice name and at least one path inside the project`,
 	}
 	if !reflect.DeepEqual(c.Problems, want) {
 		t.Errorf("problems:\n got %q\nwant %q", c.Problems, want)

@@ -24,7 +24,7 @@ func (Bundle) GitHook(name string) ([]byte, error) {
 func (Bundle) Settings() ([]byte, error) { return harness.FS.ReadFile("core/configs/settings.json") }
 
 // Assets lists what init copies into a project, in a fixed order: the skills and the rules under .claude/,
-// delta.conf, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
+// deltas/deltas.config, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
 func (Bundle) Assets(project string) ([]setup.Asset, error) {
 	var out []setup.Asset
 	err := fs.WalkDir(harness.FS, ".", func(p string, d fs.DirEntry, err error) error {
@@ -57,8 +57,8 @@ func destination(p string) (string, bool) {
 		return ".claude/" + p, true
 	case strings.HasPrefix(p, "rules/"):
 		return ".claude/rules/" + path.Base(p), true
-	case p == "core/configs/delta.conf":
-		return "delta.conf", true
+	case p == "core/configs/deltas.config":
+		return "deltas/deltas.config", true
 	case p == "core/templates/CLAUDE.md":
 		return "CLAUDE.md", true
 	}

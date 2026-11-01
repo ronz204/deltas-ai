@@ -22,7 +22,7 @@ Nothing below assumes a specific stack. The slice is `$ARGUMENTS`.
 
 This is the main cost lever.
 
-- If the user names a slice, scope is that slice and nothing wider. A slice in a service's own `deltas/` is named `folder/slice`.
+- If the user names a slice, scope is that slice and nothing wider.
 - If they don't, use `git status` and `git diff` to find the slices the changes belong to, and confirm with the user if more than one fits instead of guessing.
 - If they ask for everything, honor it, but say first that it costs proportionally and offer to narrow. Don't refuse, and don't default to it.
 - If the slice has no spec, there is nothing to verify against: say so and suggest `quill`. Don't invent claims from the code.

@@ -7,6 +7,7 @@
 *.md   text eol=lf
 *.json text eol=lf
 *.conf text eol=lf
+*.config text eol=lf
 
 # Go source and the git hooks installed into projects stay LF too: a CRLF
 # in a hook's shebang breaks it on Unix.

@@ -39,7 +39,7 @@ type Asset struct {
 // Harness is what delta ships to install.
 type Harness interface {
 	GitHook(name string) ([]byte, error)
-	Assets(project string) ([]Asset, error) // skills, rules, delta.conf and CLAUDE.md
+	Assets(project string) ([]Asset, error) // skills, rules, deltas.config and CLAUDE.md
 	Settings() ([]byte, error)              // the part of .claude/settings.json that delta needs
 }
 
@@ -56,7 +56,7 @@ type Installer struct {
 	conf    conffile.Conf
 }
 
-// New builds the installer of a project whose delta.conf says conf.
+// New builds the installer of a project whose deltas.config says conf.
 func New(files Files, git Git, harness Harness, bin Binary, conf conffile.Conf) *Installer {
 	return &Installer{files: files, git: git, harness: harness, bin: bin, conf: conf}
 }
@@ -67,7 +67,7 @@ func (i *Installer) Check(ctx context.Context) []string {
 	problems := append([]string(nil), i.conf.Problems...)
 	for _, tool := range i.conf.Tools {
 		if path, _ := i.bin.Locate(tool); path == "" {
-			problems = append(problems, fmt.Sprintf("%s is required by delta.conf and is not on the PATH", tool))
+			problems = append(problems, fmt.Sprintf("%s is required by deltas.config and is not on the PATH", tool))
 		}
 	}
 	current, err := i.git.HooksPath(ctx)
@@ -103,7 +103,7 @@ type Step struct {
 }
 
 // skeleton is what every project gets before the harness: the folder that holds the contracts.
-var skeleton = []Asset{{Path: "deltas/.gitkeep", Mode: 0o644}}
+var skeleton = []Asset{{Path: "deltas/specifies/.gitkeep", Mode: 0o644}}
 
 // Run installs the commit-msg git hook and points core.hooksPath at it, then the files of the harness and
 // the settings Claude Code needs. It is safe to run again, and it never replaces a file that differs from

@@ -1,4 +1,4 @@
-// Package conffile reads delta.conf, the optional settings file at the root of a project.
+// Package conffile reads deltas.config, the optional settings file in the deltas/ folder at the root of a project.
 package conffile
 
 import (
@@ -10,9 +10,9 @@ import (
 	"github.com/ronz204/deltas-ai/source/domain/budget"
 )
 
-const Name = "delta.conf"
+const Name = "deltas/deltas.config"
 
-// Conf is what delta.conf says over delta's defaults. A line that cannot be used is left out and told in Problems.
+// Conf is what deltas.config says over delta's defaults. A line that cannot be used is left out and told in Problems.
 type Conf struct {
 	Budget    budget.Ceilings
 	TestFiles []string            // patterns on a file's name; empty means delta's own

@@ -14,7 +14,7 @@ import (
 
 type specs map[string]string
 
-func (s specs) Path(slice string) string { return "deltas/" + slice + ".spec.md" }
+func (s specs) Path(slice string) string { return "deltas/specifies/" + slice + ".spec.md" }
 func (s specs) List(context.Context) ([]string, error) {
 	if len(s) == 0 {
 		return nil, nil
@@ -38,8 +38,8 @@ func run(t *testing.T, s specs, input string) (code int, out, errOut string) {
 }
 
 func TestBlockExitsTwoWithTheReasonOnStderr(t *testing.T) {
-	code, out, errOut := run(t, nil, `{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/deltas/a.spec.md","content":"x"}}`)
-	if code != 2 || out != "" || !strings.Contains(errOut, "deltas/a.spec.md") {
+	code, out, errOut := run(t, nil, `{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/deltas/specifies/a.spec.md","content":"x"}}`)
+	if code != 2 || out != "" || !strings.Contains(errOut, "deltas/specifies/a.spec.md") {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, out, errOut)
 	}
 }
@@ -55,7 +55,7 @@ func TestAllowedEventsExitZeroAndSayNothing(t *testing.T) {
 	for _, input := range []string{
 		`{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/main.go"}}`,
 		`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"go test ./..."}}`,
-		`{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/deltas/a.spec.md"},"tool_response":{"type":"create"}}`,
+		`{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/deltas/specifies/a.spec.md"},"tool_response":{"type":"create"}}`,
 		`{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"done"}`,
 		`{"hook_event_name":"SessionStart","source":"startup"}`,
 		`{}`,

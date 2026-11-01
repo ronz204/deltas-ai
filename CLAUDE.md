@@ -9,7 +9,7 @@ Delta: a deterministic Go CLI (`delta`) plus Claude Code hooks that keep a verif
 | If you need... | Read |
 |---|---|
 | What Delta is and why | `docs/direction.md` |
-| How the CLI is built: layers, packages, hooks, `delta.conf` | `docs/blueprint.md` |
+| How the CLI is built: layers, packages, hooks, `deltas/deltas.config` | `docs/blueprint.md` |
 | What is done and what is next | `docs/waypoints.md` |
 
 ## Commands

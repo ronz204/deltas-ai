@@ -12,7 +12,7 @@ import (
 
 type fake map[string]string
 
-func (f fake) Path(s string) string { return "deltas/" + s + ".spec.md" }
+func (f fake) Path(s string) string { return "deltas/specifies/" + s + ".spec.md" }
 func (f fake) List(context.Context) ([]string, error) {
 	var names []string
 	for _, n := range []string{"a", "b", "c"} {
@@ -55,7 +55,7 @@ func TestReport(t *testing.T) {
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
 	}
-	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/a.spec.md") {
+	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/specifies/a.spec.md") {
 		t.Fatalf("the scope of a = %+v, want every code file and its spec", a)
 	}
 }
@@ -73,7 +73,7 @@ func TestReportNarrowsOnlyTheSlicesDeltaConfLists(t *testing.T) {
 		t.Errorf("a = %+v, want only a, shared and its spec", a)
 	}
 	if b := rows[1].Scope; !b.Covers("a/x.go") {
-		t.Errorf("b = %+v, want every code file: delta.conf says nothing about it", b)
+		t.Errorf("b = %+v, want every code file: deltas.config says nothing about it", b)
 	}
 }
 

@@ -19,7 +19,6 @@ const (
 
 type Slice struct {
 	File string
-	Dir  string // the folder its commands run from, relative to the project; empty for the project root
 	Spec specfile.Spec
 }
 
@@ -36,7 +35,7 @@ func Check(slices []Slice, files []File) []findings.Diagnostic {
 	for _, s := range slices {
 		for _, c := range s.Spec.Claims {
 			defined[c.ID.String()] = true
-			if c.Tag.Method == assertion.Test && !Cited(c.ID, c.Tag.Arg, Under(files, s.Dir)) {
+			if c.Tag.Method == assertion.Test && !Cited(c.ID, c.Tag.Arg, files) {
 				out = append(out, findings.Diagnostic{File: s.File, Line: c.Line, Code: CodeNoCite,
 					Message: fmt.Sprintf("%s has a test tag, but no test file under %q cites its ID", c.ID, c.Tag.Arg)})
 			}

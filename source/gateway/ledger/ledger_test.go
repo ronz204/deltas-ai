@@ -34,8 +34,8 @@ func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, err
 }
 
 var (
-	billing  = linkcheck.NewScope("deltas/billing.spec.md", []string{"billing"})
-	payments = linkcheck.NewScope("deltas/payments.spec.md", []string{"payments"})
+	billing  = linkcheck.NewScope("deltas/specifies/billing.spec.md", []string{"billing"})
+	payments = linkcheck.NewScope("deltas/specifies/payments.spec.md", []string{"payments"})
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {

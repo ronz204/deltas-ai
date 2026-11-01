@@ -22,7 +22,7 @@ type Reporter struct {
 	scopes map[string][]string
 }
 
-// New builds the reporter. scopes holds, for the slices that have them, the paths delta.conf says they depend on.
+// New builds the reporter. scopes holds, for the slices that have them, the paths deltas.config says they depend on.
 func New(specs Specs, scopes map[string][]string) *Reporter {
 	return &Reporter{specs: specs, scopes: scopes}
 }

@@ -17,8 +17,6 @@ type Specs interface {
 	Load(ctx context.Context, slice string) ([]byte, error)
 	Save(ctx context.Context, slice string, content []byte) error
 	Path(slice string) string
-	// Resolve gives the full name of the slice a reference points to, or an error if it is ambiguous.
-	Resolve(ctx context.Context, ref string) (string, error)
 }
 
 type Tests interface {
@@ -28,7 +26,7 @@ type Tests interface {
 
 // Runner runs a claim's command and returns its exit code. An error means it did not finish.
 type Runner interface {
-	Run(ctx context.Context, command, dir string) (exit int, err error)
+	Run(ctx context.Context, command string) (exit int, err error)
 }
 
 // Seen is what a check found for one slice: whether a claim was violated, and the part of the project it depends on.
@@ -58,7 +56,7 @@ type Checker struct {
 }
 
 // New builds the checker. marks may be nil, and then checks are not remembered. scopes holds, for the slices
-// that have them, the paths delta.conf says they depend on; any other slice depends on every code file.
+// that have them, the paths deltas.config says they depend on; any other slice depends on every code file.
 func New(specs Specs, tests Tests, run Runner, marks Marks, scopes map[string][]string) *Checker {
 	return &Checker{specs: specs, tests: tests, run: run, marks: marks, scopes: scopes}
 }
@@ -75,17 +73,12 @@ type loaded struct {
 
 // load parses the named slice, or every slice when only is empty.
 func (v *Checker) load(ctx context.Context, only string) ([]loaded, error) {
-	var names []string
-	var err error
+	names := []string{only}
 	if only == "" {
-		names, err = v.specs.List(ctx)
-	} else {
-		var name string
-		name, err = v.specs.Resolve(ctx, only)
-		names = []string{name}
-	}
-	if err != nil {
-		return nil, err
+		var err error
+		if names, err = v.specs.List(ctx); err != nil {
+			return nil, err
+		}
 	}
 	out := make([]loaded, 0, len(names))
 	for _, name := range names {
@@ -128,7 +121,7 @@ func (v *Checker) Lint(ctx context.Context) ([]findings.Diagnostic, error) {
 	}
 	slices := make([]linkcheck.Slice, len(ls))
 	for i, l := range ls {
-		slices[i] = linkcheck.Slice{File: l.file, Dir: specfile.Dir(l.slice), Spec: l.spec}
+		slices[i] = linkcheck.Slice{File: l.file, Spec: l.spec}
 	}
 	return linkcheck.Check(slices, files), nil
 }
@@ -183,14 +176,12 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 // checkSlice judges the claims of one clean slice into rep, and verifies it if it is built and its test claims all hold.
 func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.File, rep *Report) (Seen, error) {
 	s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file, v.scopes[l.slice])}
-	dir := specfile.Dir(l.slice)
-	files = linkcheck.Under(files, dir)
 	var held, open int // test claims that hold, and test claims that do not
 	for _, c := range l.spec.Claims {
 		if err := ctx.Err(); err != nil {
 			return s, err
 		}
-		out := v.judge(ctx, c, files, dir)
+		out := v.judge(ctx, c, files)
 		rep.Results = append(rep.Results, Result{Slice: l.slice, ID: c.ID, Outcome: out})
 		s.Violated = s.Violated || out.Verdict == judgment.Violated
 		switch {
@@ -240,11 +231,11 @@ func hasTestClaims(ls []loaded) bool {
 	return false
 }
 
-func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File, dir string) judgment.Outcome {
+func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File) judgment.Outcome {
 	if c.Tag.Method != assertion.Test {
 		return judgment.Judge(c.Tag, 0, false)
 	}
-	exit, err := v.run.Run(ctx, c.Tag.Arg, dir)
+	exit, err := v.run.Run(ctx, c.Tag.Arg)
 	if err != nil {
 		return judgment.Outcome{Verdict: judgment.Unverified, Reason: "could not run the command: " + err.Error()}
 	}

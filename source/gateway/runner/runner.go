@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"time"
 )
 
@@ -22,9 +21,9 @@ func New(dir string, timeout time.Duration, out io.Writer) *Runner {
 }
 
 // Run returns the exit code; an error means it did not finish (could not start, or timed out). The command
-// runs from dir, a folder of the project given with forward slashes ("" is the project root).
+// runs from the project root.
 // shortcut: no shell, so no pipes, redirections or $VARIABLES; write such a check as a program or script.
-func (r *Runner) Run(ctx context.Context, command, dir string) (int, error) {
+func (r *Runner) Run(ctx context.Context, command string) (int, error) {
 	args, err := split(command)
 	if err != nil {
 		return 0, err
@@ -32,7 +31,7 @@ func (r *Runner) Run(ctx context.Context, command, dir string) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	cmd.Dir = filepath.Join(r.dir, filepath.FromSlash(dir))
+	cmd.Dir = r.dir
 	cmd.Stdout, cmd.Stderr = r.out, r.out
 	cmd.WaitDelay = 5 * time.Second // a killed command's children must not keep the pipes open
 	err = cmd.Run()

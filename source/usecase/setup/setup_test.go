@@ -98,7 +98,7 @@ func TestAFreshProjectGetsTheFilesOfTheHarness(t *testing.T) {
 	if w.perms[".claude/skills/x/run.sh"] != 0o755 {
 		t.Errorf("a script lost its execute bit: %v", w.perms[".claude/skills/x/run.sh"])
 	}
-	if _, ok := w.files["deltas/.gitkeep"]; !ok {
+	if _, ok := w.files["deltas/specifies/.gitkeep"]; !ok {
 		t.Error("the folder for the contracts was not created")
 	}
 	if string(w.files[".claude/settings.json"]) != fragment {
@@ -268,7 +268,7 @@ func TestCheckListsTheToolsDeltaConfRequires(t *testing.T) {
 	conf := conffile.Parse("required_tools=git, docker\n")
 	w.tools = map[string]bool{"git": true}
 	problems := New(w, w, w, w, conf).Check(ctx)
-	if len(problems) != 1 || !strings.Contains(problems[0], "docker is required by delta.conf") {
+	if len(problems) != 1 || !strings.Contains(problems[0], "docker is required by deltas.config") {
 		t.Fatalf("problems = %q, want only docker", problems)
 	}
 }
@@ -277,7 +277,7 @@ func TestCheckReportsWhatDeltaConfGotWrong(t *testing.T) {
 	w := healthy()
 	conf := conffile.Parse("colour=blue\n")
 	problems := New(w, w, w, w, conf).Check(ctx)
-	if len(problems) != 1 || !strings.Contains(problems[0], `delta.conf:1: unknown key "colour"`) {
+	if len(problems) != 1 || !strings.Contains(problems[0], `deltas/deltas.config:1: unknown key "colour"`) {
 		t.Fatalf("problems = %q", problems)
 	}
 }

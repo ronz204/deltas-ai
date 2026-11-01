@@ -18,7 +18,7 @@ var ctx = context.Background()
 
 type specs map[string]string
 
-func (s specs) Path(slice string) string { return "deltas/" + slice + ".spec.md" }
+func (s specs) Path(slice string) string { return "deltas/specifies/" + slice + ".spec.md" }
 func (s specs) List(context.Context) ([]string, error) {
 	var names []string
 	for _, n := range []string{"billing", "payments"} {
@@ -44,7 +44,7 @@ func newGuard(t *testing.T, s specs) (*Guard, string) {
 
 func TestFileToolsCannotEditTheKnowledgeBase(t *testing.T) {
 	g, root := newGuard(t, nil)
-	blocked := []string{"deltas/billing.spec.md", "CLAUDE.md", ".claude/rules/x.md", ".claude/skills/quill/SKILL.md", "svc/deltas/a.spec.md"}
+	blocked := []string{"deltas/specifies/billing.spec.md", "CLAUDE.md", ".claude/rules/x.md", ".claude/skills/quill/SKILL.md", "svc/deltas/specifies/a.spec.md"}
 	for _, tool := range []string{"Write", "Edit"} {
 		for _, rel := range blocked {
 			d, err := g.Decide(ctx, Event{Name: "PreToolUse", Tool: tool, Path: filepath.Join(root, filepath.FromSlash(rel))})
@@ -61,10 +61,10 @@ func TestOtherFilesAndToolsAreAllowed(t *testing.T) {
 	cases := []Event{
 		{Name: "PreToolUse", Tool: "Write", Path: filepath.Join(root, "main.go")},
 		{Name: "PreToolUse", Tool: "Edit", Path: filepath.Join(root, ".claude", "settings.json")},
-		{Name: "PreToolUse", Tool: "Edit", Path: filepath.Join(other, "deltas", "x.spec.md")}, // outside the project
-		{Name: "PreToolUse", Tool: "Read", Path: filepath.Join(root, "deltas", "billing.spec.md")},
+		{Name: "PreToolUse", Tool: "Edit", Path: filepath.Join(other, "deltas", "specifies", "x.spec.md")}, // outside the project
+		{Name: "PreToolUse", Tool: "Read", Path: filepath.Join(root, "deltas", "specifies", "billing.spec.md")},
 		{Name: "PreToolUse", Tool: "Write"},
-		{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "deltas", "billing.spec.md")},
+		{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "deltas", "specifies", "billing.spec.md")},
 		{Name: "Stop"},
 		{Name: "SomethingNew"},
 	}
@@ -77,7 +77,7 @@ func TestOtherFilesAndToolsAreAllowed(t *testing.T) {
 
 func TestARelativePathIsTakenFromTheRoot(t *testing.T) {
 	g, _ := newGuard(t, nil)
-	d, _ := g.Decide(ctx, Event{Name: "PreToolUse", Tool: "Write", Path: "deltas/a.spec.md"})
+	d, _ := g.Decide(ctx, Event{Name: "PreToolUse", Tool: "Write", Path: "deltas/specifies/a.spec.md"})
 	if !d.Block {
 		t.Fatal("a relative path into deltas/ was allowed")
 	}
@@ -286,7 +286,7 @@ func TestPostToolUseTellsClaudeAboutProblemsInTheTestFileItWrote(t *testing.T) {
 	l := &linter{diags: []findings.Diagnostic{
 		{File: "billing/total_test.go", Line: 7, Code: "LINT-SKIP", Message: "skipped", Warn: true},
 		{File: "billing/other_test.go", Line: 1, Code: "LINT-SKIP", Message: "skipped", Warn: true},
-		{File: "deltas/billing.spec.md", Code: "LINT-NO-CITE", Message: "no test cites INV-02"},
+		{File: "deltas/specifies/billing.spec.md", Code: "LINT-NO-CITE", Message: "no test cites INV-02"},
 	}}
 	g, root := lintGuard(t, l)
 	for _, tool := range []string{"Write", "Edit"} {
@@ -301,7 +301,7 @@ func TestPostToolUseTellsClaudeAboutProblemsInTheTestFileItWrote(t *testing.T) {
 }
 
 func TestPostToolUseStaysQuietWhenThereIsNothingToSay(t *testing.T) {
-	l := &linter{diags: []findings.Diagnostic{{File: "deltas/billing.spec.md", Code: "LINT-NO-CITE", Message: "x"}}}
+	l := &linter{diags: []findings.Diagnostic{{File: "deltas/specifies/billing.spec.md", Code: "LINT-NO-CITE", Message: "x"}}}
 	g, root := lintGuard(t, l)
 	cases := map[string]Event{
 		"a test file with no problem": {Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "pay_test.go")},

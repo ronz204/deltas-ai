@@ -16,7 +16,7 @@ Most project context lives in one of two bad places: a person's head, or an ever
 
 What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
 
-> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook` (including the lint and Stop checks), `delta.conf`, `budget`, `version` and `init` work; the rest is planned. [`source/harness/`](source/harness) holds the skills and rules that `delta init` installs; this repo does not version a `.claude/` of its own. The design and the order of work are in [`docs/`](docs).
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook` (including the lint and Stop checks), `deltas/deltas.config`, `budget`, `version` and `init` work; the rest is planned. [`source/harness/`](source/harness) holds the skills and rules that `delta init` installs; this repo does not version a `.claude/` of its own. The design and the order of work are in [`docs/`](docs).
 
 ## Contents
 
@@ -95,10 +95,10 @@ A slice is a bounded feature or capability, sized the way a bounded context woul
 A project's knowledge base has three layers: a router, a curated reference, and per-feature contracts.
 
 ```
-CLAUDE.md                      router — orients a session fast, points at everything else
-.claude/docs/                  curated reference, created on demand and only if it holds what the code doesn't show
-.claude/rules/<topic>.md       conventions loaded when matching files are touched
-deltas/<slice>.spec.md         per-feature living contracts ("slices")
+CLAUDE.md                          router — orients a session fast, points at everything else
+.claude/docs/                      curated reference, created on demand and only if it holds what the code doesn't show
+.claude/rules/<topic>.md           conventions loaded when matching files are touched
+deltas/specifies/<slice>.spec.md  per-feature living contracts ("slices")
 ```
 
 Docs and rules stay self-contained and free of volatile references (no citing a specific file path or function as proof a convention exists), since that breaks the moment something is renamed. A spec, by contrast, is expected to name the real implementation, since that is the point of a contract checked against it.
@@ -125,7 +125,7 @@ Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repos
 
 - `.githooks/commit-msg` and `core.hooksPath`, so git checks commit messages;
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
-- `delta.conf`, a minimal `CLAUDE.md` and the `deltas/` folder.
+- `deltas/deltas.config`, a minimal `CLAUDE.md` and the `deltas/specifies/` folder.
 
 Then:
 
@@ -139,7 +139,7 @@ Archivist and Surveyor still ship with the harness; they become CLI commands in 
 
 | Path | Purpose |
 |---|---|
-| `source/harness/` | What `delta init` installs, embedded in the binary: the skills Quill, Forge and Seal (plus Archivist and Surveyor, which retire in phase 3), the rules, the hooks and `delta.conf` |
+| `source/harness/` | What `delta init` installs, embedded in the binary: the skills Quill, Forge and Seal (plus Archivist and Surveyor, which retire in phase 3), the rules, the hooks and `deltas.config` |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
 | `scripts/`, `source/` | The Go CLI: `scripts/delta` wires it, `source/` holds the domain, use cases, gateways and adapters |
 

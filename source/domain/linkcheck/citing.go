@@ -14,7 +14,7 @@ type File struct{ Path, Text string }
 var scriptExts = map[string]bool{".go": true, ".py": true, ".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}
 
 // DefaultTestFiles is delta's own rule for what a test file is, as name patterns: the same as the test_files
-// that delta.conf installs.
+// that deltas.config installs.
 var DefaultTestFiles = []string{"*_test.go", "test_*.py", "*_test.py", "*.test.*", "*.spec.*"}
 
 var defaultMatcher = TestMatcher(nil)
@@ -47,20 +47,6 @@ func TestMatcher(patterns []string) func(string) bool {
 func idPattern(id assertion.ID) *regexp.Regexp {
 	prefix, num, _ := strings.Cut(id.String(), "-")
 	return regexp.MustCompile(`(?i)` + prefix + `[-_]?` + num + `(?:[^0-9]|$)`)
-}
-
-// Under returns the files inside dir, named relative to it: how a command that runs from dir sees them.
-func Under(files []File, dir string) []File {
-	if dir == "" {
-		return files
-	}
-	var out []File
-	for _, f := range files {
-		if rel, ok := strings.CutPrefix(f.Path, dir+"/"); ok {
-			out = append(out, File{Path: rel, Text: f.Text})
-		}
-	}
-	return out
 }
 
 // Cited counts a citation only under the paths the command names: IDs are unique per spec, not per project.

@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-// A project whose tests are Ruby specs: delta.conf says so, and a citation in one of them makes a claim hold.
+// A project whose tests are Ruby specs: deltas.config says so, and a citation in one of them makes a claim hold.
 func TestDeltaConfChoosesWhichFilesAreTests(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
+	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	p.write("spec/billing_spec.rb", "# INV-01\n")
 
 	if code, _, errOut := p.delta("", "lint"); code != 1 || !strings.Contains(errOut, "LINT-NO-CITE") {
-		t.Fatalf("lint = %d %q; without delta.conf a _spec.rb file is not a test", code, errOut)
+		t.Fatalf("lint = %d %q; without deltas.config a _spec.rb file is not a test", code, errOut)
 	}
-	p.write("delta.conf", "test_files=*_spec.rb\n")
+	p.write("deltas/deltas.config", "test_files=*_spec.rb\n")
 	if code, _, errOut := p.delta("", "lint"); code != 0 {
-		t.Fatalf("lint = %d %q; with delta.conf the Ruby spec cites INV-01", code, errOut)
+		t.Fatalf("lint = %d %q; with deltas.config the Ruby spec cites INV-01", code, errOut)
 	}
 	if code, out, _ := p.delta("", "check"); code != 0 || verdict(out, "billing", "INV-01") != "Holds" {
 		t.Fatalf("check = %d %q", code, out)
@@ -29,10 +29,10 @@ func TestDeltaConfSetsTheBudgetCeilings(t *testing.T) {
 	if code, _, _ := p.delta("", "budget"); code != 0 {
 		t.Fatalf("budget = %d with the default ceilings", code)
 	}
-	p.write("delta.conf", "rule_always_lines=5\n")
+	p.write("deltas/deltas.config", "rule_always_lines=5\n")
 	code, _, errOut := p.delta("", "budget")
 	if code != 1 || !strings.Contains(errOut, "the ceiling for a rule is 5") {
-		t.Fatalf("budget = %d %q, want delta.conf's ceiling", code, errOut)
+		t.Fatalf("budget = %d %q, want deltas.config's ceiling", code, errOut)
 	}
 }
 
@@ -44,17 +44,17 @@ func TestTheOlderBudgetConfStillWorksWithoutDeltaConf(t *testing.T) {
 	if code != 1 || !strings.Contains(errOut, "the ceiling for a rule is 5") {
 		t.Fatalf("budget = %d %q, want the older file's ceiling", code, errOut)
 	}
-	p.write("delta.conf", "rule_always_lines=20\n")
+	p.write("deltas/deltas.config", "rule_always_lines=20\n")
 	if code, _, errOut := p.delta("", "budget"); code != 0 {
-		t.Fatalf("budget = %d %q, delta.conf should win over the older file", code, errOut)
+		t.Fatalf("budget = %d %q, deltas.config should win over the older file", code, errOut)
 	}
 }
 
 func TestStatusWarnsAboutDeltaConfProblemsAndMissingTools(t *testing.T) {
 	p := gitProject(t)
-	p.write("delta.conf", "colour=blue\nrequired_tools=delta-no-such-tool-anywhere\n")
+	p.write("deltas/deltas.config", "colour=blue\nrequired_tools=delta-no-such-tool-anywhere\n")
 	_, _, errOut := p.delta("", "status")
-	for _, want := range []string{`delta.conf:1: unknown key "colour"`, "delta-no-such-tool-anywhere is required by delta.conf"} {
+	for _, want := range []string{`deltas/deltas.config:1: unknown key "colour"`, "delta-no-such-tool-anywhere is required by deltas.config"} {
 		if !strings.Contains(errOut, want) {
 			t.Errorf("status warnings lack %q:\n%s", want, errOut)
 		}
@@ -63,8 +63,8 @@ func TestStatusWarnsAboutDeltaConfProblemsAndMissingTools(t *testing.T) {
 
 func TestACommandTimeoutFromDeltaConfIsUsed(t *testing.T) {
 	p := newProject(t)
-	p.write("delta.conf", "command_timeout=1ns\n")
-	p.write("deltas/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
+	p.write("deltas/deltas.config", "command_timeout=1ns\n")
+	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	p.write("billing_test.go", "// INV-01\n")
 	_, out, _ := p.delta("", "check")
 	if verdict(out, "billing", "INV-01") != "Unverified" {
