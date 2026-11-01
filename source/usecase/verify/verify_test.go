@@ -15,10 +15,11 @@ var ctx = context.Background()
 
 type fakeSpecs map[string]string
 
-func (f fakeSpecs) Path(s string) string { return "deltas/" + s + ".spec.md" }
+func (f fakeSpecs) Resolve(_ context.Context, s string) (string, error) { return s, nil }
+func (f fakeSpecs) Path(s string) string                                { return "deltas/" + s + ".spec.md" }
 func (f fakeSpecs) List(context.Context) ([]string, error) {
 	var names []string
-	for _, n := range []string{"billing", "broken", "payments"} { // fixed order, like a sorted listing
+	for _, n := range []string{"billing", "broken", "payments", "svc/auth/sessions"} { // fixed order, like a sorted listing
 		if _, ok := f[n]; ok {
 			names = append(names, n)
 		}
@@ -47,10 +48,12 @@ type fakeRunner struct {
 	exits map[string]int
 	errs  map[string]error
 	ran   []string
+	dirs  []string
 }
 
-func (f *fakeRunner) Run(_ context.Context, command string) (int, error) {
+func (f *fakeRunner) Run(_ context.Context, command, dir string) (int, error) {
 	f.ran = append(f.ran, command)
+	f.dirs = append(f.dirs, dir)
 	return f.exits[command], f.errs[command]
 }
 
@@ -269,5 +272,26 @@ func TestCheckLeavesTheStatusAloneUnlessItIsBuiltAndClean(t *testing.T) {
 				t.Fatalf("Check = %+v, %v; stored %q", rep, err, specs["billing"])
 			}
 		})
+	}
+}
+
+func TestASliceOfAServiceRunsFromItsFolderAndCitesRelativeToIt(t *testing.T) {
+	specs := fakeSpecs{"svc/auth/sessions": specOf("sessions", "- INV-01 [test: go test ./login]\n  When x, y.\n")}
+	run := &fakeRunner{}
+	files := fakeTests{{Path: "svc/auth/login/login_test.go", Text: "// INV-01\n"}}
+	rep, err := New(specs, files, run, nil, nil).Check(ctx, "svc/auth/sessions")
+	if err != nil || len(rep.Results) != 1 || rep.Results[0].Outcome.Verdict != judgment.Holds {
+		t.Fatalf("Check = %+v, %v", rep, err)
+	}
+	if !reflect.DeepEqual(run.dirs, []string{"svc/auth"}) {
+		t.Fatalf("ran from %v, want the service folder", run.dirs)
+	}
+	other := fakeTests{{Path: "svc/billing/login/login_test.go", Text: "// INV-01\n"}}
+	rep, _ = New(specs, other, &fakeRunner{}, nil, nil).Check(ctx, "svc/auth/sessions")
+	if rep.Results[0].Outcome.Verdict != judgment.Unverified {
+		t.Fatalf("a test of another service vouched for this one: %+v", rep.Results[0])
+	}
+	if ds, err := New(specs, files, &fakeRunner{}, nil, nil).Lint(ctx); err != nil || len(ds) != 0 {
+		t.Fatalf("Lint = %v, %v: the citation is under the service folder", ds, err)
 	}
 }

@@ -109,3 +109,31 @@ func TestValidSlice(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitRef(t *testing.T) {
+	good := map[string][2]string{
+		"invoicing":                {"", "invoicing"},
+		"billing/invoicing":        {"billing", "invoicing"},
+		"services/billing/v2-core": {"services/billing", "v2-core"},
+	}
+	for ref, want := range good {
+		dir, name, ok := SplitRef(ref)
+		if !ok || dir != want[0] || name != want[1] {
+			t.Errorf("SplitRef(%q) = %q, %q, %v", ref, dir, name, ok)
+		}
+		if Dir(ref) != want[0] || Base(ref) != want[1] {
+			t.Errorf("Dir/Base(%q) = %q, %q", ref, Dir(ref), Base(ref))
+		}
+	}
+	for _, bad := range []string{"", "/a", "a/", "../a", "a/../b", "./a", `a\b`, "c:/a", "a/B", "a//b", "a/b_c"} {
+		if _, _, ok := SplitRef(bad); ok {
+			t.Errorf("SplitRef(%q) accepted", bad)
+		}
+	}
+}
+
+func TestParseSliceComparesTheBareName(t *testing.T) {
+	if _, ds := ParseSlice("f", "services/invoicing", []byte(validSpec)); len(ds) != 0 {
+		t.Fatalf("a nested slice was rejected: %v", ds)
+	}
+}

@@ -17,5 +17,5 @@ func Covers(path string) bool {
 		}
 	}
 	parts := strings.Split(path, "/")
-	return len(parts) > 1 && (parts[0] == "deltas" || (len(parts) > 2 && parts[1] == "deltas"))
+	return len(parts) > 1 && parts[len(parts)-2] == "deltas"
 }

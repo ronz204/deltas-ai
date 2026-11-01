@@ -1,6 +1,10 @@
 package linkcheck
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ronz204/deltas-ai/source/domain/assertion"
+)
 
 func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
 	s := NewScope("deltas/billing.spec.md", nil)
@@ -57,5 +61,21 @@ func TestTestMatcher(t *testing.T) {
 		if got := custom(file); got != want {
 			t.Errorf("custom: %q = %v, want %v", file, got, want)
 		}
+	}
+}
+
+func TestUnderNamesFilesFromTheFolderACommandRunsIn(t *testing.T) {
+	files := []File{{Path: "a/x_test.go", Text: "1"}, {Path: "svc/auth/y_test.go", Text: "2"}, {Path: "svc/other/z_test.go", Text: "3"}}
+	if got := Under(files, ""); len(got) != 3 {
+		t.Fatalf("the root keeps every file: %v", got)
+	}
+	got := Under(files, "svc/auth")
+	if len(got) != 1 || got[0].Path != "y_test.go" || got[0].Text != "2" {
+		t.Fatalf("Under = %v", got)
+	}
+	id, _ := assertion.ParseID("INV-01")
+	cited := []File{{Path: "svc/auth/login/login_test.go", Text: "// INV-01"}}
+	if !Cited(id, "go test ./login", Under(cited, "svc/auth")) || Cited(id, "go test ./login", cited) {
+		t.Fatal("a path in the command is relative to the folder it runs from")
 	}
 }

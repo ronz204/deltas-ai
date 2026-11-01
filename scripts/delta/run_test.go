@@ -322,3 +322,44 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		}
 	}
 }
+
+func TestAMonorepoKeepsADeltasFolderPerService(t *testing.T) {
+	p := newProject(t)
+	p.write("deltas/shared.spec.md", spec("shared", claimOf("INV-01", "test: "+command("pass", "./shared"))))
+	p.write("shared/s_test.go", "// INV-01\n")
+	p.write("services/auth/deltas/login.spec.md", spec("login", claimOf("INV-01", "test: "+command("pass", "./login"))))
+	p.write("services/auth/login/login_test.go", "// INV-01\n")
+	p.write("services/shop/deltas/cart.spec.md", spec("cart", claimOf("INV-01", "test: "+command("pass", "./cart"))))
+	p.write("services/shop/other/cart_test.go", "// INV-01\n")
+
+	code, out, errOut := p.delta("", "check")
+	if code != 0 {
+		t.Fatalf("check = %d\n%s%s", code, out, errOut)
+	}
+	for slice, want := range map[string]string{"shared": "Holds", "services/auth/login": "Holds", "services/shop/cart": "Unverified"} {
+		if got := verdict(out, slice, "INV-01"); got != want {
+			t.Errorf("%s INV-01 = %q, want %q: a test counts only under the folder its command runs from\n%s", slice, got, want, out)
+		}
+	}
+	if _, out, _ := p.delta("", "status"); !strings.Contains(out, "services/auth/login") || !strings.Contains(out, "services/shop/cart") {
+		t.Fatalf("status must list the slices of every service:\n%s", out)
+	}
+	if code, out, _ := p.delta("", "check", "login"); code != 0 || !strings.Contains(out, "services/auth/login") || strings.Contains(out, "shared") {
+		t.Fatalf("a bare name that only one service has: %d\n%s", code, out)
+	}
+	if code, out, errOut := p.delta("", "spec", "new", "services/shop/orders"); code != 0 || !strings.Contains(out, "services/shop/deltas/orders.spec.md") {
+		t.Fatalf("spec new in a service = %d %q %q", code, out, errOut)
+	}
+	if !strings.Contains(p.read("services/shop/deltas/orders.spec.md"), "slice: orders") {
+		t.Fatal("the frontmatter of a service's spec carries the bare name")
+	}
+	_, _, errOut = p.delta("", "lint")
+	if !strings.Contains(errOut, "services/shop/deltas/cart.spec.md") || strings.Contains(errOut, "login.spec.md") || strings.Contains(errOut, "shared.spec.md") {
+		t.Fatalf("lint must flag only the claim whose test is outside its service folder:\n%s", errOut)
+	}
+}
+
+// built is a spec of a slice whose code is done, the state in which Stop expects a delta check.
+func built(slice string, claims ...string) string {
+	return strings.Replace(spec(slice, claims...), "status: approved", "status: built", 1)
+}

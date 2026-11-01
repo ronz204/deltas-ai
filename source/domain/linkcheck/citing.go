@@ -49,6 +49,20 @@ func idPattern(id assertion.ID) *regexp.Regexp {
 	return regexp.MustCompile(`(?i)` + prefix + `[-_]?` + num + `(?:[^0-9]|$)`)
 }
 
+// Under returns the files inside dir, named relative to it: how a command that runs from dir sees them.
+func Under(files []File, dir string) []File {
+	if dir == "" {
+		return files
+	}
+	var out []File
+	for _, f := range files {
+		if rel, ok := strings.CutPrefix(f.Path, dir+"/"); ok {
+			out = append(out, File{Path: rel, Text: f.Text})
+		}
+	}
+	return out
+}
+
 // Cited counts a citation only under the paths the command names: IDs are unique per spec, not per project.
 // shortcut: paths are found by shape and quotes are ignored; a command naming none runs every test file.
 func Cited(id assertion.ID, command string, files []File) bool {

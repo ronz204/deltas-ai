@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ronz204/deltas-ai/source/domain/budget"
@@ -23,7 +25,7 @@ const (
 // skipDirs are never searched for test files: they hold other people's code or the contracts.
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
 
-// shortcut: contracts are read from <root>/deltas only; a repo split into services is not supported yet.
+// Contracts live in every folder named deltas/ of the project (see specfile.SplitRef for how slices are named).
 type Vault struct {
 	root   string
 	isTest func(string) bool
@@ -51,38 +53,91 @@ func FindRoot(start string) string {
 	}
 }
 
-func (s *Vault) Path(slice string) string { return dirName + "/" + slice + suffix }
+func (s *Vault) Path(slice string) string {
+	_, id, _ := s.locate(slice)
+	if dir, name, ok := specfile.SplitRef(id); ok {
+		return path.Join(dir, dirName, name+suffix)
+	}
+	return dirName + "/" + slice + suffix
+}
 
 // Name is what the project is called: the name of its folder.
 func (s *Vault) Name() string { return filepath.Base(s.root) }
 
-// file refuses a name that could point outside deltas/.
-func (s *Vault) file(slice string) (string, error) {
-	if !specfile.ValidSlice(slice) {
-		return "", fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens", slice)
-	}
-	return filepath.Join(s.root, dirName, slice+suffix), nil
+// Resolve gives the full name of the slice a reference points to. A bare name is the project's own slice, or
+// else the only one with that name in a service's deltas/.
+func (s *Vault) Resolve(_ context.Context, ref string) (string, error) {
+	_, id, err := s.locate(ref)
+	return id, err
 }
 
-func (s *Vault) List(context.Context) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(s.root, dirName))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+// specFile is the file of a slice that has a valid name: dir holds its deltas/ folder.
+func (s *Vault) specFile(dir, name string) string {
+	return filepath.Join(s.root, filepath.FromSlash(dir), dirName, name+suffix)
+}
+
+// locate finds the file and the full name of a slice. A reference nobody has written yet points at the
+// project's own deltas/.
+func (s *Vault) locate(ref string) (file, id string, err error) {
+	dir, name, ok := specfile.SplitRef(ref)
+	if !ok {
+		return "", ref, fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens, after the folder of its deltas/ if it is not the project's own", ref)
 	}
-	if err != nil {
-		return nil, err
+	own := s.specFile(dir, name)
+	if _, statErr := os.Stat(own); dir != "" || statErr == nil {
+		return own, ref, nil
 	}
-	var names []string
-	for _, e := range entries { // ReadDir already returns them sorted by name
-		if name, ok := strings.CutSuffix(e.Name(), suffix); ok && !e.IsDir() {
-			names = append(names, name)
+	var found []string
+	for _, slice := range s.discover() {
+		if specfile.Base(slice) == name {
+			found = append(found, slice)
 		}
 	}
-	return names, nil
+	switch len(found) {
+	case 0:
+		return own, ref, nil
+	case 1:
+		d, n, _ := specfile.SplitRef(found[0])
+		return s.specFile(d, n), found[0], nil
+	}
+	return "", ref, fmt.Errorf("%q is in more than one deltas/ (%s); name the folder, like %s", ref, strings.Join(found, ", "), found[0])
 }
 
+// discover lists the full name of every slice, sorted. A folder it cannot read has none.
+// shortcut: the whole project is walked on each call; for a very large repo keep the list for the run.
+func (s *Vault) discover() []string {
+	var ids []string
+	_ = filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || p == s.root {
+			return nil
+		}
+		if d.Name() != dirName {
+			if skipDirs[d.Name()] || strings.HasPrefix(d.Name(), ".") {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		parent, relErr := filepath.Rel(s.root, filepath.Dir(p))
+		entries, readErr := os.ReadDir(p)
+		if relErr != nil || readErr != nil {
+			return fs.SkipDir
+		}
+		parent = filepath.ToSlash(parent)
+		for _, e := range entries {
+			if name, ok := strings.CutSuffix(e.Name(), suffix); ok && !e.IsDir() {
+				ids = append(ids, strings.TrimPrefix(parent+"/"+name, "./"))
+			}
+		}
+		return fs.SkipDir
+	})
+	slices.Sort(ids)
+	return ids
+}
+
+func (s *Vault) List(context.Context) ([]string, error) { return s.discover(), nil }
+
 func (s *Vault) Load(_ context.Context, slice string) ([]byte, error) {
-	p, err := s.file(slice)
+	p, _, err := s.locate(slice)
 	if err != nil {
 		return nil, err
 	}
@@ -95,10 +150,11 @@ func (s *Vault) Load(_ context.Context, slice string) ([]byte, error) {
 
 // shortcut: check-then-write, so two simultaneous creates could both pass; one person runs the CLI at a time.
 func (s *Vault) Create(_ context.Context, slice string, content []byte) error {
-	p, err := s.file(slice)
-	if err != nil {
-		return err
+	dir, name, ok := specfile.SplitRef(slice)
+	if !ok {
+		return fmt.Errorf("%q is not a slice name; use lowercase words joined by hyphens, after the folder of its deltas/ if it is not the project's own", slice)
 	}
+	p := s.specFile(dir, name)
 	if _, err := os.Stat(p); err == nil {
 		return fmt.Errorf("%s already exists", s.Path(slice))
 	}
@@ -106,7 +162,7 @@ func (s *Vault) Create(_ context.Context, slice string, content []byte) error {
 }
 
 func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
-	p, err := s.file(slice)
+	p, _, err := s.locate(slice)
 	if err != nil {
 		return err
 	}

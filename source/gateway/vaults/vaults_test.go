@@ -83,7 +83,7 @@ func TestLoadMissingSliceSaysWhere(t *testing.T) {
 func TestSliceNamesCannotEscapeDeltas(t *testing.T) {
 	root := t.TempDir()
 	s := New(root)
-	for _, bad := range []string{"../evil", "a/b", `a\b`, "", ".", "A"} {
+	for _, bad := range []string{"../evil", "a/../../evil", "/abs", `a\b`, "", ".", "A", "a/B"} {
 		if err := s.Save(ctx, bad, []byte("x")); err == nil {
 			t.Errorf("Save accepted %q", bad)
 		}
@@ -161,5 +161,72 @@ func TestFindRootFallsBackToStart(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(got, ".git")); err != nil {
 			t.Fatalf("FindRoot(%s) = %s, which has no .git", dir, got)
 		}
+	}
+}
+
+func TestListFindsEveryDeltasFolderAndSkipsVendoredOnes(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "deltas/own.spec.md", "x")
+	write(t, root, "billing/deltas/invoicing.spec.md", "x")
+	write(t, root, "services/auth/deltas/login.spec.md", "x")
+	write(t, root, "node_modules/pkg/deltas/lib.spec.md", "x")
+	write(t, root, ".claude/deltas/hidden.spec.md", "x")
+	names, err := New(root).List(ctx)
+	want := []string{"billing/invoicing", "own", "services/auth/login"}
+	if err != nil || !reflect.DeepEqual(names, want) {
+		t.Fatalf("List = %v, %v; want %v", names, err, want)
+	}
+	if p := New(root).Path("billing/invoicing"); p != "billing/deltas/invoicing.spec.md" {
+		t.Fatalf("Path = %q", p)
+	}
+}
+
+func TestANameWorksBareWhenOnlyOneDeltasHasIt(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "billing/deltas/invoicing.spec.md", "billing")
+	write(t, root, "billing/deltas/refunds.spec.md", "one")
+	write(t, root, "shop/deltas/refunds.spec.md", "two")
+	s := New(root)
+	if id, err := s.Resolve(ctx, "invoicing"); err != nil || id != "billing/invoicing" {
+		t.Fatalf("Resolve(invoicing) = %q, %v", id, err)
+	}
+	if src, err := s.Load(ctx, "invoicing"); err != nil || string(src) != "billing" {
+		t.Fatalf("Load(invoicing) = %q, %v", src, err)
+	}
+	if _, err := s.Resolve(ctx, "refunds"); err == nil || !strings.Contains(err.Error(), "billing/refunds") {
+		t.Fatalf("a name in two folders must be ambiguous and list them: %v", err)
+	}
+	if src, err := s.Load(ctx, "shop/refunds"); err != nil || string(src) != "two" {
+		t.Fatalf("Load(shop/refunds) = %q, %v", src, err)
+	}
+}
+
+func TestTheProjectsOwnSliceWinsOverANestedOneWithTheSameName(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "deltas/refunds.spec.md", "own")
+	write(t, root, "shop/deltas/refunds.spec.md", "nested")
+	if src, err := New(root).Load(ctx, "refunds"); err != nil || string(src) != "own" {
+		t.Fatalf("Load(refunds) = %q, %v", src, err)
+	}
+}
+
+func TestCreateAndSaveGoToTheNamedFolder(t *testing.T) {
+	root := t.TempDir()
+	s := New(root)
+	if err := s.Create(ctx, "billing/invoicing", []byte("a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Create(ctx, "billing/invoicing", []byte("b")); err == nil {
+		t.Fatal("a second Create overwrote")
+	}
+	if err := s.Save(ctx, "invoicing", []byte("c")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "billing", "deltas", "invoicing.spec.md"))
+	if err != nil || string(got) != "c" {
+		t.Fatalf("file = %q, %v: a bare name must save to the spec that has it", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "deltas")); err == nil {
+		t.Fatal("a root deltas/ was created for a nested slice")
 	}
 }

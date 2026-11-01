@@ -102,7 +102,9 @@ func (m *memory) Spec() ([]byte, error) { return []byte(specTemplate), nil }
 
 func (m *memory) TestFiles(context.Context) ([]linkcheck.File, error) { return m.files, nil }
 
-func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
+func (m *memory) Run(_ context.Context, command, _ string) (int, error) { return m.exits[command], nil }
+
+func (m *memory) Resolve(_ context.Context, s string) (string, error) { return s, nil }
 
 func (m *memory) run(stdin string, args ...string) (out, errOut string, err error) {
 	installer := setup.New(m, m, m, m, conffile.Conf{})
