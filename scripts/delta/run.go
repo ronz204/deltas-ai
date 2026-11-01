@@ -7,13 +7,13 @@ import (
 	"io"
 	"time"
 
-	"github.com/ronz204/deltas-ai/sources/adapter/cmd"
-	"github.com/ronz204/deltas-ai/sources/gateway/bundle"
-	"github.com/ronz204/deltas-ai/sources/gateway/runner"
-	"github.com/ronz204/deltas-ai/sources/gateway/vaults"
-	"github.com/ronz204/deltas-ai/sources/usecase/author"
-	"github.com/ronz204/deltas-ai/sources/usecase/status"
-	"github.com/ronz204/deltas-ai/sources/usecase/verify"
+	"github.com/ronz204/deltas-ai/source/adapter/cmd"
+	"github.com/ronz204/deltas-ai/source/gateway/bundle"
+	"github.com/ronz204/deltas-ai/source/gateway/runner"
+	"github.com/ronz204/deltas-ai/source/gateway/vaults"
+	"github.com/ronz204/deltas-ai/source/usecase/author"
+	"github.com/ronz204/deltas-ai/source/usecase/status"
+	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
 // commandTimeout bounds each claim's command, so one that hangs cannot hang a check.
