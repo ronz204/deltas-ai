@@ -1,13 +1,21 @@
-// Command delta is the composition root: it will build the gateways, hand them to the use
-// cases and the use cases to the adapters once there are commands to run.
+// Command delta keeps a verifiable contract between a project and its code.
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 )
 
 func main() {
-	fmt.Fprintln(os.Stderr, "delta: no commands yet")
-	os.Exit(2)
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "delta:", err)
+		os.Exit(2)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	code := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, wd)
+	stop()
+	os.Exit(code)
 }
