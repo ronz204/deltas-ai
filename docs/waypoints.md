@@ -10,14 +10,14 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 43 de 71 tareas, 61 %**
+**Avance total: 49 de 72 tareas, 68 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
 | 2 | Hooks | ✅ Terminada | 16/16, 100 % |
-| 3 | Estados y Forge | 🔄 En progreso | 4/10, 40 % |
+| 3 | Estados y Forge | 🔄 En progreso | 10/11, 91 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
 | 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
@@ -138,7 +138,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 3: estados y Forge
 
-**Estado: 🔄 En progreso, 4/10.**
+**Estado: 🔄 En progreso, 10/11. Falta una corrida real de Quill escribiendo el borrador (criterio de cierre dividido).**
 
 *Prerrequisito de las reglas de generación (§6.3, §6.6).*
 
@@ -147,14 +147,15 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] `delta approve <slice>` (lo ejecuta la persona). *Exige un spec sin problemas, en `draft` y con al menos un claim. El fragmento de `settings.json` hace que Claude Code pida confirmación a la persona (`ask` sobre `Bash(delta approve *)`).*
 - [x] Forge con entrada explícita (`/forge <slice>`) y sin arrancar si el spec no está `approved` y limpio. *El skill lleva `disable-model-invocation` y `argument-hint`, y su paso 0 corre `delta ready <slice>`: sale con 1 y dice por qué si el spec tiene problemas, es un borrador o ya está construido. Pasa `approved` y `stale`. Que el skill se dispare de verdad queda para el criterio de cierre (corrida headless).*
 - [x] Forge usa `delta link` para enlazar los tests que escribe, sin editar la KB. *Ya no depende de `links.sh` ni pide la etiqueta a `archivist`: usa `delta check`, `delta lint`, `delta link`, `delta built`. Lo único que cambia en el spec son tags (con `link`) y estado (con `built`).*
-- [ ] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `source/harness/`.
-- [ ] El hook `Stop` señala el trabajo pendiente si Forge no corrió.
-- [ ] Varios `deltas/` por proyecto: descubrimiento de scopes, slices `servicio/slice` y comandos desde la carpeta del scope (`blueprint.md`, §16).
+- [x] Quill y Seal adaptados: Quill escribe vía `delta spec write`; Seal usa `delta check` y solo usa el LLM para `manual` y `none`. Con eso salen `archivist` y `surveyor` de `source/harness/`. *Quill termina en `draft` y pide a la persona que revise y apruebe; Seal ya no lee código para los claims con comando. `archivist`, `surveyor` y los scripts `budget.sh` y `links.sh` se borraron, y las reglas `kb-deltas-routing`, `when-write-delta` y `context-budgets` dejaron de nombrarlos. `design.md` queda fuera: el CLI solo conoce `.spec.md` y nadie lo escribía ya sin `archivist`.*
+- [x] El hook `Stop` señala el trabajo pendiente si Forge no corrió. *Si un slice está `approved` o `stale` y cambió su alcance, bloquea una vez con `/forge <slice>`. Un slice aprobado sin cambios en su alcance no cuenta como pendiente, para no avisar en cada turno. Con el alcance por defecto (todo el código), el trabajo en otro slice también lo activa; `scope.<slice>` lo acota. Se vio en una sesión real de Seal.*
+- [x] Varios `deltas/` por proyecto: descubrimiento de scopes, slices `servicio/slice` y comandos desde la carpeta del scope (`blueprint.md`, §16). *Se recorre el árbol en vez de `git ls-files`, y no hay clave de `delta.conf` para cambiar la carpeta de ejecución (nadie la ha pedido). Probado de punta a punta con un monorepo de tres scopes.*
 
 **Cierra cuando**
-- [ ] Forge se dispara por `/forge` en una corrida headless de prueba. (El 0 de 6 del piloto era el síntoma; este es el criterio.)
-- [ ] El ciclo completo funciona de punta a punta en un slice de prueba: Quill → `approve` → Forge → Seal.
-- [ ] Commit(s) de la fase, uno por concern.
+- [x] Forge se dispara por `/forge` en una corrida headless de prueba. (El 0 de 6 del piloto era el síntoma; este es el criterio.) *Cuatro corridas con `claude -p "/forge ..."` en un proyecto con `delta init`: el skill se carga en todas, `delta ready` frena un borrador, y con un slice aprobado propone el plan sin escribir nada. Cada una costó entre 0,07 y 0,15 USD.*
+- [x] El ciclo funciona de punta a punta en un slice de prueba con Forge y Seal reales: borrador → `approve` → Forge → Seal. *Forge escribió tests y código, enlazó con `delta link`, marcó `built` y `delta check` dejó el slice en `verified`; Seal lo confirmó con tres `Holds`. El borrador lo escribí yo con `delta spec write` y `approve` lo ejecuté como persona.*
+- [ ] Quill escribe el borrador de ese ciclo en una corrida real. *Pendiente: en headless el agente solo tenía PowerShell y la regla de permisos no puede aprobar de antemano un texto canalizado (`@'…'@ | delta spec write`), y no lancé la corrida con PowerShell sin restricciones. En una sesión interactiva basta aprobarlo una vez; para que sea automático haría falta que `spec write` pueda leer de un archivo.*
+- [x] Commit(s) de la fase, uno por concern.
 
 ---
 
