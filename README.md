@@ -16,7 +16,7 @@ Most project context lives in one of two bad places: a person's head, or an ever
 
 What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
 
-> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status` and `commit-msg` work; the rest is planned. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`harness/`](harness) is the renamed source of the new one. The design and the order of work are in [`records/`](records).
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status` and `commit-msg` work; the rest is planned. [`.claude/`](.claude) still holds the previous generation (five skills) and is what you can use today; [`internal/harness/`](internal/harness) is the renamed source of the new one. The design and the order of work are in [`records/`](records).
 
 ## Contents
 
@@ -136,7 +136,7 @@ Once the CLI exists, `delta init` replaces steps 1 and 2, `/quill`, `/forge` and
 | Path | Purpose |
 |---|---|
 | `.claude/` | The previous generation of the harness (five skills, rules, budget config). It is also the configuration this repo is worked with, so it stays untouched until `delta init` can regenerate it |
-| `harness/` | Source of the new generation: the same content with the skills renamed Quill, Forge and Seal. It is what `delta init` will install, embedded in the binary |
+| `internal/harness/` | Source of the new generation: the same content with the skills renamed Quill, Forge and Seal. It is what `delta init` will install, embedded in the binary |
 | `records/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
 | `entries/`, `internal/` | The Go CLI: `entries/delta` wires it, `internal/` holds the domain, use cases, gateways and adapters |
 

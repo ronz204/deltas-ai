@@ -31,7 +31,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | # | Decisión | Estado |
 |---|---|---|
 | 1 | Lenguaje: Go, un binario sin runtime | Decidido |
-| 2 | Tres carpetas de código: `entries`, `internal`, `harness` | Decidido |
+| 2 | Dos carpetas de código: `entries` e `internal`; el harness vive en `internal/harness` | Decidido |
 | 3 | `go.mod` en la raíz del repo | Decidido |
 | 4 | Cuatro capas dentro de `internal`: `domain`, `usecase`, `gateway`, `adapter` | Decidido |
 | 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en `usecase` y `gateway`, y `cmd` y `hook` en `adapter` | Decidido |
@@ -39,7 +39,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 7 | Se añade el comando `delta hook <evento>` | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
 | 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`direction.md`, 6.4 y 6.5) |
-| 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `harness/` nace como copia renombrada | Decidido |
+| 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `internal/harness/` nace como copia renombrada | Decidido |
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
 | 13 | Archivos de código de `domain` y de `adapter/cmd` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
@@ -75,26 +75,26 @@ deltas-ai/
 │   │   ├── runner/              # os/exec sin shell, con timeout
 │   │   ├── gitcli/              # envoltorio fino del binario git
 │   │   └── bundle/              # el harness embebido, listo para instalar
-│   └── adapter/                 # traducen el mundo exterior a casos de uso
-│       ├── cmd/                 # comandos cobra y formato de salida
-│       └── hook/                # JSON de Claude Code por stdin → exit code
-└── harness/                     # lo que `delta init` instala (se embebe en el binario)
-    ├── harness.go               # //go:embed
-    ├── core/                    # lo que se instala tal cual, sin ser skill ni regla
-    │   ├── configs/             # settings.json (hooks y permisos) y budget.conf
-    │   ├── githooks/            # commit-msg (se instala como .githooks/)
-    │   └── templates/           # spec.md, CLAUDE.md
-    ├── skills/                  # quill, forge, seal
-    └── rules/                   # core (R1, R2) y base (B1, B2)
+│   ├── adapter/                 # traducen el mundo exterior a casos de uso
+│   │   ├── cmd/                 # comandos cobra y formato de salida
+│   │   └── hook/                # JSON de Claude Code por stdin → exit code
+│   └── harness/                 # lo que `delta init` instala (se embebe en el binario)
+│       ├── harness.go           # //go:embed
+│       ├── core/                # lo que se instala tal cual, sin ser skill ni regla
+│       │   ├── configs/         # settings.json (hooks y permisos) y budget.conf
+│       │   ├── githooks/        # commit-msg (se instala como .githooks/)
+│       │   └── templates/       # spec.md, CLAUDE.md
+│       ├── skills/              # quill, forge, seal
+│       └── rules/               # core (R1, R2) y base (B1, B2)
 ```
 
-`harness/core/` y `harness/rules/core/` no son lo mismo: la primera agrupa los archivos de soporte que `delta init` copia al proyecto; la segunda son las dos reglas siempre cargadas (R1 y R2). Git no versiona carpetas vacías, así que `githooks/` y `templates/` se crean cuando tengan contenido (`templates/` en la Fase 1, con `delta spec new`; `githooks/` en la Fase 2).
+`internal/harness/core/` y `internal/harness/rules/core/` no son lo mismo: la primera agrupa los archivos de soporte que `delta init` copia al proyecto; la segunda son las dos reglas siempre cargadas (R1 y R2). Git no versiona carpetas vacías, así que `githooks/` y `templates/` se crean cuando tengan contenido (`templates/` en la Fase 1, con `delta spec new`; `githooks/` en la Fase 2).
 
 **Por qué `entries` y no `cmd`:** es una preferencia de nombre. `go install ./entries/delta` sigue produciendo un binario llamado `delta`, porque el nombre sale de la carpeta que contiene el `main`.
 
 **Por qué `internal`:** el compilador impide que otros módulos importen estos paquetes. La API pública de Delta es el CLI y el formato del spec, no los paquetes Go.
 
-**Lo que no está en esta estructura:** `records/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `harness/` cuando exista `delta init` (sección 11).
+**Lo que no está en esta estructura:** `records/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `internal/harness/` cuando exista `delta init` (sección 11).
 
 ---
 
@@ -176,7 +176,7 @@ Observaciones:
 | `files` | Lee y escribe la KB | Escritura atómica: archivo temporal en la misma carpeta y renombrado. Conserva LF. Localiza la raíz del repo |
 | `runner` | Ejecuta comandos | `os/exec` con `context` y timeout. Parte el comando en argumentos sin expandir variables. *Shortcut: sin shell, no admite pipes ni redirecciones; si hacen falta, se escribe un programa* |
 | `gitcli` | Llama a `git` | `diff --name-only`, leer y fijar `core.hooksPath`. Se usa el binario de git, no una librería |
-| `bundle` | Entrega el harness | Envuelve el `embed.FS` de `harness/` y sabe a qué ruta del proyecto va cada archivo |
+| `bundle` | Entrega el harness | Envuelve el `embed.FS` de `internal/harness/` y sabe a qué ruta del proyecto va cada archivo |
 
 ### 5.4 `adapter`
 
@@ -350,11 +350,11 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 
 ---
 
-## 12. `harness/` y su relación con `.claude/`
+## 12. `internal/harness/` y su relación con `.claude/`
 
-`harness/` es la **fuente** de lo que Delta instala en un proyecto. `delta init` lo escribe en el proyecto destino:
+`internal/harness/` es la **fuente** de lo que Delta instala en un proyecto. `delta init` lo escribe en el proyecto destino:
 
-| En `harness/` | Se instala como |
+| En `internal/harness/` | Se instala como |
 |---|---|
 | `skills/{quill,forge,seal}/` | `.claude/skills/...` |
 | `rules/core/`, `rules/base/` | `.claude/rules/...` |
@@ -363,13 +363,13 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 | `core/configs/budget.conf` | `.claude/budget.conf` (transitorio: lo lee `budget.sh` hasta que `delta budget` lo reemplace; ver el pendiente 2 de la sección 16) |
 | `core/templates/spec.md`, `core/templates/CLAUDE.md` | un spec nuevo y el `CLAUDE.md` mínimo |
 
-**El detalle del embed.** `go:embed` no puede subir de carpeta, así que un paquete en `internal/gateway/bundle/` no puede embeber `harness/` desde la raíz. Por eso `harness/harness.go` declara el `embed.FS` y `gateway/bundle` lo importa. Además, `embed` ignora por defecto los archivos que empiezan con `.` o `_`, por eso la carpeta se llama `core/githooks/` y se instala con el nombre con punto. Lo mismo vale para cualquier plantilla de un archivo con punto.
+**El detalle del embed.** `go:embed` solo ve la carpeta de su paquete y sus subcarpetas, así que `internal/gateway/bundle/` no puede embeber la carpeta hermana `internal/harness/`. Por eso `internal/harness/harness.go` declara el `embed.FS` y `gateway/bundle` lo importa. El test de capas trata `harness` como datos: no importa nada del módulo y solo `gateway` lo lee. Además, `embed` ignora por defecto los archivos que empiezan con `.` o `_`, por eso la carpeta se llama `core/githooks/` y se instala con el nombre con punto. Lo mismo vale para cualquier plantilla de un archivo con punto.
 
 **Convivencia con el `.claude/` actual** (decisión 10):
 
 1. `.claude/` de este repo no se toca. Contiene las reglas que rigen el trabajo aquí (commits, lean-change).
-2. En la Fase 0, `harness/` nace como copia ya renombrada (Quill, Forge, Seal), con los archivos de soporte reubicados bajo `core/configs/`.
-3. Cuando `delta init` exista (Fase 2), se regenera `.claude/` desde `harness/` y se elimina la duplicación. De paso, el repo prueba su propio instalador.
+2. En la Fase 0, `internal/harness/` nace como copia ya renombrada (Quill, Forge, Seal), con los archivos de soporte reubicados bajo `core/configs/`.
+3. Cuando `delta init` exista (Fase 2), se regenera `.claude/` desde `internal/harness/` y se elimina la duplicación. De paso, el repo prueba su propio instalador.
 
 ---
 
