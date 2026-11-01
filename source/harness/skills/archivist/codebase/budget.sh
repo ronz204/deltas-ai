@@ -1,7 +1,7 @@
 #!/bin/sh
 # Context budget report for the Claude Code knowledge base (POSIX sh and awk, read-only).
 # Classes every knowledge-base file by how often it is loaded and compares it with the
-# ceilings in .claude/budget.conf. It also warns, without failing --check, about rules whose
+# ceilings in delta.conf (or the older .claude/budget.conf). It also warns, without failing --check, about rules whose
 # `paths:` match no file.
 #
 # Usage: sh budget.sh [--root DIR] [--all] [--check]
@@ -21,8 +21,9 @@ while [ $# -gt 0 ]; do
 done
 
 cd "${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" || exit 2
-[ -f .claude/budget.conf ] || { echo "missing .claude/budget.conf" >&2; exit 2; }
-eval "$(tr -d '\r' < .claude/budget.conf)"
+CONF=delta.conf; [ -f "$CONF" ] || CONF=.claude/budget.conf
+[ -f "$CONF" ] || { echo "missing delta.conf" >&2; exit 2; }
+eval "$(tr -d '\r' < "$CONF" | grep -E '^[a-z_]+=[0-9]+$')"   # only the numeric ceilings: delta.conf has other keys
 
 limit() { eval "echo \${$1:-0}"; }
 est() { echo $(( $1 * 10 / 33 )); }   # about 3.3 characters per token, calibrated against /context

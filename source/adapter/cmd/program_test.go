@@ -290,3 +290,7 @@ func TestHelpListsTheCommandsAndNoCompletion(t *testing.T) {
 		t.Error("the completion command should be disabled")
 	}
 }
+
+func (m *memory) Name() string                         { return "acme" }
+func (m *memory) Assets(string) ([]setup.Asset, error) { return nil, nil }
+func (m *memory) Settings() ([]byte, error)            { return []byte(`{}`), nil }

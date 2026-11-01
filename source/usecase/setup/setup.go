@@ -21,6 +21,7 @@ const (
 type Files interface {
 	ReadFile(ctx context.Context, rel string) ([]byte, error)
 	WriteFile(ctx context.Context, rel string, content []byte, perm fs.FileMode) error
+	Name() string // what the project is called
 }
 
 type Git interface {
@@ -28,8 +29,18 @@ type Git interface {
 	SetHooksPath(ctx context.Context, path string) error
 }
 
-type Hooks interface {
+// Asset is a file the harness puts in a project: where, what and with which permissions.
+type Asset struct {
+	Path    string
+	Content []byte
+	Mode    fs.FileMode
+}
+
+// Harness is what delta ships to install.
+type Harness interface {
 	GitHook(name string) ([]byte, error)
+	Assets(project string) ([]Asset, error) // skills, rules, delta.conf and CLAUDE.md
+	Settings() ([]byte, error)              // the part of .claude/settings.json that delta needs
 }
 
 // Binary finds a program on the PATH and says whether it is the one running.
@@ -38,16 +49,16 @@ type Binary interface {
 }
 
 type Installer struct {
-	files Files
-	git   Git
-	hooks Hooks
-	bin   Binary
-	conf  conffile.Conf
+	files   Files
+	git     Git
+	harness Harness
+	bin     Binary
+	conf    conffile.Conf
 }
 
 // New builds the installer of a project whose delta.conf says conf.
-func New(files Files, git Git, hooks Hooks, bin Binary, conf conffile.Conf) *Installer {
-	return &Installer{files: files, git: git, hooks: hooks, bin: bin, conf: conf}
+func New(files Files, git Git, harness Harness, bin Binary, conf conffile.Conf) *Installer {
+	return &Installer{files: files, git: git, harness: harness, bin: bin, conf: conf}
 }
 
 // Check lists what is wrong with how delta is installed here, one sentence each; an empty list
@@ -91,10 +102,14 @@ type Step struct {
 	What string
 }
 
-// Run installs the commit-msg git hook and points core.hooksPath at it. It is safe to run again,
-// and it never replaces a different hook or a core.hooksPath that is already set to something else.
+// skeleton is what every project gets before the harness: the folder that holds the contracts.
+var skeleton = []Asset{{Path: "deltas/.gitkeep", Mode: 0o644}}
+
+// Run installs the commit-msg git hook and points core.hooksPath at it, then the files of the harness and
+// the settings Claude Code needs. It is safe to run again, and it never replaces a file that differs from
+// the harness's, a different hook, or a core.hooksPath that is already set to something else.
 func (i *Installer) Run(ctx context.Context) ([]Step, error) {
-	want, err := i.hooks.GitHook(hookName)
+	want, err := i.harness.GitHook(hookName)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +135,54 @@ func (i *Installer) Run(ctx context.Context) ([]Step, error) {
 	default:
 		file = Step{false, hookPath + " exists and differs: left as it is"}
 	}
-	return []Step{file, pointed}, nil
+	steps := []Step{file, pointed}
+
+	assets, err := i.harness.Assets(i.files.Name())
+	if err != nil {
+		return nil, err
+	}
+	copied, err := i.copy(ctx, append(append([]Asset(nil), skeleton...), assets...))
+	if err != nil {
+		return nil, err
+	}
+	settings, err := i.installSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return append(append(steps, copied...), settings), nil
+}
+
+// copy writes the assets that are not there yet. One that exists and differs is a choice of the project's.
+func (i *Installer) copy(ctx context.Context, assets []Asset) ([]Step, error) {
+	var written, same int
+	var kept []string
+	for _, a := range assets {
+		have, err := i.files.ReadFile(ctx, a.Path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			if err := i.files.WriteFile(ctx, a.Path, a.Content, a.Mode); err != nil {
+				return nil, err
+			}
+			written++
+		case err != nil:
+			return nil, err
+		case bytes.Equal(have, a.Content):
+			same++
+		default:
+			kept = append(kept, a.Path)
+		}
+	}
+	var steps []Step
+	if written > 0 {
+		steps = append(steps, Step{true, fmt.Sprintf("installed %d %s from the harness", written, noun(written))})
+	}
+	if len(kept) > 0 {
+		steps = append(steps, Step{false, "left as they are, since they differ from the harness: " + strings.Join(kept, ", ")})
+	}
+	if written == 0 && len(kept) == 0 {
+		steps = append(steps, Step{false, fmt.Sprintf("the %d %s of the harness are already installed", same, noun(same))})
+	}
+	return steps, nil
 }
 
 // pointHooksPath is done before the hook is written, so a directory that is not a git repository
@@ -140,4 +202,11 @@ func (i *Installer) pointHooksPath(ctx context.Context) (Step, error) {
 		return Step{true, "set core.hooksPath to " + hooksDir}, nil
 	}
 	return Step{false, fmt.Sprintf("core.hooksPath is %s: left as it is; call %s from there to check commit messages", current, hookPath)}, nil
+}
+
+func noun(n int) string {
+	if n == 1 {
+		return "file"
+	}
+	return "files"
 }

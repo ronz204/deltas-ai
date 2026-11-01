@@ -53,6 +53,9 @@ func FindRoot(start string) string {
 
 func (s *Vault) Path(slice string) string { return dirName + "/" + slice + suffix }
 
+// Name is what the project is called: the name of its folder.
+func (s *Vault) Name() string { return filepath.Base(s.root) }
+
 // file refuses a name that could point outside deltas/.
 func (s *Vault) file(slice string) (string, error) {
 	if !specfile.ValidSlice(slice) {

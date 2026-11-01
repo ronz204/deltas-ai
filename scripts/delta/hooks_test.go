@@ -92,7 +92,7 @@ func gitProject(t *testing.T) *project {
 func TestInitInstallsTheHookAndPointsGitAtIt(t *testing.T) {
 	p := gitProject(t)
 	code, out, errOut := p.delta("", "init")
-	if code != 0 || out != "installed .githooks/commit-msg\nset core.hooksPath to .githooks\n" {
+	if code != 0 || !strings.HasPrefix(out, "installed .githooks/commit-msg\nset core.hooksPath to .githooks\ninstalled ") {
 		t.Fatalf("init = %d %q %q", code, out, errOut)
 	}
 	if !strings.HasPrefix(p.read(".githooks/commit-msg"), "#!/bin/sh\n") {

@@ -78,12 +78,63 @@ func TestAFreshProjectGetsTheHookAndThePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []Step{{true, "installed .githooks/commit-msg"}, {true, "set core.hooksPath to .githooks"}}
+	want := []Step{{true, "installed .githooks/commit-msg"}, {true, "set core.hooksPath to .githooks"}, {true, "installed 3 files from the harness"}, {true, "installed .claude/settings.json"}}
 	if fmt.Sprint(steps) != fmt.Sprint(want) {
 		t.Fatalf("steps = %v, want %v", steps, want)
 	}
 	if string(w.files[".githooks/commit-msg"]) != hook || w.perms[".githooks/commit-msg"] != 0o755 || w.hooksDir != ".githooks" {
 		t.Fatalf("hook = %q, mode = %v, hooksPath = %q", w.files[".githooks/commit-msg"], w.perms[".githooks/commit-msg"], w.hooksDir)
+	}
+}
+
+func TestAFreshProjectGetsTheFilesOfTheHarness(t *testing.T) {
+	w := newWorld()
+	if _, err := installer(w).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if string(w.files[".claude/rules/one.md"]) != "# acme\n" {
+		t.Errorf("rule = %q, want the project's name in it", w.files[".claude/rules/one.md"])
+	}
+	if w.perms[".claude/skills/x/run.sh"] != 0o755 {
+		t.Errorf("a script lost its execute bit: %v", w.perms[".claude/skills/x/run.sh"])
+	}
+	if _, ok := w.files["deltas/.gitkeep"]; !ok {
+		t.Error("the folder for the contracts was not created")
+	}
+	if string(w.files[".claude/settings.json"]) != fragment {
+		t.Errorf("settings = %q", w.files[".claude/settings.json"])
+	}
+}
+
+func TestAHarnessFileTheProjectChangedIsKeptAndSaid(t *testing.T) {
+	w := newWorld()
+	w.files[".claude/rules/one.md"] = []byte("# mine\n")
+	steps, err := installer(w).Run(ctx)
+	if err != nil || string(w.files[".claude/rules/one.md"]) != "# mine\n" {
+		t.Fatalf("rule = %q, err = %v", w.files[".claude/rules/one.md"], err)
+	}
+	var said bool
+	for _, s := range steps {
+		said = said || (!s.Done && strings.Contains(s.What, ".claude/rules/one.md") && strings.Contains(s.What, "left as they are"))
+	}
+	if !said {
+		t.Fatalf("steps = %v, want the kept file named", steps)
+	}
+}
+
+func TestSettingsOfTheProjectGainDeltasHooks(t *testing.T) {
+	w := newWorld()
+	w.files[".claude/settings.json"] = []byte(`{"model":"opus"}`)
+	steps, err := installer(w).Run(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := decode(t, w.files[".claude/settings.json"])
+	if got["model"] != "opus" || got["hooks"] == nil || got["permissions"] == nil {
+		t.Fatalf("settings = %s", w.files[".claude/settings.json"])
+	}
+	if last := steps[len(steps)-1]; !last.Done || !strings.Contains(last.What, "added delta's hooks") {
+		t.Fatalf("step = %+v", last)
 	}
 }
 
@@ -230,3 +281,16 @@ func TestCheckReportsWhatDeltaConfGotWrong(t *testing.T) {
 		t.Fatalf("problems = %q", problems)
 	}
 }
+
+func (w *world) Name() string { return "acme" }
+
+func (w *world) Assets(project string) ([]Asset, error) {
+	return []Asset{
+		{Path: ".claude/rules/one.md", Content: []byte("# " + project + "\n"), Mode: 0o644},
+		{Path: ".claude/skills/x/run.sh", Content: []byte("#!/bin/sh\n"), Mode: 0o755},
+	}, nil
+}
+
+const fragment = `{"permissions":{"deny":["Read(**/.env)"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"delta hook","timeout":20}]}]}}`
+
+func (w *world) Settings() ([]byte, error) { return []byte(fragment), nil }
