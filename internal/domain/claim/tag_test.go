@@ -22,6 +22,11 @@ func TestParseTag(t *testing.T) {
 			t.Errorf("ParseTag(%q) = %+v, %v; want %+v", c.in, got, err, c.want)
 		}
 	}
+	for _, c := range good {
+		if again, err := ParseTag(c.want.String()); err != nil || again != c.want {
+			t.Errorf("%+v does not survive String and ParseTag: %+v, %v", c.want, again, err)
+		}
+	}
 	for _, bad := range []string{"", "test", "test:", "test:   ", "none: why", "check: ./x.sh", "Test: x", "manually", "tests: x"} {
 		if _, err := ParseTag(bad); err == nil {
 			t.Errorf("ParseTag(%q) accepted a bad tag", bad)

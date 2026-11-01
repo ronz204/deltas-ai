@@ -23,6 +23,20 @@ type Tag struct {
 	Arg  string // the command for Test, the optional step for Manual, empty for None
 }
 
+// String is the text that goes between the brackets, so ParseTag(t.String()) gives t back.
+func (t Tag) String() string {
+	switch t.Kind {
+	case Test:
+		return "test: " + t.Arg
+	case Manual:
+		if t.Arg != "" {
+			return "manual: " + t.Arg
+		}
+		return "manual"
+	}
+	return "none"
+}
+
 // ParseTag reads the text between the brackets: "test: <command>", "manual", "manual: <step>"
 // or "none".
 func ParseTag(s string) (Tag, error) {

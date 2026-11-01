@@ -30,4 +30,5 @@ const (
 	CodeDupID       = "SPEC-DUP-ID"      // claim ID already defined
 	CodeNoText      = "SPEC-NO-TEXT"     // claim has no sentence under its header
 	CodeStatement   = "SPEC-STATEMENT"   // sentence does not follow EARS or Given/When/Then
+	CodeName        = "SPEC-NAME"        // frontmatter names a different slice than the file
 )
