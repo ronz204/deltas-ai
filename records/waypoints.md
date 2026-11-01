@@ -92,10 +92,10 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Esqueleto del proyecto Go: `go.mod` en la raíz, `entries/`, `internal/` (capas `domain`, `usecase`, `gateway`, `adapter`) y `harness/` con su `harness.go` y `core/templates/` (spec y `CLAUDE.md`), más el test que hace cumplir la regla de dependencia entre capas. *Hoy solo existe la capa `domain`; las otras tres nacen con su primer paquete, y el test ya las cubre.*
 - [x] Formato de spec con `format: 1`, IDs por claim y tags `test: <comando>`, `manual`, `none`. *`domain/{findings,lifecycle,assertion,specfile}`, con fuzzing del parser.*
 - [x] Parser EARS y de Given/When/Then. *En `domain/assertion`; se ejecuta dentro de `specfile.Parse`.*
-- [x] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`. *Con `cobra` en `adapter/cli`. `link` lleva el slice primero (`delta link <slice> <claim-id> <comando>`) porque los IDs solo son únicos por spec; `commit-msg` llama a `domain/commit` sin pasar por `guard`, que nace en la Fase 2.*
+- [x] Comandos: `delta spec new`, `spec lint`, `spec write`, `link`, `lint`, `check`, `status`, `commit-msg`. *Con `cobra` en `adapter/cmd`. `link` lleva el slice primero (`delta link <slice> <claim-id> <comando>`) porque los IDs solo son únicos por spec; `commit-msg` llama a `domain/commit` sin pasar por `guard`, que nace en la Fase 2.*
 - [x] `delta check` como en §6.5: ejecución directa con `os/exec` (sin shell), `Holds` solo con exit 0 más un test que cita el ID, `Unverified` si falta el test, `Violated` si falla. No lee la salida del runner. *El test debe estar bajo las rutas que el comando nombra: así el `INV-01` de un slice no da `Holds` al de otro.*
 - [x] `delta lint`: coincidencia tolerante del ID (`INV-01`, `INV_01`, `INV01`), aviso de `skip` y `only`. *Además avisa de tests que citan un ID que ningún spec define.*
-- [x] Tests unitarios del CLI. *`adapter/cli` con puertos en memoria: la salida, el reparto entre stdout y stderr y los códigos de cada comando, sin tocar disco.*
+- [x] Tests unitarios del CLI. *`adapter/cmd` con puertos en memoria: la salida, el reparto entre stdout y stderr y los códigos de cada comando, sin tocar disco.*
 - [x] Suite de compatibilidad de `delta check`: proyectos mínimos reales en Go y TypeScript con un test que pasa, uno que falla, un comando que sale con 0 sin test que cite el ID y un `skip`. *En `entries/delta/testdata/compat/{go,ts}`. El `skip` da `Holds` (el límite conocido de §10) y `delta lint` lo avisa.*
 
 **Cierra cuando**

@@ -34,7 +34,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 2 | Tres carpetas de código: `entries`, `internal`, `harness` | Decidido |
 | 3 | `go.mod` en la raíz del repo | Decidido |
 | 4 | Cuatro capas dentro de `internal`: `domain`, `usecase`, `gateway`, `adapter` | Decidido |
-| 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en las demás capas | Decidido |
+| 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en `usecase` y `gateway`, y `cmd` y `hook` en `adapter` | Decidido |
 | 6 | CLI con `spf13/cobra` | Decidido |
 | 7 | Se añade el comando `delta hook <evento>` | Decidido |
 | 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
@@ -42,7 +42,7 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `harness/` nace como copia renombrada | Decidido |
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
-| 13 | Archivos de código de `domain` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
+| 13 | Archivos de código de `domain` y de `adapter/cmd` de 6 a 7 letras; su prueba se llama `<nombre>_test.go` | Decidido |
 
 ---
 
@@ -76,7 +76,7 @@ deltas-ai/
 │   │   ├── gitcli/              # envoltorio fino del binario git
 │   │   └── bundle/              # el harness embebido, listo para instalar
 │   └── adapter/                 # traducen el mundo exterior a casos de uso
-│       ├── cli/                 # comandos cobra y formato de salida
+│       ├── cmd/                 # comandos cobra y formato de salida
 │       └── hook/                # JSON de Claude Code por stdin → exit code
 └── harness/                     # lo que `delta init` instala (se embebe en el binario)
     ├── harness.go               # //go:embed
@@ -182,7 +182,7 @@ Observaciones:
 
 | Paquete | Entrada | Salida |
 |---|---|---|
-| `cli` | Argumentos y flags (cobra) | Texto en tabla con `text/tabwriter`, o JSON con `--json`; exit code |
+| `cmd` | Argumentos y flags (cobra) | Texto en tabla con `text/tabwriter`, o JSON con `--json`; exit code |
 | `hook` | JSON del evento de Claude Code por stdin | Exit 0 para permitir, exit **2** para bloquear (el 1 no bloquea), con el motivo en stderr |
 
 `hook` no contiene reglas. Extrae del JSON lo que `guard` necesita (herramienta, ruta, comando), llama a `guard` y traduce la decisión a un exit code.
@@ -193,19 +193,19 @@ Observaciones:
 
 | Comando | Adaptador | Caso de uso | Dominio que decide |
 |---|---|---|---|
-| `delta init` | `cli` | `setup` | `lifecycle`, `specfile` (plantilla) |
-| `delta spec new <slice>` | `cli` | `author` | `specfile`, `lifecycle` |
-| `delta spec lint [slice]` | `cli` | `verify` | `specfile`, `assertion` |
-| `delta spec write` | `cli` | `author` | `specfile` |
-| `delta link <slice> <claim-id> <comando>` | `cli` | `author` | `specfile`, `assertion` |
-| `delta lint` | `cli` | `verify` | `linkcheck`, `assertion` |
-| `delta check [slice]` | `cli` | `verify` | `judgment`, `linkcheck` |
-| `delta status` | `cli` | `status` | `lifecycle`, `judgment`, `drift` |
-| `delta stale` | `cli` | `status` | `drift` |
-| `delta budget` | `cli` | `guard` | `budget` |
-| `delta commit-msg <archivo>` | `cli` | (ninguno: `cli` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
-| `delta approve <slice>` | `cli` | `author` | `lifecycle` |
-| `delta context <slice>` | `cli` | `status` | `specfile`, `assertion` |
+| `delta init` | `cmd` | `setup` | `lifecycle`, `specfile` (plantilla) |
+| `delta spec new <slice>` | `cmd` | `author` | `specfile`, `lifecycle` |
+| `delta spec lint [slice]` | `cmd` | `verify` | `specfile`, `assertion` |
+| `delta spec write` | `cmd` | `author` | `specfile` |
+| `delta link <slice> <claim-id> <comando>` | `cmd` | `author` | `specfile`, `assertion` |
+| `delta lint` | `cmd` | `verify` | `linkcheck`, `assertion` |
+| `delta check [slice]` | `cmd` | `verify` | `judgment`, `linkcheck` |
+| `delta status` | `cmd` | `status` | `lifecycle`, `judgment`, `drift` |
+| `delta stale` | `cmd` | `status` | `drift` |
+| `delta budget` | `cmd` | `guard` | `budget` |
+| `delta commit-msg <archivo>` | `cmd` | (ninguno: `cmd` llama a `domain/commits`; `guard` nace en la Fase 2, cuando decida algo propio) | `commits` |
+| `delta approve <slice>` | `cmd` | `author` | `lifecycle` |
+| `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
 | `delta hook <evento>` | `hook` | `guard` | `lifecycle`, `commits`, `budget`, `judgment` |
 
 `delta hook` se invoca desde `.claude/settings.json` con un evento (`session-start`, `pre-edit`, `pre-commit`, `post-edit`, `stop`). *Propuesta de nombres; se fijan al implementarlo.*
