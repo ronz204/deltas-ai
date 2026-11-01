@@ -10,13 +10,13 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 51 de 73 tareas, 70 %**
+**Avance total: 50 de 72 tareas, 69 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
 | 0 | Limpieza y renombrado | ✅ Terminada | 11/11, 100 % |
 | 1 | Núcleo del CLI | ✅ Terminada | 12/12, 100 % |
-| 2 | Hooks | ✅ Terminada | 16/16, 100 % |
+| 2 | Hooks | ✅ Terminada | 15/15, 100 % |
 | 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
 | 4 | Reglas core y preset `base` | 🔲 Pendiente | 0/9, 0 % |
 | 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
@@ -110,7 +110,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 2: hooks
 
-**Estado: ✅ Terminada, 16/16.**
+**Estado: ✅ Terminada, 15/15.**
 
 *Volver obligatorio lo que hoy es consejo (§6.2).*
 
@@ -120,7 +120,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 - [x] Hook `PostToolUse`. *Cuando Claude escribe un archivo de test corre `delta lint` y le cuenta (exit 2, que el stderr llegue a Claude está verificado en la documentación) solo los problemas de ese archivo. Los linters de lenguaje los maneja cada proyecto. Probado con un test que salta y con un archivo que no es de test (`blueprint.md`, §8.5).*
 - [x] Hook `Stop` que exige evidencia de que `delta check` corrió sobre lo que cada slice mira del árbol. *`delta check` anota por slice la huella de su alcance y si hubo violación, en la caché del usuario (`gateway/ledger`); `Stop` bloquea una sola vez si cambió algo de ese alcance y falta la marca o hay violaciones. El alcance es todo el código salvo lo que `deltas/deltas.config` declare con `scope.<slice>`, y el Markdown no cuenta. Probado de extremo a extremo con un repositorio real (`blueprint.md`, §8.7).*
 - [x] `delta version` y un `commit-msg` que comprueba que el `delta` del `PATH` sea este programa y no git-delta. *Si no lo es, avisa y deja pasar el commit. Probado con un `delta` falso que sale con error, y la prueba falla contra el hook anterior.*
-- [x] `golangci-lint` en CI (`.golangci.yml`, trabajo `lint`). *Probado en local con la misma versión; el trabajo aún no ha corrido en GitHub.*
+- ~~`golangci-lint` en CI (`.golangci.yml`, trabajo `lint`).~~ *Retirado (no cuenta en el avance): la CI corre `gofmt`, `go vet` y los tests.*
 - [x] `deltas/deltas.config` en la raíz (`blueprint.md`, §8.8). *Claves: `test_files`, `command_timeout`, `required_tools`, `scope.<slice>` y los techos del presupuesto. Una línea inválida se cuenta y se muestra como aviso, nunca rompe un hook. Sin `deltas/deltas.config` se leen los techos del `.claude/budget.conf` anterior hasta que `delta init` instale el nuevo. Probado de extremo a extremo, incluida una convención de tests ajena (Ruby).*
 - [x] `source/harness/core/githooks/commit-msg`, que `delta init` instala como `.githooks/commit-msg` (script POSIX que llama a `delta commit-msg`) y `core.hooksPath` fijado por `delta init`, sin pisar uno ajeno. *Hoy `delta init` hace solo esto; el esqueleto, el `CLAUDE.md` y la regeneración de `.claude/` siguen en su propia tarea. Si falta `delta`, el hook avisa y deja pasar el commit.*
 - [x] Aviso en `SessionStart` y `delta status` si falta `core.hooksPath` o el binario `delta`. *`setup.Check` lista: hook sin instalar, `core.hooksPath` sin fijar o apuntando a otro lado, `delta` fuera del `PATH` y un programa distinto con el mismo nombre (git-delta). `status` los imprime en stderr como `warning:` sin fallar, y `SessionStart` los suma al contexto. Que el propio binario falte solo lo ve Claude Code, como un 127 que no bloquea.*

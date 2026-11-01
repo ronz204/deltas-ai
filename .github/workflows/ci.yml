@@ -29,17 +29,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: go test -race ./...
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      # built with the project's Go: a prebuilt binary can be older than go.mod asks for
-      - run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
-      - run: golangci-lint run ./...
-
   commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

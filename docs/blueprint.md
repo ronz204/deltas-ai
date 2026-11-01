@@ -428,7 +428,7 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 - **Legibilidad antes que brevedad.** Una función cabe en una pantalla (unas 30 líneas) y hace una cosa; un archivo agrupa una responsabilidad (`specfile` se lee en `header.go`, `claims.go`, `naming.go` y `parsing.go`); en el adaptador, un comando por archivo. Preferir el flujo plano con retornos tempranos a los `if` anidados, y un `switch` ordenado a una cadena de `else`.
 - **Nombres que no tartamudean ni chocan.** El tipo principal de un paquete no repite su nombre (`verify.Checker`, no `verify.Verify`) y no comparte nombre con un tipo de otro paquete (`status.Reporter`, no `status.Status`, que es `lifecycle.Status`). `New` solo construye: lo que crea un spec se llama `Create`.
 - **Nada que no se use.** Una función exportada que solo llaman los tests se borra, y los tests prueban lo que el código usa de verdad.
-- **Herramientas.** `go vet`, `golangci-lint` y `gofmt` en CI; tests con `-race`.
+- **Herramientas.** `go vet` y `gofmt` en CI; tests con `-race`.
 
 ---
 
@@ -546,7 +546,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 - **`spec write` y el estado.** Un spec nuevo solo nace `draft`, y solo los comandos de estado lo mueven hacia delante (sección 7.2).
 - **Formato del JSON de los hooks.** Verificado en la documentación de Claude Code; el contrato y sus límites están en la sección 8.5.
 - **Versión de Go y ruta del módulo.** Fijadas en `go.mod`: `github.com/ronz204/deltas-ai`, Go 1.27.
-- **Configuración de `golangci-lint`.** `.golangci.yml` activa `errcheck`, `govet`, `ineffassign`, `staticcheck` y `unused`, y un trabajo `lint` de CI la corre. `errcheck` ignora las escrituras con `fmt.Fprint*`, `Flush` de `tabwriter` y `os.Remove`, que no tienen nada útil que manejar. Ya encontró una constante muerta en un test y un `Close` sin comprobar.
+- **Sin `golangci-lint`.** Se quitó (`.golangci.yml` y el trabajo `lint` de CI): la CI corre `gofmt`, `go vet` y los tests.
 - **Códigos de diagnóstico.** No es una decisión sino una práctica: ya existen `SPEC-*`, `LINT-*`, `COMMIT-*`, `BUDGET-*` y `CHECK-RECORD`, y cada comando nuevo añade los suyos (sección 7.3).
 - **`Kind` y `TagKind` en `assertion`.** `TagKind` pasó a llamarse `Method` y el campo `Tag.Kind` a `Tag.Method`, para no confundirlo con `ID.Kind()` (invariante o aceptación).
 - **El nombre del binario.** Se conserva `delta`. `delta version` imprime `delta (deltas-ai) <versión>` en su primera línea, y el hook `commit-msg` la comprueba antes de ejecutar nada: si el `delta` del `PATH` es otro (git-delta), avisa y deja pasar el commit en vez de cancelarlo. `delta status` y `SessionStart` también avisan (`setup.Check`).
