@@ -322,7 +322,7 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 - **Interfaces chicas, declaradas por quien las usa.** Una o dos funciones.
 - **El dominio es puro.** Sin reloj, sin disco, sin variables de entorno. Lo que necesite del mundo, lo recibe como argumento.
 - **Salida determinista.** Nada de recorrer mapas en orden aleatorio; todo se ordena antes de imprimir, para que los golden files sean estables.
-- **Comentarios solo para el porqué**, en una línea. Cuando un atajo tiene un límite conocido: `shortcut: <el límite>, <cuándo mejorarlo>`.
+- **Comentarios solo para el porqué**, en una línea. No se comenta lo que el nombre o la firma ya dicen, tampoco en los tipos y funciones exportados ni en cada constante de un grupo. Cuando un atajo tiene un límite conocido: `shortcut: <el límite>, <cuándo mejorarlo>`.
 - **Tamaño.** Cada paquete hace una cosa; si un archivo necesita dos secciones de comentarios para explicarse, son dos paquetes.
 - **Legibilidad antes que brevedad.** Una función cabe en una pantalla (unas 30 líneas) y hace una cosa; un archivo agrupa una responsabilidad (`specfile` se lee en `head.go`, `body.go`, `name.go` y `parse.go`); en el adaptador, un comando por archivo. Preferir el flujo plano con retornos tempranos a los `if` anidados, y un `switch` ordenado a una cadena de `else`.
 - **Nombres que no tartamudean ni chocan.** El tipo principal de un paquete no repite su nombre (`verify.Checker`, no `verify.Verify`) y no comparte nombre con un tipo de otro paquete (`status.Reporter`, no `status.Status`, que es `lifecycle.Status`). `New` solo construye: lo que crea un spec se llama `Create`.
