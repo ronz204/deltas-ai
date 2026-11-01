@@ -9,10 +9,8 @@ coverage.*
 # Left behind if delta is killed in the middle of writing a spec
 .delta-*.tmp
 
-# Written by delta init from source/harness: the harness is the source, not this copy
-.claude/
-
 # Local configuration and secrets: only the .sample variants are versioned
+.claude/settings.local.json
 go.work
 go.work.sum
 .env
