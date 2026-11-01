@@ -354,11 +354,11 @@ Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún tech
 
 ### 8.8 `delta.conf`
 
-Un archivo opcional en la raíz del proyecto, con líneas `clave=valor`; las líneas en blanco y las que empiezan con `#` se ignoran, y gana el último valor de una clave. Sin él todo funciona con los valores por defecto: `delta.conf` solo existe para lo que ata a Delta a un lenguaje, a una herramienta o a un tamaño de proyecto. **No** configura `deltas/` ni `.spec.md`: son el formato del producto.
+Un archivo opcional en la raíz del proyecto, con líneas `clave=valor`; las líneas en blanco y las que empiezan con `#` se ignoran, y gana el último valor de una clave. Sin él todo funciona con los valores por defecto: `delta.conf` solo existe para lo que ata a Delta a un lenguaje, a una herramienta o a un tamaño de proyecto. **No** configura `deltas/` ni `.spec.md`: son el formato del producto. El que instala `delta init` escribe esos valores por defecto en vez de dejarlos comentados (salvo `scope.<slice>`, que no tiene un valor por defecto que escribir), separados por líneas en blanco y con el presupuesto agrupado por clase de carga; una prueba exige que coincidan con los del código.
 
 | Clave | Qué hace | Por defecto |
 |---|---|---|
-| `test_files` | Patrones (como `path.Match`, sobre el nombre del archivo, separados por coma o espacio) de los archivos que son tests. Sustituyen a la regla propia; un `.md` nunca es un test | `*_test.go`, `test_*.py`, `*_test.py` y `*.test.*` o `*.spec.*` sobre extensiones de script |
+| `test_files` | Patrones (como `path.Match`, sobre el nombre del archivo, separados por coma o espacio) de los archivos que son tests. Sustituyen a la regla propia, que es esta misma lista; un `.md` nunca es un test | `*_test.go`, `test_*.py`, `*_test.py`, `*.test.*` y `*.spec.*` |
 | `command_timeout` | Tiempo máximo de cada comando de un claim, como `90s` o `10m` | `10m` |
 | `required_tools` | Programas que deben estar en el `PATH`; `delta status` y `SessionStart` avisan de los que falten | ninguno |
 | `scope.<slice>` | Rutas de las que depende el slice; reduce su alcance en `Stop` (sección 8.7) | todo el código |
