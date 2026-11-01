@@ -4,7 +4,7 @@
 
 *Nombres: en los datos del piloto y en "Dónde estábamos" se conservan los nombres viejos (Specifier, Executor, Sentinel). Del resto del documento en adelante, Specifier = **Quill**, Executor = **Forge**, Sentinel = **Seal**.*
 
-Documento para decidir hacia dónde va Delta. Está escrito para leerse de punta a punta: primero el porqué, después el qué, y al final el cómo y los pendientes. El contexto completo (historia, investigación, conceptos) está en `background.md`.
+Documento para decidir hacia dónde va Delta. Está escrito para leerse de punta a punta: primero el porqué, después el qué, y al final el cómo y los pendientes. El contexto completo (historia, investigación, conceptos) está en `backstory.md`.
 
 **Cómo leerlo:** lo que viene del repo, de tu piloto y de los archivos que me pasaste es dato. Lo que viene de mi criterio está marcado como *propuesta*. Lo que no pude comprobar está marcado como *hipótesis*. Importante: no pude abrir la carpeta `.claude/` (el sitio bloquea el acceso automatizado), así que de los skills y scripts no leí nada directo. Trabajé con el README, tu `summary.md` y tu `code-lean-change.md`.
 
@@ -154,7 +154,7 @@ Un binario único, sin runtime. Propuesta de comandos:
 
 Notas de diseño:
 - Para el presupuesto alcanza con contar por caracteres (~4 caracteres por token). Un tokenizer exacto no vale la complejidad.
-- El CLI no depende de Claude Code. Los hooks son un adaptador fino encima. Eso deja la puerta abierta a otros agentes sin que sea una meta. La estructura del proyecto Go, las capas y las librerías están en `deterministic.md`.
+- El CLI no depende de Claude Code. Los hooks son un adaptador fino encima. Eso deja la puerta abierta a otros agentes sin que sea una meta. La estructura del proyecto Go, las capas y las librerías están en `blueprint.md`.
 
 ### 6.2 Hooks de Claude Code
 

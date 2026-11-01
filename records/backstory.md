@@ -2,12 +2,12 @@
 
 *Contexto y conceptos, 30 de octubre de 2026.*
 
-Este documento es el **telón de fondo** de `redirection.md`. La división es esta:
+Este documento es el **telón de fondo** de `direction.md`. La división es esta:
 
-- **`redirection.md`:** las decisiones, el diseño, el plan y los números del piloto y de la investigación (su sección 2).
-- **`background.md` (este):** lo que ayuda a entender esas decisiones y que allá no cabe: cómo funciona Delta hoy, conceptos de Claude Code, cómo se mide un harness, detalle de los referentes y cómo llegamos hasta acá.
+- **`direction.md`:** las decisiones, el diseño, el plan y los números del piloto y de la investigación (su sección 2).
+- **`backstory.md` (este):** lo que ayuda a entender esas decisiones y que allá no cabe: cómo funciona Delta hoy, conceptos de Claude Code, cómo se mide un harness, detalle de los referentes y cómo llegamos hasta acá.
 
-Leelo antes de `redirection.md`, o pasáselo a Claude Code como contexto. Lo que es dato, propuesta o hipótesis está marcado.
+Leelo antes de `direction.md`, o pasáselo a Claude Code como contexto. Lo que es dato, propuesta o hipótesis está marcado.
 
 **Límite:** no pude leer la carpeta `.claude/` del repo (el sitio bloquea el acceso automatizado). Trabajé con el README, `summary.md` y `code-lean-change.md`. Lo que digo de los skills y scripts internos viene de esos documentos, no de haberlos leído.
 
@@ -47,7 +47,7 @@ Leelo antes de `redirection.md`, o pasáselo a Claude Code como contexto. Lo que
 | Slash commands, MCP, plugins | Empaquetar flujos y conectar herramientas externas |
 | Permisos y settings | Qué puede hacer el agente sin preguntar |
 
-La distinción clave (instrucciones probabilísticas vs. hooks deterministas, y el detalle del exit 2) está en `redirection.md`, sección 2.
+La distinción clave (instrucciones probabilísticas vs. hooks deterministas, y el detalle del exit 2) está en `direction.md`, sección 2.
 
 ## 3. Cómo se mide un harness
 
@@ -67,9 +67,9 @@ Pregunta de partida: ¿cómo se mide el rendimiento de un agente con harness con
 
 Toda decisión de diseño cuesta algo. Orientar mejor al agente cuesta tokens fijos (~4.2k por sesión en el piloto): **el costo es seguro, el ahorro es una hipótesis.**
 
-El punto de equilibrio es simple: Delta se paga si ahorra más de esos ~4.2k tokens en exploración por sesión. Es plausible donde el agente lee 20-40 archivos, pero nadie lo midió. Es exactamente donde Delta apuesta (repos grandes, trabajo repetido, documentación que sobrevive entre sesiones), y lo que el piloto no pudo ver. Los números del piloto están en `redirection.md`, sección 2.
+El punto de equilibrio es simple: Delta se paga si ahorra más de esos ~4.2k tokens en exploración por sesión. Es plausible donde el agente lee 20-40 archivos, pero nadie lo midió. Es exactamente donde Delta apuesta (repos grandes, trabajo repetido, documentación que sobrevive entre sesiones), y lo que el piloto no pudo ver. Los números del piloto están en `direction.md`, sección 2.
 
-## 5. Referentes: el detalle que no está en `redirection.md`
+## 5. Referentes: el detalle que no está en `direction.md`
 
 **Spec Kit** es *spec-first*: la especificación guía el diseño inicial, repartida en varios archivos por feature, con fases en secuencia. Sus pasos de clarify/analyze son consultivos. GitHub lo describe como experimental. Hay una extensión comunitaria (*Token Consumption Analyzer*, versión 0.1.0) para medir tokens y calidad entre flujos; su reporte de un preset "lean" (−46.8% tokens, −0.07 de calidad) viene de un autor individual.
 
@@ -93,7 +93,7 @@ El punto de equilibrio es simple: Delta se paga si ahorra más de esos ~4.2k tok
 10. `code-lean-change` se disuelve en esas reglas.
 11. (31 de octubre) Los tres skills se renombran Quill, Forge y Seal. Los hooks de git se comparten con `core.hooksPath` más una capa propia para el agente. El core baja a dos reglas (fidelidad, honestidad) y el resto pasa al preset `base`, porque mejorar el código es un beneficio secundario de Delta. Además se elimina el tag `check` (un e2e es un `test` con otro comando) y la verificación no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID del claim. En este documento, "Specifier, Sentinel, Executor" son los nombres previos a ese cambio, y la lista de tags de la sección 1 describe el Delta actual.
 
-El diseño resultante de todo esto está en `redirection.md`.
+El diseño resultante de todo esto está en `direction.md`.
 
 ## 7. Qué se sabe y qué no
 
@@ -106,6 +106,6 @@ El diseño resultante de todo esto está en `redirection.md`.
 
 ## 8. Para retomar en Claude Code
 
-Traé `executor/SKILL.md`, `budget.sh` y `links.sh`: con eso se confirman o corrigen las hipótesis sobre Executor y el lazo de tags. Después, las decisiones abiertas están en `redirection.md`, sección 11, y el plan por fases en la sección 12.
+Traé `executor/SKILL.md`, `budget.sh` y `links.sh`: con eso se confirman o corrigen las hipótesis sobre Executor y el lazo de tags. Después, las decisiones abiertas están en `direction.md`, sección 11, y el plan por fases en la sección 12.
 
-**Referencia adicional** (no está en `redirection.md`): buenas prácticas para benchmarks agentic (ABC), https://arxiv.org/html/2507.02825v4.
+**Referencia adicional** (no está en `direction.md`): buenas prácticas para benchmarks agentic (ABC), https://arxiv.org/html/2507.02825v4.

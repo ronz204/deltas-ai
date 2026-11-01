@@ -2,7 +2,7 @@
 
 *Versión 1, 1 de noviembre de 2026. Diseño del CLI `delta` en Go: estructura, capas, paquetes, librerías y reglas de código.*
 
-Este documento explica cómo se construye la parte determinista del harness: todo lo que un programa puede decidir sin un modelo. Complementa a `redirection.md` (qué es Delta y por qué), `background.md` (contexto) y `roadmap.md` (en qué orden). Si algo choca con `redirection.md`, manda `redirection.md`.
+Este documento explica cómo se construye la parte determinista del harness: todo lo que un programa puede decidir sin un modelo. Complementa a `direction.md` (qué es Delta y por qué), `backstory.md` (contexto) y `waypoints.md` (en qué orden). Si algo choca con `direction.md`, manda `direction.md`.
 
 **Cómo leerlo:** lo marcado **Decidido** salió de la conversación con Roney y se da por cerrado. Lo marcado *propuesta* es mi criterio y se puede cambiar. Lo marcado *a verificar* es algo que no comprobé y hay que confirmar antes de implementar. Ningún código de este documento existe todavía: los fragmentos de Go son bocetos para fijar los nombres y las formas, no una implementación.
 
@@ -10,7 +10,7 @@ Este documento explica cómo se construye la parte determinista del harness: tod
 
 ## 1. Qué es y qué no es
 
-La idea central de Delta es **el modelo propone, el código decide** (`redirection.md`, §1). Esta parte es el "código decide":
+La idea central de Delta es **el modelo propone, el código decide** (`direction.md`, §1). Esta parte es el "código decide":
 
 - Valida que un spec tenga la forma correcta, con IDs únicos y tags válidos.
 - Ejecuta los comandos de verificación de cada claim y dice `Holds`, `Violated` o `Unverified`.
@@ -37,8 +37,8 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 5 | Nombres de paquete de una palabra, de longitud pareja: 7 a 9 letras en `domain`, 5 a 6 en las demás capas | Decidido |
 | 6 | CLI con `spf13/cobra` | Decidido |
 | 7 | Se añade el comando `delta hook <evento>` | Decidido |
-| 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`redirection.md`, 6.4) |
-| 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`redirection.md`, 6.4 y 6.5) |
+| 8 | Los comandos de verificación se ejecutan directo con `os/exec`, sin shell | Decidido (`direction.md`, 6.4) |
+| 9 | `delta check` no lee la salida de los runners: `Holds` exige exit 0 más un test que cite el ID | Decidido (`direction.md`, 6.4 y 6.5) |
 | 10 | `.claude/` de este repo no se toca hasta que `delta init` pueda regenerarlo; `harness/` nace como copia renombrada | Decidido |
 | 11 | Frontmatter plano (`clave: valor`) con parser propio; parser de claims propio | Propuesta |
 | 12 | Salvo cobra, solo la librería estándar (sección 9) | Propuesta |
@@ -93,7 +93,7 @@ deltas-ai/
 
 **Por qué `internal`:** el compilador impide que otros módulos importen estos paquetes. La API pública de Delta es el CLI y el formato del spec, no los paquetes Go.
 
-**Lo que no está en esta estructura:** `elements/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `harness/` cuando exista `delta init` (sección 11).
+**Lo que no está en esta estructura:** `records/` (documentos de trabajo), `deltas/` y `.claude/` siguen en la raíz como están. `.claude/` es la configuración con la que se trabaja hoy en este repo; se regenerará desde `harness/` cuando exista `delta init` (sección 11).
 
 ---
 
@@ -215,7 +215,7 @@ Observaciones:
 
 ### 7.1 El spec
 
-Definido en `redirection.md`, 6.4. Resumen de lo que el parser exige:
+Definido en `direction.md`, 6.4. Resumen de lo que el parser exige:
 
 - Frontmatter con `format`, `slice` y `status`, claves planas. Una clave desconocida, repetida o ausente es un error; `slice` va en minúsculas unidas por guiones.
 - Cada claim es una línea `- <ID> [<tag>]` seguida de su texto indentado, que puede ocupar varias líneas (se une con espacios).
@@ -261,11 +261,11 @@ Es la pieza de la que depende todo lo demás, así que se escribe primero. Traba
 5. Los claims `manual` y `none` se reportan como `Unverified`.
 6. Se imprime la tabla y se sale con 1 si hay algún `Violated`.
 
-Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que existe un test que cita el ID. **No prueba que ese test se ejecutó** (un `skip` pasaría, y un comando que no nombra rutas acepta cualquier test). Ese límite está documentado en `redirection.md`, §10, junto con la mejora futura (un archivo de evidencia que cada test escribe).
+Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que existe un test que cita el ID. **No prueba que ese test se ejecutó** (un `skip` pasaría, y un comando que no nombra rutas acepta cualquier test). Ese límite está documentado en `direction.md`, §10, junto con la mejora futura (un archivo de evidencia que cada test escribe).
 
 ### 8.3 `delta stale`
 
-Para cada spec, `drift` compara los archivos que el spec referencia con los que `gitcli` dice que cambiaron desde la última verificación. La granularidad es el archivo (decisión de `redirection.md`). Marca de más si el cambio no altera el comportamiento, y no marca si el comportamiento cambia sin tocar los archivos nombrados. Está documentado como heurística.
+Para cada spec, `drift` compara los archivos que el spec referencia con los que `gitcli` dice que cambiaron desde la última verificación. La granularidad es el archivo (decisión de `direction.md`). Marca de más si el cambio no altera el comportamiento, y no marca si el comportamiento cambia sin tocar los archivos nombrados. Está documentado como heurística.
 
 ### 8.4 Escritura atómica de la KB
 
@@ -345,7 +345,7 @@ El proyecto debe ser limpio y robusto, y se aplica a sí mismo lo que Delta pred
 
 La CI corre en Linux, macOS y **Windows** desde el primer día: rutas con espacios, finales de línea y la forma de partir comandos son donde más fácil se rompe.
 
-Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sistema" que `redirection.md` promete.
+Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sistema" que `direction.md` promete.
 
 ---
 
@@ -407,7 +407,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 | Windows: rutas con espacios, CRLF, partir comandos | CI en Windows desde el inicio; `.gitattributes` con LF |
 | El formato del JSON de los hooks puede cambiar | El adaptador `hook` no tiene reglas; si cambia la plataforma, se reescribe solo ese paquete |
 | La estructura de cuatro capas es más pesada que un `main` y unos archivos | Es la que hace posible el test de dependencias; si en la práctica estorba, `usecase` y `domain` se pueden fundir sin tocar `gateway` ni `adapter` |
-| Un `Holds` no prueba que el test corrió | Límite documentado; mejora futura: archivo de evidencia (`redirection.md`, §10) |
+| Un `Holds` no prueba que el test corrió | Límite documentado; mejora futura: archivo de evidencia (`direction.md`, §10) |
 | `stale` por archivo da falsos positivos | Medir el ruido en Kelsen antes de afinar (Fase 6) |
 | El CLI crece sin control | Cada comando y cada paquete pasa la prueba de entrada (pilar 9) |
 
@@ -415,7 +415,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 
 ## 16. Pendientes menores
 
-1. **Quién dispara `approved → built` y `built → verified`.** `redirection.md`, 6.3, dice que solo el CLI cambia el estado, pero no qué comando lo hace. *Propuesta:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando. Se decide al implementar la Fase 3.
+1. **Quién dispara `approved → built` y `built → verified`.** `direction.md`, 6.3, dice que solo el CLI cambia el estado, pero no qué comando lo hace. *Propuesta:* `delta check` mueve a `verified` cuando no queda ningún claim `test` en `Violated` ni `Unverified`, con los `manual` y `none` visibles como deuda; y Forge, al cerrar su trabajo, marca `built` con un comando. Se decide al implementar la Fase 3.
 2. **Archivo de configuración.** `delta init` menciona "config", pero no está definido qué se configura. *Propuesta:* sin archivo de configuración en la primera versión, solo convenciones y valores por defecto (por ejemplo, los patrones de archivos de tests). Se añade si aparece una necesidad real.
 3. **Formato del JSON de los hooks** y nombres definitivos de los eventos de `delta hook` (*a verificar*, sección 8.5).
 4. **Versión de Go y ruta del módulo** (`github.com/ronz204/deltas-ai` es la ruta natural del repositorio actual; la versión de Go se fija al crear `go.mod`).
