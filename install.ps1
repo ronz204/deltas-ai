@@ -24,9 +24,15 @@ function Install-Delta {
 
     $version = $env:DELTA_VERSION
     if (-not $version) {
-        $latest = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
-        $version = $latest.tag_name
-        if (-not $version) { throw "install: could not find the latest release of $repo" }
+        try {
+            $latest = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
+            $version = $latest.tag_name
+        } catch {
+            $version = $null
+        }
+        if (-not $version) {
+            throw "install: no stable release of $repo was found (pre-releases do not count). Set DELTA_VERSION to install one, for example `$env:DELTA_VERSION = '0.1.0-rc1'."
+        }
     }
     $version = $version.TrimStart('v')
 

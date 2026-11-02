@@ -59,9 +59,10 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 
 version="${DELTA_VERSION:-}"
 if [ -z "$version" ]; then
-	fetch "https://api.github.com/repos/$REPO/releases/latest" "$tmp/latest.json"
+	none="no stable release of $REPO was found (pre-releases do not count). Set DELTA_VERSION to install one, for example DELTA_VERSION=0.1.0-rc1"
+	fetch "https://api.github.com/repos/$REPO/releases/latest" "$tmp/latest.json" 2>/dev/null || fail "$none"
 	version="$(sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' "$tmp/latest.json" | head -n 1)"
-	[ -n "$version" ] || fail "could not find the latest release of $REPO"
+	[ -n "$version" ] || fail "$none"
 fi
 version="${version#v}"
 
