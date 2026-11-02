@@ -1,4 +1,4 @@
-package cmd
+package terminal
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ func printRows(out io.Writer, rows []tracking.Row) error {
 	for _, r := range rows {
 		state := string(r.Status)
 		if state == "" {
-			state = "-" // the frontmatter could not be read
+			state = "-"
 		}
 		if n := len(r.Changed); n > 0 {
 			state = fmt.Sprintf("%s (%d files changed)", state, n)
@@ -53,7 +53,6 @@ func printRows(out io.Writer, rows []tracking.Row) error {
 	return tw.Flush()
 }
 
-// printDocs says how far the docs for people are; a project with none says nothing.
 func printDocs(out io.Writer, row tracking.DocsRow) {
 	switch {
 	case row.Total == 0:

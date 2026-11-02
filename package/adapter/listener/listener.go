@@ -1,5 +1,4 @@
-// Package hook speaks Claude Code's hook protocol: one JSON event on stdin, an exit status back.
-package hook
+package listener
 
 import (
 	"context"
@@ -19,9 +18,6 @@ type event struct {
 	} `json:"tool_input"`
 }
 
-// Run answers one event. It returns 0 to let the action happen, 2 to block it with the reason on
-// errOut, and 1 when delta itself failed: Claude Code does not block on 1, so a broken delta
-// never stops the agent.
 func Run(ctx context.Context, g *sentinel.Guard, in io.Reader, out, errOut io.Writer) int {
 	var e event
 	if err := json.NewDecoder(in).Decode(&e); err != nil {

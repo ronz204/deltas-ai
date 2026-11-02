@@ -1,8 +1,10 @@
-package cmd
+package terminal
 
 import (
 	"fmt"
+	"io"
 
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 	"github.com/spf13/cobra"
 )
 
@@ -16,9 +18,7 @@ func installCmd(d Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			for _, s := range steps {
-				fmt.Fprintln(cmd.OutOrStdout(), s.What)
-			}
+			printSteps(cmd.OutOrStdout(), steps)
 			return nil
 		},
 	}
@@ -50,12 +50,16 @@ func updateCmd(d Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			for _, s := range steps {
-				fmt.Fprintln(cmd.OutOrStdout(), s.What)
-			}
+			printSteps(cmd.OutOrStdout(), steps)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&check, "check", false, "write nothing; list what would change and exit 1 if anything would")
 	return cmd
+}
+
+func printSteps(w io.Writer, steps []deployer.Step) {
+	for _, s := range steps {
+		fmt.Fprintln(w, s.What)
+	}
 }

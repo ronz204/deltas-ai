@@ -1,4 +1,4 @@
-package cmd
+package terminal
 
 import (
 	"bytes"
@@ -24,7 +24,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/weighing"
 )
 
-// root is the project directory the guard reasons about; nothing is read from it.
 var root = filepath.Join(os.TempDir(), "delta-cmd-test")
 
 const specTemplate = "---\nformat: 1\nslice: {{.Slice}}\nstatus: draft\n---\n"
@@ -33,14 +32,13 @@ const head = "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"
 
 func claim(id, tag string) string { return "- " + id + " [" + tag + "]\n  When x, y.\n" }
 
-// memory stands in for every port the use cases need.
 type memory struct {
 	specs   map[string]string
 	files   []linking.File
 	exits   map[string]int
-	project map[string][]byte // files read and written by path
-	kb      []budget.File     // what the always-loaded files are
-	onPath  string            // where the delta on the PATH is; empty means none
+	project map[string][]byte
+	kb      []budget.File
+	onPath  string
 	self    bool
 }
 

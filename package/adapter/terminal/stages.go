@@ -1,4 +1,4 @@
-package cmd
+package terminal
 
 import (
 	"context"
@@ -52,7 +52,6 @@ func readyCmd(d Deps) *cobra.Command {
 	}
 }
 
-// moved runs one status change; a spec with problems is reported and left as it was.
 func moved(cmd *cobra.Command, slice, to string, move func(context.Context, string) ([]findings.Diagnostic, error)) error {
 	ds, err := move(cmd.Context(), slice)
 	if err != nil {

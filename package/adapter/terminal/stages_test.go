@@ -1,4 +1,4 @@
-package cmd
+package terminal
 
 import (
 	"errors"
@@ -39,7 +39,7 @@ func TestCheckSaysWhichSlicesItVerified(t *testing.T) {
 
 func TestApproveRefusesWhatItCannotApprove(t *testing.T) {
 	m := newMemory()
-	m.specs["billing"] = head + claim("INV-01", "none") // already approved
+	m.specs["billing"] = head + claim("INV-01", "none")
 	if _, _, err := m.run("", "approve", "billing"); err == nil || errors.Is(err, ErrFound) {
 		t.Fatalf("approving an approved slice = %v, want a plain error", err)
 	}

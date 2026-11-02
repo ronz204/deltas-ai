@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ronz204/deltas-ai/package/adapter/terminal"
 	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"github.com/ronz204/deltas-ai/package/gateway/diskbase"
 	"github.com/ronz204/deltas-ai/package/gateway/embedded"
@@ -21,7 +22,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 	"github.com/ronz204/deltas-ai/package/usecase/weighing"
-	"github.com/ronz204/deltas-ai/source/adapter/cmd"
 )
 
 // commandTimeout bounds each claim's command, so one that hangs cannot hang a check.
@@ -40,7 +40,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	report := tracking.New(vault).WithDrift(checks, vault).WithDocs(vault)
 	installer := deployer.New(vault, embedded.Bundle{}, programs, conf)
 	checker := verifier.New(vault, vault, programs, checks)
-	app := cmd.New(cmd.Deps{
+	app := terminal.New(terminal.Deps{
 		Author:    drafting.New(vault, embedded.Bundle{}),
 		Checker:   checker,
 		Report:    report,
@@ -53,11 +53,11 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	app.SetIn(in)
 	app.SetOut(out)
 	app.SetErr(errOut)
-	var exit *cmd.ExitError
+	var exit *terminal.ExitError
 	switch err := app.ExecuteContext(ctx); {
 	case err == nil:
 		return 0
-	case errors.Is(err, cmd.ErrFound):
+	case errors.Is(err, terminal.ErrFound):
 		return 1
 	case errors.As(err, &exit):
 		return exit.Code

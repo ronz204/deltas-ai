@@ -1,4 +1,4 @@
-package hook
+package listener
 
 import (
 	"bytes"
@@ -67,7 +67,6 @@ func TestSessionStartPrintsTheSlicesToStdout(t *testing.T) {
 	}
 }
 
-// A failure of delta itself must never look like a block: Claude Code blocks only on exit 2.
 func TestBrokenInputIsExitOneNotTwo(t *testing.T) {
 	for _, input := range []string{"", "not json", `{"hook_event_name":`, `[1,2]`} {
 		code, _, errOut := run(t, nil, input)

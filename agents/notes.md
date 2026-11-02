@@ -264,3 +264,9 @@ Decided instead: a slice depends on the code its test commands name. `linking.Ne
 It reaches `Scope.Covers`, so it narrows at once the part of the tree the ledger fingerprints, what `delta stale` and the `PostToolUse` hook report as drift, and when the `Stop` hook asks for a check. Known blind spot: a slice whose commands name `./billing` does not go stale when `shared/money`, which `billing` imports, changes.
 
 Tests: `TestScopeFollowsThePathsOfTheTestCommands`, `TestAChangeOutsideWhatTheCommandsNameDoesNotMakeASliceStale`, and the two `Stop` tests of `scripts/delta/stop_test.go`.
+
+## Phase 8: the adapters moved
+
+`source/adapter` is now `package/adapter`, and `source/` is gone: `cmd` is `terminal` (the command line) and `hook` is `listener` (the Claude Code hook events), both 8 characters with no icon in Material Icon Theme. `terminal/program.go` is `terminal.go`, `stale.go` is `drifts.go` and `hook.go` is `listener.go`. No comments; `foundIn` is one `slices.ContainsFunc`, and `init` and `update` print their steps through `printSteps`.
+
+The Go code is now `scripts/delta` (the wiring) and `package/{domain,usecase,gateway,adapter}`.

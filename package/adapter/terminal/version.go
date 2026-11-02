@@ -1,4 +1,4 @@
-package cmd
+package terminal
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// versionCmd's first line tells this program from git-delta, so it must not change.
 func versionCmd(d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
