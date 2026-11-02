@@ -2,7 +2,6 @@ package setup
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/ronz204/deltas-ai/source/domain/conffile"
 	"io/fs"
@@ -12,30 +11,19 @@ import (
 
 var ctx = context.Background()
 
-// world stands in for the project's files, its git configuration and the embedded hooks.
+// world stands in for the project's files and the programs on its PATH.
 type world struct {
-	files    map[string][]byte
-	perms    map[string]fs.FileMode
-	hooksDir string
-	notARepo bool
-	writes   int
-	onPath   string
-	self     bool
-	tools    map[string]bool // other programs on the PATH
-	assets   []Asset         // what the harness ships; the default two when nil
+	files  map[string][]byte
+	perms  map[string]fs.FileMode
+	writes int
+	onPath string
+	self   bool
+	tools  map[string]bool // other programs on the PATH
+	assets []Asset         // what the harness ships; the default two when nil
 }
 
 func newWorld() *world {
 	return &world{files: map[string][]byte{}, perms: map[string]fs.FileMode{}}
-}
-
-const hook = "#!/bin/sh\nexec delta commit-msg \"$1\"\n"
-
-func (w *world) GitHook(name string) ([]byte, error) {
-	if name != "commit-msg" {
-		return nil, errors.New("unknown hook")
-	}
-	return []byte(hook), nil
 }
 
 func (w *world) ReadFile(_ context.Context, rel string) ([]byte, error) {
@@ -68,30 +56,17 @@ func (w *world) Locate(name string) (string, bool) {
 	return "", false
 }
 
-func (w *world) HooksPath(context.Context) (string, error) { return w.hooksDir, nil }
+func installer(w *world) *Installer { return New(w, w, w, conffile.Conf{}) }
 
-func (w *world) SetHooksPath(_ context.Context, path string) error {
-	if w.notARepo {
-		return errors.New("git config: not a git repository")
-	}
-	w.hooksDir = path
-	return nil
-}
-
-func installer(w *world) *Installer { return New(w, w, w, w, conffile.Conf{}) }
-
-func TestAFreshProjectGetsTheHookAndThePath(t *testing.T) {
+func TestAFreshProjectGetsTheHarnessAndTheSettings(t *testing.T) {
 	w := newWorld()
 	steps, err := installer(w).Run(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []Step{{true, "installed .githooks/commit-msg"}, {true, "set core.hooksPath to .githooks"}, {true, "installed 3 files from the harness"}, {true, "recorded the installed harness files in deltas/deltas.manifest"}, {true, "installed .claude/settings.json"}}
+	want := []Step{{true, "installed 3 files from the harness"}, {true, "recorded the installed harness files in deltas/deltas.manifest"}, {true, "installed .claude/settings.json"}}
 	if fmt.Sprint(steps) != fmt.Sprint(want) {
 		t.Fatalf("steps = %v, want %v", steps, want)
-	}
-	if string(w.files[".githooks/commit-msg"]) != hook || w.perms[".githooks/commit-msg"] != 0o755 || w.hooksDir != ".githooks" {
-		t.Fatalf("hook = %q, mode = %v, hooksPath = %q", w.files[".githooks/commit-msg"], w.perms[".githooks/commit-msg"], w.hooksDir)
 	}
 }
 
@@ -163,52 +138,8 @@ func TestRunningAgainChangesNothing(t *testing.T) {
 	}
 }
 
-func TestAnotherHooksPathIsNeverOverridden(t *testing.T) {
-	for _, existing := range []string{".husky", "/company/hooks", "tools/git-hooks"} {
-		w := newWorld()
-		w.hooksDir = existing
-		steps, err := installer(w).Run(ctx)
-		if err != nil || w.hooksDir != existing {
-			t.Fatalf("hooksPath %q became %q (%v)", existing, w.hooksDir, err)
-		}
-		if steps[1].Done || steps[1].What == "" {
-			t.Errorf("%q: the path step = %+v, want it left alone with an explanation", existing, steps[1])
-		}
-	}
-}
-
-func TestADotSlashSpellingOfTheSamePathCounts(t *testing.T) {
-	w := newWorld()
-	w.hooksDir = "./.githooks"
-	if steps, err := installer(w).Run(ctx); err != nil || steps[1].Done || w.hooksDir != "./.githooks" {
-		t.Fatalf("steps = %v, hooksPath = %q, err = %v", steps, w.hooksDir, err)
-	}
-}
-
-func TestADifferentHookIsKept(t *testing.T) {
-	w := newWorld()
-	w.files[".githooks/commit-msg"] = []byte("#!/bin/sh\necho mine\n")
-	steps, err := installer(w).Run(ctx)
-	if err != nil || steps[0].Done || string(w.files[".githooks/commit-msg"]) != "#!/bin/sh\necho mine\n" {
-		t.Fatalf("steps = %v, hook = %q, err = %v", steps, w.files[".githooks/commit-msg"], err)
-	}
-}
-
-func TestNothingIsWrittenOutsideAGitRepository(t *testing.T) {
-	w := newWorld()
-	w.notARepo = true
-	if _, err := installer(w).Run(ctx); err == nil {
-		t.Fatal("init succeeded outside a repository")
-	}
-	if w.writes != 0 || len(w.files) != 0 {
-		t.Fatalf("files were left behind: %v", w.files)
-	}
-}
-
 func healthy() *world {
 	w := newWorld()
-	w.files[".githooks/commit-msg"] = []byte(hook)
-	w.hooksDir = ".githooks"
 	w.onPath, w.self = "/usr/bin/delta", true
 	return w
 }
@@ -219,73 +150,23 @@ func TestAHealthyInstallationHasNothingToReport(t *testing.T) {
 	}
 }
 
-func TestCheckExplainsEachWayTheHookCanBeMissing(t *testing.T) {
-	cases := []struct {
-		name  string
-		tweak func(*world)
-		want  string
-	}{
-		{"nothing installed", func(w *world) { w.hooksDir = ""; delete(w.files, ".githooks/commit-msg") }, "git does not check commit messages yet: run delta init"},
-		{"hook present but git not pointed at it", func(w *world) { w.hooksDir = "" }, "core.hooksPath is not set, so git ignores .githooks/commit-msg: run delta init"},
-		{"pointed but the hook is gone", func(w *world) { delete(w.files, ".githooks/commit-msg") }, ".githooks/commit-msg is missing: run delta init"},
-		{"git points somewhere else", func(w *world) { w.hooksDir = ".husky" }, "core.hooksPath is .husky, so .githooks/commit-msg does not run on its own"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			w := healthy()
-			c.tweak(w)
-			got := installer(w).Check(ctx)
-			if len(got) != 1 || got[0] != c.want {
-				t.Fatalf("Check = %q, want [%q]", got, c.want)
-			}
-		})
-	}
-}
-
 func TestCheckWarnsWhenDeltaIsNotTheOneOnThePath(t *testing.T) {
 	w := healthy()
 	w.onPath = ""
-	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "delta is not on the PATH, so the git hook cannot run it" {
+	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "delta is not on the PATH, so the hooks of Claude Code cannot run it" {
 		t.Fatalf("not on the path: %q", got)
 	}
 	w.onPath, w.self = "/opt/git-delta/delta", false
-	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "the delta on the PATH (/opt/git-delta/delta) is not this program, so the git hook would run it instead" {
+	if got := installer(w).Check(ctx); len(got) != 1 || got[0] != "the delta on the PATH (/opt/git-delta/delta) is not this program, so the hooks of Claude Code would run it instead" {
 		t.Fatalf("another program: %q", got)
 	}
 }
 
-func TestCheckReportsWhatItCannotReadInsteadOfFailing(t *testing.T) {
+func TestCheckReportsWhatTheConfigFilesGotWrong(t *testing.T) {
 	w := healthy()
-	got := New(w, brokenGit{}, w, w, conffile.Conf{}).Check(ctx)
-	if len(got) != 1 || got[0] != "could not read git's configuration: no git" {
-		t.Fatalf("Check = %q", got)
-	}
-}
-
-type brokenGit struct{}
-
-func (brokenGit) HooksPath(context.Context) (string, error) {
-	return "", errors.New("no git")
-}
-func (brokenGit) SetHooksPath(context.Context, string) error {
-	return errors.New("no git")
-}
-
-func TestCheckListsTheToolsDeltaConfRequires(t *testing.T) {
-	w := healthy()
-	conf := conffile.Parse("required_tools=git, docker\n")
-	w.tools = map[string]bool{"git": true}
-	problems := New(w, w, w, w, conf).Check(ctx)
-	if len(problems) != 1 || !strings.Contains(problems[0], "docker is required by deltas.config") {
-		t.Fatalf("problems = %q, want only docker", problems)
-	}
-}
-
-func TestCheckReportsWhatDeltaConfGotWrong(t *testing.T) {
-	w := healthy()
-	conf := conffile.Parse("colour=blue\n")
-	problems := New(w, w, w, w, conf).Check(ctx)
-	if len(problems) != 1 || !strings.Contains(problems[0], `deltas/deltas.config:1: unknown key "colour"`) {
+	conf := conffile.Parse("colour=blue\n", "")
+	problems := New(w, w, w, conf).Check(ctx)
+	if len(problems) != 1 || !strings.Contains(problems[0], `deltas/budget.conf:1: unknown key "colour"`) {
 		t.Fatalf("problems = %q", problems)
 	}
 }

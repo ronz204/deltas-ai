@@ -50,17 +50,15 @@ const (
 )
 
 type Checker struct {
-	specs  Specs
-	tests  Tests
-	run    Runner
-	marks  Marks
-	scopes map[string][]string
+	specs Specs
+	tests Tests
+	run   Runner
+	marks Marks
 }
 
-// New builds the checker. marks may be nil, and then checks are not remembered. scopes holds, for the slices
-// that have them, the paths deltas.config says they depend on; any other slice depends on every code file.
-func New(specs Specs, tests Tests, run Runner, marks Marks, scopes map[string][]string) *Checker {
-	return &Checker{specs: specs, tests: tests, run: run, marks: marks, scopes: scopes}
+// New builds the checker. marks may be nil, and then checks are not remembered.
+func New(specs Specs, tests Tests, run Runner, marks Marks) *Checker {
+	return &Checker{specs: specs, tests: tests, run: run, marks: marks}
 }
 
 // IsTest says whether a file of the project is a test file.
@@ -177,7 +175,7 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 
 // checkSlice judges the claims of one clean slice into rep, and verifies it if it is built and its test claims all hold.
 func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.File, rep *Report) (Seen, error) {
-	s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file, v.scopes[l.slice])}
+	s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file)}
 	var held, open int // test claims that hold, and test claims that do not
 	for _, c := range l.spec.Claims {
 		if err := ctx.Err(); err != nil {

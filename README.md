@@ -16,7 +16,7 @@ Most project context lives in one of two bad places: a person's head, or an ever
 
 What Delta adds on top is that the contract can be **checked**. Every claim has a stable ID and says how it is verified, the code the agent writes is held to the contract, and when the code and the contract drift apart, you find out instead of the agent silently believing a stale document.
 
-> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook` (including the lint and Stop checks), `deltas/deltas.config`, `budget`, `version` and `init` work; the rest is planned. [`agents/`](agents) holds the skills and rules that `delta init` installs; this repo does not version a `.claude/` of its own. The design and the order of work are in [`docs/`](docs).
+> **Status: redesign in progress.** Delta is moving from a prompt-only methodology to a small deterministic CLI (`delta`, written in Go) plus Claude Code hooks, with three skills on top. The CLI is partly built: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `hook` (including the lint and Stop checks), `budget`, `version` and `init` work; the rest is planned. [`agents/`](agents) holds the skills and rules that `delta init` installs; this repo does not version a `.claude/` of its own. The design and the order of work are in [`docs/`](docs).
 
 ## Contents
 
@@ -35,7 +35,7 @@ What Delta adds on top is that the contract can be **checked**. Every claim has 
 
 ## The idea
 
-**The model proposes, the code decides.** Everything that can be a rule (the shape of a spec, the state of a feature, whether a commit message is valid, whether a claim holds) is enforced by a program and hooks, not by a prompt that the model may or may not follow. The model is kept for what is genuinely creative or ambiguous: interviewing, drafting claims, planning, writing code.
+**The model proposes, the code decides.** Everything that can be a rule (the shape of a spec, the state of a feature, whether a claim holds) is enforced by a program and hooks, not by a prompt that the model may or may not follow. The model is kept for what is genuinely creative or ambiguous: interviewing, drafting claims, planning, writing code.
 
 - **One contract per feature.** Each feature (a *slice*) gets a short spec that says what it must do and what must always be true. It describes the present, not the history.
 - **Claims are checkable.** Every claim has an ID and a verification tag. `delta check` runs the linked command and reports `Holds`, `Violated` or `Unverified`. `Unverified` never pretends to be `Holds`.
@@ -47,10 +47,10 @@ What Delta adds on top is that the contract can be **checked**. Every claim has 
 
 ```mermaid
 flowchart LR
-    Q["✒️ Quill<br/><small>draft the contract</small>"]
+    Q["✒️ Drafter<br/><small>draft the contract</small>"]
     A{{"you approve"}}
-    F["🔨 Forge<br/><small>build against it</small>"]
-    S["🔏 Seal<br/><small>verify it still holds</small>"]
+    F["🔨 Builder<br/><small>build against it</small>"]
+    S["🔏 Auditor<br/><small>verify it still holds</small>"]
     CLI[("delta CLI + hooks<br/>validate · run · gate")]
 
     Q --> A --> F --> S
@@ -64,11 +64,11 @@ flowchart LR
 
 | Role | What it does | Slice state it owns |
 |---|---|---|
-| ✒️ **Quill** | Interviews you about one feature, investigates the real code and drafts the claims | up to `draft`; you move it to `approved` |
-| 🔨 **Forge** | Plans from the claims not yet verified, you approve the plan, then it writes tests first and the code. Never edits the contract | `approved` → `built` |
-| 🔏 **Seal** | Verifies the contract against the code. The deterministic part runs commands; a model reads only what has no command | `built` → `verified`, or back to `stale` |
+| ✒️ **Drafter** | Interviews you about one feature, investigates the real code and drafts the claims | up to `draft`; you move it to `approved` |
+| 🔨 **Builder** | Plans from the claims not yet verified, you approve the plan, then it writes tests first and the code. Never edits the contract | `approved` → `built` |
+| 🔏 **Auditor** | Verifies the contract against the code. The deterministic part runs commands; a model reads only what has no command | `built` → `verified`, or back to `stale` |
 
-The `delta` CLI is what makes the state machine real: it validates specs, is the only writer of the knowledge base, runs verification, tracks drift, measures the context budget, and answers the Claude Code hooks. It does not depend on Claude Code; the hooks are a thin adapter on top. Working today: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `commit-msg`, `hook`, `budget`, `version` and `init` (which for now only installs the git hook that checks commit messages). Planned: `approve`, `stale` and `context`.
+The `delta` CLI is what makes the state machine real: it validates specs, is the only writer of the knowledge base, runs verification, tracks drift, measures the context budget, and answers the Claude Code hooks. It does not depend on Claude Code; the hooks are a thin adapter on top. Working today: `spec new|lint|write`, `link`, `lint`, `check`, `status`, `hook`, `budget`, `version` and `init`. Planned: `approve`, `stale` and `context`.
 
 ## What a contract looks like
 
@@ -105,13 +105,12 @@ Docs and rules stay self-contained and free of volatile references (no citing a 
 
 ## Rules
 
-Delta keeps the always-loaded rules to the minimum:
+Every rule that ships is installed and used; there are no presets. Each name says what the rule governs:
 
-- **Core, always loaded (two rules).** *Fidelity*: the contract is the scope, tests cite the claim they prove, and ambiguity goes back to the spec. *Honesty*: nothing is called done without evidence that the checks ran, and the closing says what was left unverified. Both are enforced by code, not trusted to the model.
-- **Preset `base`, on by default and loaded only when source files are touched.** Scope (a ladder of cheaper answers before writing new code) and reliability (never cut validation, error handling or security). This is where "better code" lives. It is a side effect of Delta, not what it promises.
-- **Language and team presets, opt-in.** DDD layering, language idioms, security. Each one shows its context cost before you enable it. Whatever a linter can check goes to a linter, not to a rule.
+- **Always loaded.** `claims-fidelity` (the contract is the scope, tests cite the claim they prove, and ambiguity goes back to the spec), `done-needs-proof` (nothing is called done without evidence that the checks ran, and the closing says what was left unverified), `project-language` (talk in the person's language, keep everything the project stores in English) and `commit-messages` (how a commit is written).
+- **Loaded when the files they govern are touched.** `code-change-scope` (a ladder of cheaper answers before writing new code) and `code-reliability` (never cut validation, error handling or security) for source files; `when-write-delta`, `kb-deltas-routing` and `context-budgets` for the knowledge base. This is where "better code" lives. It is a side effect of Delta, not what it promises.
 
-Commit messages are validated by hooks (a Claude Code hook for the agent, a git hook for people, CI for everything), not by a rule the model has to remember.
+Whatever a linter can check goes to a linter, not to a rule. Commit messages are a rule too: no hook checks them.
 
 ## What Delta promises, and what it doesn't
 
@@ -123,35 +122,32 @@ Commit messages are validated by hooks (a Claude Code hook for the agent, a git 
 
 Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
 
-- `.githooks/commit-msg` and `core.hooksPath`, so git checks commit messages;
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
-- `deltas/deltas.config`, a minimal `CLAUDE.md` and the `deltas/specs/` folder.
+- `deltas/budget.conf` and `deltas/testing.conf`, a minimal `CLAUDE.md` and the `deltas/specs/` folder.
 
 After upgrading the `delta` binary, run `delta update` to bring those files up to date: it replaces the ones you have not touched, removes those the harness no longer ships, and keeps your changes (`delta update --check` only lists what would change).
 
 Then:
 
-1. *"let's spec out `<feature>`"* → Quill interviews, Archivist writes `<slice>.spec.md`.
-2. *"implement `<feature>`"* → Forge plans from the unverified claims, then builds.
-3. *"check `<feature>` for drift"* → Seal verifies the contract against the code.
-
-Archivist and Surveyor still ship with the harness; they become CLI commands in phase 3.
+1. *"let's spec out `<feature>`"* → Drafter interviews you and writes `<slice>.spec.md`.
+2. *"implement `<feature>`"* → Builder plans from the unverified claims, then builds.
+3. *"check `<feature>` for drift"* → Auditor verifies the contract against the code.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `agents/` | What `delta init` installs, embedded in the binary: the skills Helm (the one entry point: it routes plain requests), Quill, Forge, Seal and Atlas (plus Archivist and Surveyor, which retire in phase 3), the rules, the hooks and `deltas.config` |
+| `agents/` | What `delta init` installs, embedded in the binary: the skills Comper (it routes plain requests, and `/comper` says which skill is next), Drafter, Builder, Auditor and Scriber, the rules, the hook settings and the config files |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
 | `scripts/`, `source/` | The Go CLI: `scripts/delta` wires it, `source/` holds the domain, use cases, gateways and adapters |
 
 ## Non-goals
 
 - Delta does not keep an append-only decision log. When two sources disagree, the conflict is resolved explicitly and the resolution becomes the corrected text.
-- Delta does not replace ordinary coding with no spec behind it. Forge writes application code only from a plan you approved and derived from a spec, and never touches the knowledge base.
+- Delta does not replace ordinary coding with no spec behind it. Builder writes application code only from a plan you approved and derived from a spec, and never touches the knowledge base.
 - Delta does not audit docs or rules for drift; it checks a slice's contract against the code.
 - Delta is not a process to follow phase by phase. The product is the verified contract, not the workflow around it.
 
 ## Acknowledgments
 
-The lean-change ladder in the `base` preset is adapted from [ponytail](https://ponytail.dev/) (MIT), and the idea that every rule must earn its place against the version without it comes from the same project. Spec Kit and OpenSpec shaped the spec-first flow Delta deliberately keeps small.
+The lean-change ladder in the `code-change-scope` rule is adapted from [ponytail](https://ponytail.dev/) (MIT), and the idea that every rule must earn its place against the version without it comes from the same project. Spec Kit and OpenSpec shaped the spec-first flow Delta deliberately keeps small.

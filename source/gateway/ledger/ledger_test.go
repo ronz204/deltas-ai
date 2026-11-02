@@ -45,8 +45,8 @@ func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, err
 }
 
 var (
-	billing  = linkcheck.NewScope("deltas/specs/billing.spec.md", []string{"billing"})
-	payments = linkcheck.NewScope("deltas/specs/payments.spec.md", []string{"payments"})
+	billing  = linkcheck.NewScope("deltas/specs/billing.spec.md")
+	payments = linkcheck.NewScope("deltas/specs/payments.spec.md")
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
@@ -62,23 +62,25 @@ func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
 
 	tr.changed["billing/total.go"] = "v2"
 	by, _ = l.Standings(ctx, map[string]linkcheck.Scope{"billing": billing, "payments": payments})
-	if by["billing"] != judgment.Unchecked || by["payments"] != judgment.Failing {
-		t.Fatalf("after billing changed: %v; only billing should need a new check", by)
+	if by["billing"] != judgment.Unchecked || by["payments"] != judgment.Unchecked {
+		t.Fatalf("after the code changed: %v; every slice depends on every code file, so each needs a new check", by)
 	}
 }
 
-func TestAChangeOutsideTheScopeOfASliceDoesNotMatterToIt(t *testing.T) {
-	tr := &tree{changed: map[string]string{"README.md": "x", "payments/pay.go": "v1"}}
-	l := New(t.TempDir(), "/repo", tr)
+func TestAChangeToDocumentationDoesNotMatterToASlice(t *testing.T) {
+	l := New(t.TempDir(), "/repo", &tree{})
 	by, err := l.Standings(ctx, map[string]linkcheck.Scope{"billing": billing, "payments": payments})
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || by["billing"] != judgment.Passing || by["payments"] != judgment.Passing {
+		t.Fatalf("Standings = %v, %v; want both to stand", by, err)
 	}
-	if by["billing"] != judgment.Passing {
-		t.Errorf("billing = %v: nothing it depends on changed, so there is nothing to prove", by["billing"])
+	tr := &tree{changed: map[string]string{"README.md": "x"}}
+	by, err = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linkcheck.Scope{"billing": billing})
+	if err != nil || by["billing"] != judgment.Passing {
+		t.Fatalf("a change to README.md: %v, %v; nothing it depends on changed, so there is nothing to prove", by, err)
 	}
-	if by["payments"] != judgment.Unchecked {
-		t.Errorf("payments = %v: it changed and was never checked", by["payments"])
+	tr.changed["payments/pay.go"] = "v1"
+	if by, _ = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linkcheck.Scope{"billing": billing}); by["billing"] != judgment.Unchecked {
+		t.Errorf("billing = %v: code changed and it was never checked", by["billing"])
 	}
 }
 
@@ -178,11 +180,11 @@ func TestDriftListsTheFilesThatChangedSinceTheSliceWasVerified(t *testing.T) {
 		t.Fatalf("Drift = %v, %v, %v; nothing changed yet", changed, known, err)
 	}
 	tr.all["billing/total.go"] = "v2"
-	tr.all["payments/pay.go"] = "v2" // not a file billing depends on
+	tr.all["payments/pay.go"] = "v2"
 	delete(tr.all, "billing/tax.go")
 	tr.all["billing/new.go"] = "v1"
 	changed, known, err := l.Drift(ctx, "billing", billing)
-	if want := []string{"billing/new.go", "billing/tax.go", "billing/total.go"}; err != nil || !known || !slices.Equal(changed, want) {
+	if want := []string{"billing/new.go", "billing/tax.go", "billing/total.go", "payments/pay.go"}; err != nil || !known || !slices.Equal(changed, want) {
 		t.Fatalf("Drift = %v, %v, %v; want %v", changed, known, err, want)
 	}
 }

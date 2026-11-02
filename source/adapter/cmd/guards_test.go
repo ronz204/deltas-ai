@@ -31,10 +31,6 @@ func TestHookBlocksWithExitTwoAndTheReason(t *testing.T) {
 	if exitCode(t, err) != 2 || out != "" || !strings.Contains(errOut, "deltas/specs/a.spec.md") {
 		t.Fatalf("err = %v, stdout = %q, stderr = %q", err, out, errOut)
 	}
-	_, errOut, err = m.run(event("PreToolUse", "Bash", "", `git commit -m "Fixed it."`), "hook")
-	if exitCode(t, err) != 2 || !strings.Contains(errOut, "COMMIT-") {
-		t.Fatalf("a bad commit: err = %v, stderr = %q", err, errOut)
-	}
 }
 
 func TestHookLetsOtherEventsThroughInSilence(t *testing.T) {

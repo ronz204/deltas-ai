@@ -38,15 +38,14 @@ type Files interface {
 
 type Reporter struct {
 	specs     Specs
-	scopes    map[string][]string
 	baselines Baselines
 	saver     Saver
 	files     Files
 }
 
-// New builds the reporter. scopes holds, for the slices that have them, the paths deltas.config says they depend on.
-func New(specs Specs, scopes map[string][]string) *Reporter {
-	return &Reporter{specs: specs, scopes: scopes}
+// New builds the reporter.
+func New(specs Specs) *Reporter {
+	return &Reporter{specs: specs}
 }
 
 // WithDrift makes the reporter notice slices whose files changed after they were verified, and mark them
@@ -96,7 +95,7 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.NewScope(file, r.scopes[name]), Changed: changed[name]}
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.NewScope(file), Changed: changed[name]}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
 			case assertion.Test:
@@ -117,7 +116,7 @@ type NotReady struct{ Reason string }
 
 func (e *NotReady) Error() string { return e.Reason }
 
-// Ready returns a *NotReady unless the slice has a clean spec and is approved or stale: the contract Forge builds from.
+// Ready returns a *NotReady unless the slice has a clean spec and is approved or stale: the contract Builder builds from.
 func (r *Reporter) Ready(ctx context.Context, slice string) error {
 	src, err := r.specs.Load(ctx, slice)
 	if err != nil {
@@ -164,7 +163,7 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 		if len(ds) > 0 || (sp.Status != lifecycle.Verified && sp.Status != lifecycle.Stale) {
 			continue
 		}
-		files, known, err := r.baselines.Drift(ctx, name, linkcheck.NewScope(file, r.scopes[name]))
+		files, known, err := r.baselines.Drift(ctx, name, linkcheck.NewScope(file))
 		if err != nil {
 			return out, err
 		}

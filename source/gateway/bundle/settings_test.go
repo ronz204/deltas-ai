@@ -14,7 +14,6 @@ type settings struct {
 		Hooks   []struct {
 			Type    string `json:"type"`
 			Command string `json:"command"`
-			Timeout int    `json:"timeout"`
 		} `json:"hooks"`
 	} `json:"hooks"`
 }
@@ -40,8 +39,8 @@ func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
 				t.Errorf("%s group %q has no handler", event, g.Matcher)
 			}
 			for _, h := range g.Hooks {
-				if h.Type != "command" || h.Command != "delta hook" || h.Timeout != 20 {
-					t.Errorf("%s handler = %+v, want a command running delta hook with a 20 s timeout", event, h)
+				if h.Type != "command" || h.Command != "delta hook" {
+					t.Errorf("%s handler = %+v, want a command running delta hook", event, h)
 				}
 			}
 		}
@@ -58,7 +57,7 @@ func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
 	if len(matchers["Stop"]) != 1 {
 		t.Errorf("Stop groups = %v, want one", matchers["Stop"])
 	}
-	if got := matchers["PreToolUse"]; len(got) != 2 || got[0] != "Write|Edit" || got[1] != "Bash" {
-		t.Errorf("PreToolUse matchers = %q, want Write|Edit and Bash", got)
+	if got := matchers["PreToolUse"]; len(got) != 1 || got[0] != "Write|Edit" {
+		t.Errorf("PreToolUse matchers = %q, want Write|Edit", got)
 	}
 }

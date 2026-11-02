@@ -2,88 +2,52 @@ package conffile
 
 import (
 	"reflect"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/ronz204/deltas-ai/source/domain/budget"
 )
 
-func TestAnEmptyFileChangesNothing(t *testing.T) {
-	c := Parse("")
-	if c.Budget != budget.Defaults() || len(c.TestFiles) != 0 || c.Timeout != 0 || len(c.Tools) != 0 || len(c.Scopes) != 0 || len(c.Problems) != 0 {
-		t.Fatalf("Parse(\"\") = %+v", c)
+func TestNothingToReadMeansTheDefaults(t *testing.T) {
+	c := Parse("", "")
+	if c.Budget != budget.Defaults() || len(c.Files.Match) != 0 || len(c.Files.Skip) != 0 || len(c.Problems) != 0 {
+		t.Fatalf("an empty config = %+v, want the defaults", c)
 	}
 }
 
-func TestParseReadsEveryKey(t *testing.T) {
-	c := Parse("# settings\r\n\r\n" +
-		"always_tokens = 100\n" +
-		"test_files=*_spec.rb, *Test.java\n" +
-		"command_timeout=90s\n" +
-		"required_tools=go git\n" +
-		"scope.billing=./billing/... shared/money/\n" +
-		"scope.payments = payments\n")
-	if c.Budget.Total != 100 || c.Budget.Router != 80 {
-		t.Errorf("budget = %+v", c.Budget)
+func TestTheBudgetKeysOverrideTheDefaults(t *testing.T) {
+	c := Parse("# a comment\nalways_tokens=900\nclaude_lines=40\ndoc_lines=300\n", "")
+	if c.Budget.Total != 900 || c.Budget.Router != 40 || c.Budget.Rule != budget.Defaults().Rule || len(c.Problems) != 0 {
+		t.Fatalf("budget = %+v, problems = %v", c.Budget, c.Problems)
 	}
-	if want := []string{"*_spec.rb", "*Test.java"}; !reflect.DeepEqual(c.TestFiles, want) {
-		t.Errorf("test_files = %v, want %v", c.TestFiles, want)
+}
+
+func TestTestingConfSaysWhatATestIsAndWhereNotToLook(t *testing.T) {
+	c := Parse("", "# the patterns\nmatch=*_spec.rb, *Test.java\nskip=dist,.venv\n")
+	if want := []string{"*_spec.rb", "*Test.java"}; !reflect.DeepEqual(c.Files.Match, want) {
+		t.Errorf("match = %v, want %v", c.Files.Match, want)
 	}
-	if c.Timeout != 90*time.Second {
-		t.Errorf("timeout = %v", c.Timeout)
-	}
-	if want := []string{"go", "git"}; !reflect.DeepEqual(c.Tools, want) {
-		t.Errorf("tools = %v, want %v", c.Tools, want)
-	}
-	if want := map[string][]string{"billing": {"billing", "shared/money"}, "payments": {"payments"}}; !reflect.DeepEqual(c.Scopes, want) {
-		t.Errorf("scopes = %v, want %v", c.Scopes, want)
+	if want := []string{"dist", ".venv"}; !reflect.DeepEqual(c.Files.Skip, want) {
+		t.Errorf("skip = %v, want %v", c.Files.Skip, want)
 	}
 	if len(c.Problems) != 0 {
 		t.Errorf("problems = %v", c.Problems)
 	}
 }
 
-func TestALineThatCannotBeUsedIsToldAndLeftOut(t *testing.T) {
-	c := Parse("nonsense\n" +
-		"colour=blue\n" +
-		"test_files=[\n" +
-		"command_timeout=soon\n" +
-		"command_timeout=-5m\n" +
-		"scope.billing=.\n" +
-		"scope.=billing\n" +
-		"required_tools=go\n")
-	if len(c.TestFiles) != 0 || c.Timeout != 0 || len(c.Scopes) != 0 {
-		t.Errorf("a bad line took effect: %+v", c)
-	}
-	if len(c.Tools) != 1 {
-		t.Errorf("the good line after the bad ones was lost: %v", c.Tools)
-	}
+func TestALineThatCannotBeUsedIsLeftOutAndTold(t *testing.T) {
+	c := Parse("colour=blue\nalways_tokens\n", "match=[\nsize=3\nskip\n")
 	want := []string{
-		`deltas/deltas.config:1: expected key=value`,
-		`deltas/deltas.config:2: unknown key "colour"`,
-		`deltas/deltas.config:3: test_files: "[" is not a valid pattern`,
-		`deltas/deltas.config:4: command_timeout: "soon" is not a positive duration such as 10m`,
-		`deltas/deltas.config:5: command_timeout: "-5m" is not a positive duration such as 10m`,
-		`deltas/deltas.config:6: scope.<slice> needs a slice name and at least one path inside the project`,
-		`deltas/deltas.config:7: scope.<slice> needs a slice name and at least one path inside the project`,
+		`deltas/budget.conf:1: unknown key "colour"`,
+		`deltas/budget.conf:2: expected key=value`,
+		`deltas/testing.conf:1: match: "[" is not a valid pattern`,
+		`deltas/testing.conf:2: unknown key "size"`,
+		`deltas/testing.conf:3: expected key=value`,
 	}
 	if !reflect.DeepEqual(c.Problems, want) {
-		t.Errorf("problems:\n got %q\nwant %q", c.Problems, want)
+		t.Fatalf("problems:\n%s\nwant:\n%s", strings.Join(c.Problems, "\n"), strings.Join(want, "\n"))
 	}
-}
-
-func TestTheLastValueOfAKeyWins(t *testing.T) {
-	c := Parse("required_tools=a\nrequired_tools=b\nscope.x=one\nscope.x=two\n")
-	if !reflect.DeepEqual(c.Tools, []string{"b"}) || !reflect.DeepEqual(c.Scopes["x"], []string{"two"}) {
-		t.Fatalf("Parse = %+v", c)
-	}
-}
-
-func TestBaseIsOnUnlessTheConfigTurnsItOff(t *testing.T) {
-	if Parse("").NoBase || Parse("base=on").NoBase || !Parse("base=off").NoBase {
-		t.Error("base=on and no line keep the preset; base=off drops it")
-	}
-	if c := Parse("base=maybe"); c.NoBase || len(c.Problems) != 1 {
-		t.Errorf("base=maybe = %+v; want a problem and the preset kept", c)
+	if len(c.Files.Match) != 0 {
+		t.Errorf("a bad pattern was kept: %v", c.Files.Match)
 	}
 }

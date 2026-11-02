@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
-	s := NewScope("deltas/specs/billing.spec.md", nil)
+func TestScopeIsEveryCodeFile(t *testing.T) {
+	s := NewScope("deltas/specs/billing.spec.md")
 	cases := map[string]bool{
 		"billing/total.go":              true,
 		"shared/money/round.go":         true,
@@ -13,32 +13,11 @@ func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
 		"README.md":                     false,
 		"docs/guide.md":                 false,
 		"deltas/specs/payments.spec.md": false,
-		"deltas/deltas.config":          false,
+		"deltas/budget.conf":            false,
 		"deltas/deltas.manifest":        false,
 		".claude/settings.json":         false,
-		".githooks/commit-msg":          false,
 		"go.mod":                        true,
 		"src/deltas/x.go":               true,
-	}
-	for file, want := range cases {
-		if got := s.Covers(file); got != want {
-			t.Errorf("Covers(%q) = %v, want %v", file, got, want)
-		}
-	}
-}
-
-func TestDeclaredPathsNarrowTheScope(t *testing.T) {
-	s := NewScope("deltas/specs/billing.spec.md", []string{"billing", "shared/money"})
-	cases := map[string]bool{
-		"billing/total.go":              true,
-		"billing/deep/x_test.go":        true,
-		"shared/money/round.go":         true,
-		"deltas/specs/billing.spec.md":  true,
-		"billing2/x.go":                 false,
-		"payments/pay.go":               false,
-		"shared/other.go":               false,
-		"billing/NOTES.md":              false,
-		"deltas/specs/payments.spec.md": false,
 	}
 	for file, want := range cases {
 		if got := s.Covers(file); got != want {

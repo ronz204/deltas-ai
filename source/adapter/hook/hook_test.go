@@ -33,7 +33,7 @@ func run(t *testing.T, s specs, input string) (code int, out, errOut string) {
 	root := t.TempDir()
 	input = strings.ReplaceAll(input, "{root}", strings.ReplaceAll(filepath.ToSlash(root), `\`, `\\`))
 	var o, e bytes.Buffer
-	code = Run(context.Background(), guard.New(root, status.New(s, nil), nil, nil, nil), strings.NewReader(input), &o, &e)
+	code = Run(context.Background(), guard.New(root, status.New(s), nil, nil, nil), strings.NewReader(input), &o, &e)
 	return code, o.String(), e.String()
 }
 
@@ -41,13 +41,6 @@ func TestBlockExitsTwoWithTheReasonOnStderr(t *testing.T) {
 	code, out, errOut := run(t, nil, `{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"{root}/deltas/specs/a.spec.md","content":"x"}}`)
 	if code != 2 || out != "" || !strings.Contains(errOut, "deltas/specs/a.spec.md") {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, out, errOut)
-	}
-}
-
-func TestACommitWithABadMessageIsBlocked(t *testing.T) {
-	code, _, errOut := run(t, nil, `{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \"Fixed it.\""}}`)
-	if code != 2 || !strings.Contains(errOut, "COMMIT-") {
-		t.Fatalf("code = %d, stderr = %q", code, errOut)
 	}
 }
 
@@ -87,7 +80,7 @@ func TestBrokenInputIsExitOneNotTwo(t *testing.T) {
 func TestAFailingSliceReportIsExitOneNotTwo(t *testing.T) {
 	broken := failingSpecs{}
 	var o, e bytes.Buffer
-	code := Run(context.Background(), guard.New(t.TempDir(), status.New(broken, nil), nil, nil, nil), strings.NewReader(`{"hook_event_name":"SessionStart"}`), &o, &e)
+	code := Run(context.Background(), guard.New(t.TempDir(), status.New(broken), nil, nil, nil), strings.NewReader(`{"hook_event_name":"SessionStart"}`), &o, &e)
 	if code != 1 || !strings.Contains(e.String(), "disk on fire") {
 		t.Fatalf("code = %d, stderr = %q", code, e.String())
 	}

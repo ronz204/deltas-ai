@@ -15,8 +15,7 @@ type event struct {
 	StopActive bool   `json:"stop_hook_active"`
 	Tool       string `json:"tool_name"`
 	ToolInput  struct {
-		Path    string `json:"file_path"`
-		Command string `json:"command"`
+		Path string `json:"file_path"`
 	} `json:"tool_input"`
 }
 
@@ -29,7 +28,7 @@ func Run(ctx context.Context, g *guard.Guard, in io.Reader, out, errOut io.Write
 		fmt.Fprintln(errOut, "delta hook: cannot read the event:", err)
 		return 1
 	}
-	d, err := g.Decide(ctx, guard.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, Command: e.ToolInput.Command, StopActive: e.StopActive})
+	d, err := g.Decide(ctx, guard.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, StopActive: e.StopActive})
 	switch {
 	case err != nil:
 		fmt.Fprintln(errOut, "delta hook:", err)

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/commits"
 	"github.com/ronz204/deltas-ai/source/domain/findings"
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/domain/knowledge"
@@ -18,10 +17,9 @@ import (
 
 // Event is what a Claude Code hook tells us is about to happen or has just happened.
 type Event struct {
-	Name    string // SessionStart, UserPromptSubmit, PreToolUse, PostToolUse or Stop
-	Tool    string
-	Path    string // a file the tool is about to touch
-	Command string // the command line a Bash call is about to run
+	Name string // SessionStart, UserPromptSubmit, PreToolUse, PostToolUse or Stop
+	Tool string
+	Path string // a file the tool is about to touch
 
 	// StopActive is true when Claude is already continuing because an earlier Stop hook blocked it.
 	StopActive bool
@@ -102,7 +100,7 @@ func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
 		}
 		for _, d := range drifted {
 			if d.Marked {
-				lines = append(lines, fmt.Sprintf("%s was verified and is now stale: %s changed. Check that its contract still holds: if it does, rebuild with /forge %s; if the contract is out of date, say so to the user, who decides it with /quill.", d.Slice, fileList(d.Files), d.Slice))
+				lines = append(lines, fmt.Sprintf("%s was verified and is now stale: %s changed. Check that its contract still holds: if it does, rebuild with /builder %s; if the contract is out of date, say so to the user, who decides it with /drafter.", d.Slice, fileList(d.Files), d.Slice))
 			}
 		}
 	}
@@ -148,7 +146,7 @@ func fileList(files []string) string {
 }
 
 // stop keeps Claude from finishing while a slice with test claims has not been checked against the tree as
-// it stands, or while an approved slice has had code written for it without Forge finishing it (delta built).
+// it stands, or while an approved slice has had code written for it without Builder finishing it (delta built).
 // It asks once: when Claude is already continuing because of a stop hook, it lets it finish.
 func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	if e.StopActive || g.evidence == nil {
@@ -161,7 +159,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	var names []string
 	scopes := map[string]linkcheck.Scope{}
 	for _, r := range rows {
-		if r.Issues == 0 && (r.Test > 0 || waitsForForge(r.Status)) {
+		if r.Issues == 0 && (r.Test > 0 || waitsForBuilder(r.Status)) {
 			names = append(names, r.Slice)
 			scopes[r.Slice] = r.Scope
 		}
@@ -181,7 +179,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	for _, n := range names {
 		switch {
 		case by[n] == judgment.Passing:
-		case waitsForForge(state[n]):
+		case waitsForBuilder(state[n]):
 			unbuilt = append(unbuilt, n)
 		case by[n] == judgment.Unchecked:
 			unchecked = append(unchecked, n)
@@ -192,10 +190,10 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	var lines []string
 	for _, n := range unbuilt {
 		if state[n] == lifecycle.Stale {
-			lines = append(lines, fmt.Sprintf("%s is stale and its code changed again: bring it up to date with /forge %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
+			lines = append(lines, fmt.Sprintf("%s is stale and its code changed again: bring it up to date with /builder %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("%s is approved but not built, and the code changed since: finish it with /forge %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
+		lines = append(lines, fmt.Sprintf("%s is approved but not built, and the code changed since: finish it with /builder %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
 	}
 	if len(unchecked) > 0 {
 		lines = append(lines, "delta check has not run on the current changes for: "+strings.Join(unchecked, ", ")+". Run it before you finish.")
@@ -209,33 +207,18 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	return Decision{Block: true, Reason: strings.Join(lines, "\n")}, nil
 }
 
-// waitsForForge says whether a slice is approved to be built (or rebuilt) and nobody has said it is built.
-func waitsForForge(s lifecycle.Status) bool { return s == lifecycle.Approved || s == lifecycle.Stale }
+// waitsForBuilder says whether a slice is approved to be built (or rebuilt) and nobody has said it is built.
+func waitsForBuilder(s lifecycle.Status) bool { return s == lifecycle.Approved || s == lifecycle.Stale }
 
 func (g *Guard) before(e Event) Decision {
-	switch {
-	case fileTools[e.Tool]:
-		if rel, ok := g.relative(e.Path); ok && knowledge.Covers(rel) {
-			return Decision{Block: true, Reason: fmt.Sprintf(
-				"%s is part of the knowledge base, which is not edited directly. Specs are written with delta spec write and tests are linked with delta link; a person can edit it by hand.", rel)}
-		}
-	case e.Tool == "Bash":
-		if message, ok := commits.FromCommand(e.Command); ok {
-			return commitDecision(message)
-		}
-	}
-	return Decision{}
-}
-
-func commitDecision(message string) Decision {
-	var lines []string
-	for _, d := range commits.Validate("commit message", message) {
-		lines = append(lines, "- "+d.Code+": "+d.Message)
-	}
-	if len(lines) == 0 {
+	if !fileTools[e.Tool] {
 		return Decision{}
 	}
-	return Decision{Block: true, Reason: "The commit message breaks the project's rules:\n" + strings.Join(lines, "\n") + "\nFix the message and commit again."}
+	if rel, ok := g.relative(e.Path); ok && knowledge.Covers(rel) {
+		return Decision{Block: true, Reason: fmt.Sprintf(
+			"%s is part of the knowledge base, which is not edited directly. Specs are written with delta spec write and tests are linked with delta link; a person can edit it by hand.", rel)}
+	}
+	return Decision{}
 }
 
 // relative gives path relative to the project root, with forward slashes, and false when it is
@@ -300,7 +283,7 @@ func (g *Guard) prompt(ctx context.Context) (Decision, error) {
 		return Decision{}, err
 	}
 	var b strings.Builder
-	b.WriteString("Delta: if this request adds, changes, removes, checks or documents what the project does, use the helm skill before touching any file; the person speaks plainly and never types delta commands.\n")
+	b.WriteString("Delta: if this request adds, changes, removes, checks or documents what the project does, use the comper skill before touching any file; the person may speak plainly or call a skill by name, and never types delta commands.\n")
 	for _, r := range rows {
 		if next := nextStep(r); next != "" {
 			fmt.Fprintf(&b, "- %s: %s\n", r.Slice, next)
@@ -313,15 +296,15 @@ func (g *Guard) prompt(ctx context.Context) (Decision, error) {
 func nextStep(r status.Row) string {
 	switch {
 	case r.Issues > 0:
-		return "its spec has problems: fix them with the quill skill"
+		return "its spec has problems: fix them with the drafter skill"
 	case r.Status == lifecycle.Draft:
 		return "draft: ask the person in plain words whether to approve it, and on a yes run delta approve"
 	case r.Status == lifecycle.Approved:
-		return "approved, not built: the forge skill builds it"
+		return "approved, not built: the builder skill builds it"
 	case r.Status == lifecycle.Stale:
-		return "stale: the forge skill rebuilds it, or the quill skill if the contract is out of date"
+		return "stale: the builder skill rebuilds it, or the drafter skill if the contract is out of date"
 	case r.Status == lifecycle.Built:
-		return "built, not verified: the seal skill checks it"
+		return "built, not verified: the auditor skill checks it"
 	}
 	return ""
 }

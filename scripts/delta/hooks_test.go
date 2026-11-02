@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -41,14 +40,6 @@ func TestHookEndToEnd(t *testing.T) {
 		t.Fatalf("a write to main.go = %d %q, want it allowed", code, errOut)
 	}
 
-	code, _, errOut = p.delta(hookEvent(t, "PreToolUse", "Bash", "", `git commit -m "Fixed it."`), "hook")
-	if code != 2 || !strings.Contains(errOut, "COMMIT-LENGTH") {
-		t.Fatalf("a bad commit = %d %q", code, errOut)
-	}
-	good := "git add . && git commit -m \"$(cat <<'EOF'\nfeat(domain): add spec parser and claim rules\n\nWhy.\nEOF\n)\""
-	if code, _, errOut = p.delta(hookEvent(t, "PreToolUse", "Bash", "", good), "hook"); code != 0 || errOut != "" {
-		t.Fatalf("a good commit = %d %q, want it allowed", code, errOut)
-	}
 }
 
 func TestHookInputThatIsNotJSONNeverBlocks(t *testing.T) {
@@ -89,56 +80,6 @@ func gitProject(t *testing.T) *project {
 	return &project{t: t, root: root}
 }
 
-func TestInitInstallsTheHookAndPointsGitAtIt(t *testing.T) {
-	p := gitProject(t)
-	code, out, errOut := p.delta("", "init")
-	if code != 0 || !strings.HasPrefix(out, "installed .githooks/commit-msg\nset core.hooksPath to .githooks\ninstalled ") {
-		t.Fatalf("init = %d %q %q", code, out, errOut)
-	}
-	if !strings.HasPrefix(p.read(".githooks/commit-msg"), "#!/bin/sh\n") {
-		t.Fatal("the hook was not installed")
-	}
-	if path, _ := git(t, p.root, "config", "--get", "core.hooksPath"); strings.TrimSpace(path) != ".githooks" {
-		t.Fatalf("core.hooksPath = %q", path)
-	}
-	if runtime.GOOS != "windows" {
-		if info, err := os.Stat(filepath.Join(p.root, ".githooks", "commit-msg")); err != nil || info.Mode().Perm()&0o111 == 0 {
-			t.Fatalf("the hook is not executable: %v, %v", info, err)
-		}
-	}
-
-	code, out, _ = p.delta("", "init")
-	if code != 0 || !strings.Contains(out, "already installed") || !strings.Contains(out, "already points") {
-		t.Fatalf("a second init = %d %q", code, out)
-	}
-}
-
-func TestInitDoesNotOverrideAnotherHooksPath(t *testing.T) {
-	p := gitProject(t)
-	if out, err := git(t, p.root, "config", "--local", "core.hooksPath", ".husky"); err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-	code, out, _ := p.delta("", "init")
-	if code != 0 || !strings.Contains(out, "core.hooksPath is .husky: left as it is") {
-		t.Fatalf("init = %d %q", code, out)
-	}
-	if path, _ := git(t, p.root, "config", "--get", "core.hooksPath"); strings.TrimSpace(path) != ".husky" {
-		t.Fatalf("core.hooksPath became %q", path)
-	}
-}
-
-func TestInitOutsideAGitRepositoryWritesNothing(t *testing.T) {
-	isolatedGit(t)
-	p := &project{t: t, root: t.TempDir()}
-	code, _, errOut := p.delta("", "init")
-	if code != 2 || !strings.Contains(errOut, "git config") {
-		t.Fatalf("init = %d %q, want 2 and the reason from git", code, errOut)
-	}
-	if _, err := os.Stat(filepath.Join(p.root, ".githooks")); err == nil {
-		t.Fatal("a .githooks folder was left behind")
-	}
-}
-
 func buildDelta(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "delta")
@@ -149,104 +90,4 @@ func buildDelta(t *testing.T) string {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	return bin
-}
-
-// The whole loop for a person: delta init, then git refuses a bad message and takes a good one.
-func TestTheInstalledHookStopsABadCommitMessage(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds the delta binary")
-	}
-	p := gitProject(t)
-	t.Setenv("PATH", filepath.Dir(buildDelta(t))+string(os.PathListSeparator)+os.Getenv("PATH"))
-	if code, _, errOut := p.delta("", "init"); code != 0 {
-		t.Fatalf("init = %d %q", code, errOut)
-	}
-	p.write("a.txt", "x")
-	if out, err := git(t, p.root, "add", "a.txt"); err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-
-	out, err := git(t, p.root, "commit", "-m", "Fixed it.")
-	if err == nil || !strings.Contains(out, "COMMIT-") {
-		t.Fatalf("a bad message got through: %v\n%s", err, out)
-	}
-	if out, err := git(t, p.root, "commit", "-m", "feat(files): add the first file to the project"); err != nil {
-		t.Fatalf("a good message was refused: %v\n%s", err, out)
-	}
-}
-
-// Without delta on the PATH the hook warns and lets the commit through, rather than blocking the person.
-func TestTheHookLetsACommitThroughWhenDeltaIsMissing(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("sh is not on the PATH")
-	}
-	hook, err := os.ReadFile(filepath.Join("..", "..", "agents", "core", "githooks", "commit-msg"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	script, msg := filepath.Join(dir, "commit-msg"), filepath.Join(dir, "MSG")
-	if err := os.WriteFile(script, hook, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(msg, []byte("whatever"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var stderr bytes.Buffer
-	cmd := exec.Command(sh, script, msg)
-	cmd.Env = []string{"PATH=" + t.TempDir()}
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil || !strings.Contains(stderr.String(), "delta is not installed") {
-		t.Fatalf("err = %v, stderr = %q; want exit 0 with a warning", err, stderr.String())
-	}
-}
-
-// git-delta shares the name; running it on a commit message would fail and cancel the commit.
-func TestTheHookLetsACommitThroughWhenAnotherProgramIsCalledDelta(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("sh is not on the PATH")
-	}
-	grep, err := exec.LookPath("grep")
-	if err != nil {
-		t.Skip("grep is not on the PATH")
-	}
-	hook, err := os.ReadFile(filepath.Join("..", "..", "agents", "core", "githooks", "commit-msg"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir, other := t.TempDir(), t.TempDir()
-	script, msg := filepath.Join(dir, "commit-msg"), filepath.Join(dir, "MSG")
-	for path, content := range map[string]string{
-		script:                        string(hook),
-		msg:                           "whatever",
-		filepath.Join(other, "delta"): "#!/bin/sh\necho 'error: no such file: commit-msg' >&2\nexit 1\n",
-	} {
-		if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var stderr bytes.Buffer
-	cmd := exec.Command(sh, script, msg)
-	cmd.Env = []string{"PATH=" + other + string(os.PathListSeparator) + filepath.Dir(grep)}
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil || !strings.Contains(stderr.String(), "is not deltas-ai") {
-		t.Fatalf("err = %v, stderr = %q; want exit 0 with a warning", err, stderr.String())
-	}
-}
-
-func TestStatusWarnsUntilInitHasRun(t *testing.T) {
-	p := gitProject(t)
-	_, _, errOut := p.delta("", "status")
-	if !strings.Contains(errOut, "warning: git does not check commit messages yet: run delta init") {
-		t.Fatalf("before init: stderr = %q", errOut)
-	}
-	if code, _, e := p.delta("", "init"); code != 0 {
-		t.Fatalf("init = %d %q", code, e)
-	}
-	_, _, errOut = p.delta("", "status")
-	if strings.Contains(errOut, "commit messages") || strings.Contains(errOut, "core.hooksPath") {
-		t.Fatalf("after init the hook warnings should be gone: %q", errOut)
-	}
 }

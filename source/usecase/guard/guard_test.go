@@ -39,12 +39,12 @@ func (s specs) Load(_ context.Context, slice string) ([]byte, error) {
 func newGuard(t *testing.T, s specs) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(s, nil), nil, nil, nil), root
+	return New(root, status.New(s), nil, nil, nil), root
 }
 
 func TestFileToolsCannotEditTheKnowledgeBase(t *testing.T) {
 	g, root := newGuard(t, nil)
-	blocked := []string{"deltas/specs/billing.spec.md", "CLAUDE.md", ".claude/rules/x.md", ".claude/skills/quill/SKILL.md", "svc/deltas/specs/a.spec.md"}
+	blocked := []string{"deltas/specs/billing.spec.md", "CLAUDE.md", ".claude/rules/x.md", ".claude/skills/drafter/SKILL.md", "svc/deltas/specs/a.spec.md"}
 	for _, tool := range []string{"Write", "Edit"} {
 		for _, rel := range blocked {
 			d, err := g.Decide(ctx, Event{Name: "PreToolUse", Tool: tool, Path: filepath.Join(root, filepath.FromSlash(rel))})
@@ -80,27 +80,6 @@ func TestARelativePathIsTakenFromTheRoot(t *testing.T) {
 	d, _ := g.Decide(ctx, Event{Name: "PreToolUse", Tool: "Write", Path: "deltas/specs/a.spec.md"})
 	if !d.Block {
 		t.Fatal("a relative path into deltas/ was allowed")
-	}
-}
-
-func TestCommitsAreCheckedBeforeTheyHappen(t *testing.T) {
-	g, _ := newGuard(t, nil)
-	bad, err := g.Decide(ctx, Event{Name: "PreToolUse", Tool: "Bash", Command: `git add . && git commit -m "Fixed it."`})
-	if err != nil || !bad.Block || !strings.Contains(bad.Reason, "COMMIT-") || !strings.Contains(bad.Reason, "commit again") {
-		t.Fatalf("a bad message = %+v, %v", bad, err)
-	}
-	allowed := []string{
-		`git commit -m "feat(domain): add spec parser and claim rules"`,
-		"git commit -m \"$(cat <<'EOF'\nfeat(domain): add spec parser and claim rules\n\nWhy.\nEOF\n)\"",
-		`git commit --amend`,
-		`git commit -F msg.txt`,
-		`git status`,
-		`go test ./...`,
-	}
-	for _, command := range allowed {
-		if d, err := g.Decide(ctx, Event{Name: "PreToolUse", Tool: "Bash", Command: command}); err != nil || d.Block {
-			t.Errorf("%q = %+v, %v; want it allowed", command, d, err)
-		}
 	}
 }
 
@@ -140,7 +119,7 @@ func TestEveryPromptCarriesTheNextStepOfEachSlice(t *testing.T) {
 	if err != nil || d.Block {
 		t.Fatalf("%+v, %v", d, err)
 	}
-	for _, want := range []string{"helm skill", "- billing: draft: ask the person in plain words", "- payments: approved, not built: the forge skill"} {
+	for _, want := range []string{"comper skill", "- billing: draft: ask the person in plain words", "- payments: approved, not built: the builder skill"} {
 		if !strings.Contains(d.Context, want) {
 			t.Errorf("the context lacks %q:\n%s", want, d.Context)
 		}
@@ -150,8 +129,8 @@ func TestEveryPromptCarriesTheNextStepOfEachSlice(t *testing.T) {
 func TestAPromptWithoutSlicesStillPointsAtHelm(t *testing.T) {
 	g, _ := newGuard(t, nil)
 	d, err := g.Decide(ctx, Event{Name: "UserPromptSubmit"})
-	if err != nil || !strings.Contains(d.Context, "helm skill") || strings.Contains(d.Context, "\n-") {
-		t.Fatalf("%+v, %v; want only the pointer to helm", d, err)
+	if err != nil || !strings.Contains(d.Context, "comper skill") || strings.Contains(d.Context, "\n-") {
+		t.Fatalf("%+v, %v; want only the pointer to comper", d, err)
 	}
 }
 
@@ -168,7 +147,7 @@ func (h health) Check(context.Context) []string { return h }
 
 func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 	root := t.TempDir()
-	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}, nil), health{"git does not check commit messages yet: run delta init"}, nil, nil)
+	g := New(root, status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: approved\n---\n"}), health{"git does not check commit messages yet: run delta init"}, nil, nil)
 	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +160,7 @@ func TestSessionStartAddsTheSetupProblems(t *testing.T) {
 }
 
 func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}, nil), health{"delta is not on the PATH, so the git hook cannot run it"}, nil, nil)
+	g := New(t.TempDir(), status.New(specs{}), health{"delta is not on the PATH, so the hooks of Claude Code cannot run it"}, nil, nil)
 	d, _ := g.Decide(ctx, Event{Name: "SessionStart"})
 	if strings.Contains(d.Context, "Delta slices:") || !strings.Contains(d.Context, "delta is not on the PATH") {
 		t.Fatalf("context = %q, want the problem and no slice list", d.Context)
@@ -189,7 +168,7 @@ func TestSessionStartWithOnlySetupProblemsStillSpeaks(t *testing.T) {
 }
 
 func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
-	g := New(t.TempDir(), status.New(specs{}, nil), health{}, nil, nil)
+	g := New(t.TempDir(), status.New(specs{}), health{}, nil, nil)
 	if d, _ := g.Decide(ctx, Event{Name: "SessionStart"}); d.Context != "" {
 		t.Fatalf("context = %q, want none", d.Context)
 	}
@@ -214,7 +193,7 @@ func stopGuard(t *testing.T, ev Evidence, slices ...string) *Guard {
 	for _, name := range slices {
 		s[name] = fmt.Sprintf(withTests, name, name)
 	}
-	return New(t.TempDir(), status.New(s, nil), nil, ev, nil)
+	return New(t.TempDir(), status.New(s), nil, ev, nil)
 }
 
 func TestStopAsksForACheckOfEverySliceThatIsNotCheckedYet(t *testing.T) {
@@ -240,7 +219,7 @@ func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
 	passing := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
 	cases := map[string]*Guard{
 		"every slice stands":           stopGuard(t, passing, "billing"),
-		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: built\n---\n- INV-01 [none]\n  When x, y.\n"}, nil), nil, &evidence{}, nil),
+		"no slice has a test claim":    New(t.TempDir(), status.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: built\n---\n- INV-01 [none]\n  When x, y.\n"}), nil, &evidence{}, nil),
 		"there are no slices":          stopGuard(t, &evidence{}),
 		"there is no evidence to read": stopGuard(t, nil, "billing"),
 	}
@@ -260,10 +239,10 @@ func TestStopPointsAtForgeForAnApprovedSliceWhoseCodeChanged(t *testing.T) {
 		"payments": head("payments", "stale") + "- INV-01 [test: go test ./payments]\n  When x, y.\n",
 	}
 	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Failing}}
-	g := New(t.TempDir(), status.New(specs(approved), nil), nil, ev, nil)
+	g := New(t.TempDir(), status.New(specs(approved)), nil, ev, nil)
 	d, err := g.Decide(ctx, Event{Name: "Stop"})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "/forge billing") || !strings.Contains(d.Reason, "/forge payments") || strings.Contains(d.Reason, "delta check") {
-		t.Fatalf("Decide = %+v, %v; want a block that points at /forge for both and not at delta check", d, err)
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "/builder billing") || !strings.Contains(d.Reason, "/builder payments") || strings.Contains(d.Reason, "delta check") {
+		t.Fatalf("Decide = %+v, %v; want a block that points at /builder for both and not at delta check", d, err)
 	}
 	if len(ev.asked) != 2 {
 		t.Fatalf("asked about %v: an approved slice without test claims still has a tree to look at", ev.asked)
@@ -273,7 +252,7 @@ func TestStopPointsAtForgeForAnApprovedSliceWhoseCodeChanged(t *testing.T) {
 func TestStopLeavesAnApprovedSliceAloneWhileNothingChanged(t *testing.T) {
 	spec := "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"
 	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
-	g := New(t.TempDir(), status.New(specs{"billing": spec}, nil), nil, ev, nil)
+	g := New(t.TempDir(), status.New(specs{"billing": spec}), nil, ev, nil)
 	if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
 		t.Fatalf("Decide = %+v, %v; an untouched approved slice is not pending work", d, err)
 	}
@@ -310,7 +289,7 @@ func (l *linter) Lint(context.Context) ([]findings.Diagnostic, error) {
 func lintGuard(t *testing.T, l Linter) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(specs{}, nil), nil, nil, l), root
+	return New(root, status.New(specs{}), nil, nil, l), root
 }
 
 func TestPostToolUseTellsClaudeAboutProblemsInTheTestFileItWrote(t *testing.T) {
@@ -354,7 +333,7 @@ func TestPostToolUseDoesNotLintWhatIsNotATestFile(t *testing.T) {
 	if l.ran {
 		t.Fatal("lint ran for a file that is not a test: it reads every test file of the project")
 	}
-	if d, err := New(root, status.New(specs{}, nil), nil, nil, nil).Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a_test.go")}); err != nil || d.Block {
+	if d, err := New(root, status.New(specs{}), nil, nil, nil).Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a_test.go")}); err != nil || d.Block {
 		t.Fatalf("without a linter: %+v, %v", d, err)
 	}
 }
@@ -386,7 +365,7 @@ func verifiedBilling(state string) specs {
 func driftGuard(t *testing.T, s specs, d drifting) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, status.New(s, nil).WithDrift(d, s), nil, nil, nil), root
+	return New(root, status.New(s).WithDrift(d, s), nil, nil, nil), root
 }
 
 func TestPostToolUseTellsClaudeThatAVerifiedSliceWentStale(t *testing.T) {
@@ -394,7 +373,7 @@ func TestPostToolUseTellsClaudeThatAVerifiedSliceWentStale(t *testing.T) {
 	g, root := driftGuard(t, s, drifting{"billing": {"billing/total.go"}})
 	e := Event{Name: "PostToolUse", Tool: "Edit", Path: filepath.Join(root, "billing", "total.go")}
 	d, err := g.Decide(ctx, e)
-	for _, want := range []string{"billing", "stale", "billing/total.go", "/forge billing"} {
+	for _, want := range []string{"billing", "stale", "billing/total.go", "/builder billing"} {
 		if err != nil || !d.Block || !strings.Contains(d.Reason, want) {
 			t.Fatalf("Decide = %+v, %v; want a block that mentions %q", d, err, want)
 		}
@@ -430,7 +409,7 @@ func TestPostToolUseKeepsTheLintMessageBesideTheStaleOne(t *testing.T) {
 	s := verifiedBilling("verified")
 	root := t.TempDir()
 	l := &linter{diags: []findings.Diagnostic{{File: "billing/total_test.go", Line: 3, Code: "LINT-SKIP", Message: "skipped", Warn: true}}}
-	g := New(root, status.New(s, nil).WithDrift(drifting{"billing": {"billing/total_test.go"}}, s), nil, nil, l)
+	g := New(root, status.New(s).WithDrift(drifting{"billing": {"billing/total_test.go"}}, s), nil, nil, l)
 	d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "billing", "total_test.go")})
 	if err != nil || !d.Block || !strings.Contains(d.Reason, "stale") || !strings.Contains(d.Reason, "LINT-SKIP") {
 		t.Fatalf("Decide = %+v, %v; want both messages", d, err)
@@ -440,7 +419,7 @@ func TestPostToolUseKeepsTheLintMessageBesideTheStaleOne(t *testing.T) {
 func TestPostToolUseSaysWhenItCouldNotTellWhatWentStale(t *testing.T) {
 	s := verifiedBilling("verified")
 	root := t.TempDir()
-	g := New(root, status.New(s, nil).WithDrift(brokenDrifting{}, s), nil, nil, nil)
+	g := New(root, status.New(s).WithDrift(brokenDrifting{}, s), nil, nil, nil)
 	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a.go")}); err == nil || d.Block {
 		t.Fatalf("Decide = %+v, %v; a broken delta must not block", d, err)
 	}
@@ -455,9 +434,9 @@ func (brokenDrifting) Drift(context.Context, string, linkcheck.Scope) ([]string,
 func TestStopSaysAStaleSliceIsStaleNotUnbuilt(t *testing.T) {
 	s := verifiedBilling("stale")
 	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}}
-	g := New(t.TempDir(), status.New(s, nil), nil, ev, nil)
+	g := New(t.TempDir(), status.New(s), nil, ev, nil)
 	d, err := g.Decide(ctx, Event{Name: "Stop"})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing is stale") || !strings.Contains(d.Reason, "/forge billing") || strings.Contains(d.Reason, "approved but not built") {
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing is stale") || !strings.Contains(d.Reason, "/builder billing") || strings.Contains(d.Reason, "approved but not built") {
 		t.Fatalf("Decide = %+v, %v", d, err)
 	}
 }

@@ -35,14 +35,13 @@ func claim(id, tag string) string { return "- " + id + " [" + tag + "]\n  When x
 
 // memory stands in for every port the use cases need.
 type memory struct {
-	specs    map[string]string
-	files    []linkcheck.File
-	exits    map[string]int
-	project  map[string][]byte // files read and written by path, like the git hook
-	hooksDir string
-	kb       []budget.File // what the always-loaded files are
-	onPath   string        // where the delta on the PATH is; empty means none
-	self     bool
+	specs   map[string]string
+	files   []linkcheck.File
+	exits   map[string]int
+	project map[string][]byte // files read and written by path
+	kb      []budget.File     // what the always-loaded files are
+	onPath  string            // where the delta on the PATH is; empty means none
+	self    bool
 }
 
 func newMemory() *memory {
@@ -73,9 +72,6 @@ func (m *memory) RemoveFile(_ context.Context, rel string) error {
 	delete(m.project, rel)
 	return nil
 }
-
-func (m *memory) HooksPath(context.Context) (string, error)      { return m.hooksDir, nil }
-func (m *memory) SetHooksPath(_ context.Context, p string) error { m.hooksDir = p; return nil }
 
 func (m *memory) Path(s string) string { return "deltas/specs/" + s + ".spec.md" }
 
@@ -110,12 +106,12 @@ func (m *memory) TestFiles(context.Context) ([]linkcheck.File, error) { return m
 func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
 
 func (m *memory) run(stdin string, args ...string) (out, errOut string, err error) {
-	installer := setup.New(m, m, m, m, conffile.Conf{})
+	installer := setup.New(m, m, m, conffile.Conf{})
 	cmd := New(Deps{
 		Author:    author.New(m, m),
-		Checker:   verify.New(m, m, m, nil, nil),
-		Report:    status.New(m, nil).WithDocs(m),
-		Guard:     guard.New(root, status.New(m, nil), installer, nil, nil),
+		Checker:   verify.New(m, m, m, nil),
+		Report:    status.New(m).WithDocs(m),
+		Guard:     guard.New(root, status.New(m), installer, nil, nil),
 		Installer: installer,
 		Meter:     measure.New(m, budget.Defaults()),
 		Version:   "test",
@@ -251,30 +247,8 @@ func TestLinkConfirmsAndChangesTheTag(t *testing.T) {
 	}
 }
 
-func TestCommitMsgReadsTheFileGitGives(t *testing.T) {
-	dir := t.TempDir()
-	good, bad := filepath.Join(dir, "good"), filepath.Join(dir, "bad")
-	if err := os.WriteFile(good, []byte("feat(cli): add check, lint and status commands\n# comment\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(bad, []byte("Fixed it.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	m := newMemory()
-	if out, errOut, err := m.run("", "commit-msg", good); err != nil || out != "" || errOut != "" {
-		t.Fatalf("a good message printed %q %q, err = %v", out, errOut, err)
-	}
-	_, errOut, err := m.run("", "commit-msg", bad)
-	if !errors.Is(err, ErrFound) || !strings.Contains(errOut, bad+":1: COMMIT-") {
-		t.Fatalf("err = %v, stderr = %q", err, errOut)
-	}
-	if _, _, err := m.run("", "commit-msg", filepath.Join(dir, "missing")); err == nil || errors.Is(err, ErrFound) {
-		t.Fatalf("a missing file = %v, want a plain error", err)
-	}
-}
-
 func TestWrongArgumentCountsAreUsageErrors(t *testing.T) {
-	for _, args := range [][]string{{"spec", "new"}, {"spec", "write"}, {"link", "billing", "INV-01"}, {"lint", "x"}, {"check", "a", "b"}, {"status", "x"}, {"commit-msg"}, {"nope"}} {
+	for _, args := range [][]string{{"spec", "new"}, {"spec", "write"}, {"link", "billing", "INV-01"}, {"lint", "x"}, {"check", "a", "b"}, {"status", "x"}, {"nope"}} {
 		if _, _, err := newMemory().run("", args...); err == nil || errors.Is(err, ErrFound) {
 			t.Errorf("%v = %v, want a usage error", args, err)
 		}
@@ -286,7 +260,7 @@ func TestHelpListsTheCommandsAndNoCompletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"spec", "link", "lint", "check", "status", "commit-msg"} {
+	for _, name := range []string{"spec", "link", "lint", "check", "status"} {
 		if !strings.Contains(out, name) {
 			t.Errorf("help does not list %q", name)
 		}

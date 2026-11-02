@@ -5,7 +5,7 @@ import "testing"
 func TestCovers(t *testing.T) {
 	yes := []string{
 		"CLAUDE.md", ".claude/CLAUDE.md",
-		".claude/docs/overview.md", ".claude/rules/commits.md", ".claude/agents/reviewer.md", ".claude/skills/quill/SKILL.md",
+		".claude/docs/overview.md", ".claude/rules/commits.md", ".claude/agents/reviewer.md", ".claude/skills/drafter/SKILL.md",
 		"deltas/specs/billing.spec.md", "deltas/deltas.config", "deltas/deltas.manifest", "billing/deltas/specs/orders.spec.md", "services/auth/deltas/specs/login.spec.md",
 	}
 	no := []string{

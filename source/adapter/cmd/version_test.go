@@ -2,7 +2,7 @@ package cmd
 
 import "testing"
 
-func TestVersionPrintsTheLineTheGitHookLooksFor(t *testing.T) {
+func TestVersionPrintsTheLineGitDeltaCannotPrint(t *testing.T) {
 	m := newMemory()
 	out, _, err := m.run("", "version")
 	if err != nil || out != "delta (deltas-ai) test\n" {

@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/conffile"
@@ -31,8 +30,9 @@ func assetsOf(t *testing.T) map[string]setup.Asset {
 func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	by := assetsOf(t)
 	for _, want := range []string{
-		".claude/skills/helm/SKILL.md", ".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/rules/fidelity.md", ".claude/rules/language.md", ".claude/rules/honesty.md", ".claude/rules/base-scope.md", ".claude/rules/base-reliability.md", "deltas/deltas.config", "CLAUDE.md",
+		".claude/skills/comper/SKILL.md", ".claude/skills/drafter/SKILL.md", ".claude/skills/builder/SKILL.md", ".claude/skills/auditor/SKILL.md", ".claude/skills/scriber/SKILL.md",
+		".claude/rules/claims-fidelity.md", ".claude/rules/commit-messages.md", ".claude/rules/project-language.md", ".claude/rules/done-needs-proof.md", ".claude/rules/code-change-scope.md", ".claude/rules/code-reliability.md",
+		"deltas/budget.conf", "deltas/testing.conf", "CLAUDE.md",
 		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
 	} {
 		if _, ok := by[want]; !ok {
@@ -40,7 +40,7 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 		}
 	}
 	for path := range by {
-		if strings.HasPrefix(path, ".githooks") || strings.Contains(path, "settings.json") || path == "spec.md" {
+		if strings.Contains(path, "settings.json") || path == "specify.md" {
 			t.Errorf("%s is installed by another route, or not at all", path)
 		}
 		if strings.Contains(path, "/core/") || strings.HasPrefix(path, "core/") || strings.HasPrefix(path, "docs/") || strings.HasPrefix(path, "rules/") || strings.HasPrefix(path, "skills/") {
@@ -68,18 +68,19 @@ func TestClaudeMdNamesTheProject(t *testing.T) {
 	}
 }
 
-// The deltas.config that init installs states delta's defaults, so a project starts with what delta would do
-// without the file, and the file has to be one delta accepts.
-func TestTheDeltaConfThatIsInstalledStatesTheDefaults(t *testing.T) {
-	c := conffile.Parse(string(assetsOf(t)["deltas/deltas.config"].Content))
+// The config files that init installs state delta's defaults, so a project starts with what delta would do
+// without them, and they have to be files delta accepts.
+func TestTheConfigFilesThatAreInstalledStateTheDefaults(t *testing.T) {
+	by := assetsOf(t)
+	c := conffile.Parse(string(by["deltas/budget.conf"].Content), string(by["deltas/testing.conf"].Content))
 	if len(c.Problems) != 0 {
-		t.Fatalf("deltas.config has problems: %v", c.Problems)
+		t.Fatalf("the config files have problems: %v", c.Problems)
 	}
-	if !reflect.DeepEqual(c.TestFiles, linkcheck.DefaultTestFiles) {
-		t.Errorf("test_files = %v, want %v", c.TestFiles, linkcheck.DefaultTestFiles)
+	if !reflect.DeepEqual(c.Files.Match, linkcheck.DefaultTestFiles) {
+		t.Errorf("match = %v, want %v", c.Files.Match, linkcheck.DefaultTestFiles)
 	}
-	if c.Timeout != 10*time.Minute || len(c.Tools) != 0 || len(c.Scopes) != 0 {
-		t.Errorf("timeout = %v, tools = %v, scopes = %v; want 10m and none", c.Timeout, c.Tools, c.Scopes)
+	if want := []string{".git", "node_modules", "vendor"}; !reflect.DeepEqual(c.Files.Skip, want) {
+		t.Errorf("skip = %v, want %v", c.Files.Skip, want)
 	}
 	if c.Budget != budget.Defaults() {
 		t.Errorf("budget = %+v, want %+v", c.Budget, budget.Defaults())

@@ -51,8 +51,8 @@ func TestMeasureKeepsOnlyWhatLoadsOnEveryTurn(t *testing.T) {
 		{"CLAUDE.md", "# Project\n" + lines(9)},
 		{".claude/rules/always.md", "# Rule\n" + lines(4)},
 		{".claude/rules/scoped.md", "---\npaths:\n  - \"src/**\"\n---\n" + lines(40)},
-		{".claude/skills/quill/SKILL.md", "---\nname: quill\ndescription: Drafts the contract.\n---\n" + lines(200)},
-		{".claude/skills/quill/references/guide.md", lines(300)},
+		{".claude/skills/drafter/SKILL.md", "---\nname: drafter\ndescription: Drafts the contract.\n---\n" + lines(200)},
+		{".claude/skills/drafter/references/guide.md", lines(300)},
 		{".claude/agents/reviewer.md", "---\nname: reviewer\ndescription: Reviews code.\n---\n" + lines(30)},
 		{".claude/docs/overview.md", lines(100)},
 		{"README.md", lines(100)},
@@ -65,7 +65,7 @@ func TestMeasureKeepsOnlyWhatLoadsOnEveryTurn(t *testing.T) {
 	want := []string{
 		"router:CLAUDE.md",
 		"rule:.claude/rules/always.md",
-		"skill:.claude/skills/quill/SKILL.md",
+		"skill:.claude/skills/drafter/SKILL.md",
 		"agent:.claude/agents/reviewer.md",
 	}
 	slices.Sort(got)
@@ -76,10 +76,10 @@ func TestMeasureKeepsOnlyWhatLoadsOnEveryTurn(t *testing.T) {
 }
 
 func TestMeasureSizesAndTokens(t *testing.T) {
-	skillText := "---\nname: quill\ndescription: Drafts the contract.\n---\n" + lines(200)
+	skillText := "---\nname: drafter\ndescription: Drafts the contract.\n---\n" + lines(200)
 	files := []File{
 		{"CLAUDE.md", "# Project\n" + lines(9)},
-		{".claude/skills/quill/SKILL.md", skillText},
+		{".claude/skills/drafter/SKILL.md", skillText},
 	}
 	rep := Measure(files, Defaults())
 	byKind := map[string]Item{}

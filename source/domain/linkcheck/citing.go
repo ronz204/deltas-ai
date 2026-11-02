@@ -13,8 +13,8 @@ type File struct{ Path, Text string }
 
 var scriptExts = map[string]bool{".go": true, ".py": true, ".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}
 
-// DefaultTestFiles is delta's own rule for what a test file is, as name patterns: the same as the test_files
-// that deltas.config installs.
+// DefaultTestFiles is delta's own rule for what a test file is, as name patterns: the same as the match
+// that testing.conf installs.
 var DefaultTestFiles = []string{"*_test.go", "test_*.py", "*_test.py", "*.test.*", "*.spec.*"}
 
 var defaultMatcher = TestMatcher(nil)

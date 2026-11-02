@@ -1,108 +1,100 @@
-// Package conffile reads deltas.config, the optional settings file in the deltas/ folder at the root of a project.
+// Package conffile reads budget.conf and testing.conf, the optional settings files in the deltas/ folder at the root of a project.
 package conffile
 
 import (
 	"fmt"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/ronz204/deltas-ai/source/domain/budget"
 )
 
-const Name = "deltas/deltas.config"
+const (
+	BudgetName  = "deltas/budget.conf"
+	TestingName = "deltas/testing.conf"
+)
 
-// Conf is what deltas.config says over delta's defaults. A line that cannot be used is left out and told in Problems.
+// Conf is what the config files say over delta's defaults. A line that cannot be used is left out and told in Problems.
 type Conf struct {
-	Budget    budget.Ceilings
-	TestFiles []string            // patterns on a file's name; empty means delta's own
-	Timeout   time.Duration       // for each claim's command; zero means the default
-	Tools     []string            // programs that must be on the PATH
-	Scopes    map[string][]string // slice -> the paths it depends on; a slice not listed depends on every code file
-	NoBase    bool                // base=off: delta init and update leave the base preset out
-	Problems  []string
+	Budget   budget.Ceilings
+	Files    Files
+	Problems []string
 }
 
-// Parse reads key=value lines; blank lines and lines starting with # are skipped. The keys are the budget
-// ceilings (see budget.ParseCeilings), test_files, command_timeout, base, required_tools and scope.<slice>.
-func Parse(text string) Conf {
-	c := Conf{Budget: budget.ParseCeilings(text), Scopes: map[string][]string{}}
-	for i, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
-		if !ok {
-			c.problem(i, "expected key=value")
-			continue
-		}
-		switch {
-		case budget.IsKey(key):
-		case key == "test_files":
-			c.testFiles(i, value)
-		case key == "command_timeout":
-			c.timeout(i, value)
-		case key == "base":
-			c.base(i, value)
-		case key == "required_tools":
-			c.Tools = words(value)
-		case strings.HasPrefix(key, "scope."):
-			c.scope(i, strings.TrimPrefix(key, "scope."), value)
-		default:
-			c.problem(i, fmt.Sprintf("unknown key %q", key))
-		}
-	}
+// Files is what testing.conf says about test files: which are tests and where not to look for them.
+// An empty list means delta's own.
+type Files struct {
+	Match []string // patterns on a file's name
+	Skip  []string // folders never searched
+}
+
+// Parse reads the text of budget.conf and of testing.conf. Both are key=value lines; blank lines and lines starting
+// with # are skipped. budget.conf has the budget ceilings (see budget.ParseCeilings). testing.conf has match, the
+// patterns of the test files, and skip, the folders never searched.
+func Parse(budgetText, testingText string) Conf {
+	c := Conf{Budget: budget.ParseCeilings(budgetText)}
+	c.budget(budgetText)
+	c.testing(testingText)
 	return c
 }
 
-func (c *Conf) problem(i int, msg string) {
-	c.Problems = append(c.Problems, fmt.Sprintf("%s:%d: %s", Name, i+1, msg))
+func (c *Conf) problem(name string, i int, msg string) {
+	c.Problems = append(c.Problems, fmt.Sprintf("%s:%d: %s", name, i+1, msg))
 }
 
-func (c *Conf) testFiles(i int, value string) {
+func (c *Conf) budget(text string) {
+	for _, l := range lines(text) {
+		key, _, ok := strings.Cut(l.text, "=")
+		switch key = strings.TrimSpace(key); {
+		case !ok:
+			c.problem(BudgetName, l.n, "expected key=value")
+		case !budget.IsKey(key):
+			c.problem(BudgetName, l.n, fmt.Sprintf("unknown key %q", key))
+		}
+	}
+}
+
+func (c *Conf) testing(text string) {
+	for _, l := range lines(text) {
+		key, value, ok := strings.Cut(l.text, "=")
+		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+		switch {
+		case !ok:
+			c.problem(TestingName, l.n, "expected key=value")
+		case key == "match":
+			c.match(l.n, value)
+		case key == "skip":
+			c.Files.Skip = words(value)
+		default:
+			c.problem(TestingName, l.n, fmt.Sprintf("unknown key %q", key))
+		}
+	}
+}
+
+func (c *Conf) match(i int, value string) {
 	for _, p := range words(value) {
 		if _, err := path.Match(p, "x"); err != nil {
-			c.problem(i, fmt.Sprintf("test_files: %q is not a valid pattern", p))
+			c.problem(TestingName, i, fmt.Sprintf("match: %q is not a valid pattern", p))
 			return
 		}
 	}
-	c.TestFiles = words(value)
+	c.Files.Match = words(value)
 }
 
-func (c *Conf) timeout(i int, value string) {
-	d, err := time.ParseDuration(value)
-	if err != nil || d <= 0 {
-		c.problem(i, fmt.Sprintf("command_timeout: %q is not a positive duration such as 10m", value))
-		return
-	}
-	c.Timeout = d
+type line struct {
+	n    int // position in the file, counting from zero
+	text string
 }
 
-func (c *Conf) base(i int, value string) {
-	switch value {
-	case "on":
-	case "off":
-		c.NoBase = true
-	default:
-		c.problem(i, fmt.Sprintf("base: %q is not on or off", value))
-	}
-}
-
-func (c *Conf) scope(i int, slice, value string) {
-	var paths []string
-	for _, p := range words(value) {
-		p = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(p, `\`, "/"), "./"), "..."), "/")
-		if p != "" && p != "." {
-			paths = append(paths, path.Clean(p))
+// lines gives the lines of a config text that say something, trimmed, each with its position.
+func lines(text string) []line {
+	var out []line
+	for i, raw := range strings.Split(text, "\n") {
+		if t := strings.TrimSpace(raw); t != "" && !strings.HasPrefix(t, "#") {
+			out = append(out, line{i, t})
 		}
 	}
-	if slice == "" || len(paths) == 0 {
-		c.problem(i, "scope.<slice> needs a slice name and at least one path inside the project")
-		return
-	}
-	c.Scopes[slice] = paths
+	return out
 }
 
 // words splits a value on commas and spaces.

@@ -39,8 +39,7 @@
       { "hooks": [{ "type": "command", "command": "delta hook" }] }
     ],
     "PreToolUse": [
-      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "delta hook" }] },
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "delta hook" }] }
+      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "delta hook" }] }
     ],
     "PostToolUse": [
       { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "delta hook" }] }

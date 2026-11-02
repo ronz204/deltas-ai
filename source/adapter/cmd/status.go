@@ -61,6 +61,6 @@ func printDocs(out io.Writer, row status.DocsRow) {
 	case row.Next == "":
 		fmt.Fprintf(out, "docs: all %d written\n", row.Total)
 	default:
-		fmt.Fprintf(out, "docs: %d of %d written; next: /atlas %s\n", row.Filled, row.Total, row.Next)
+		fmt.Fprintf(out, "docs: %d of %d written; next: /scriber %s\n", row.Filled, row.Total, row.Next)
 	}
 }

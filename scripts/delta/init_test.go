@@ -19,10 +19,10 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		".githooks/commit-msg", "deltas/specs/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
+		"deltas/specs/.gitkeep", "deltas/budget.conf", "deltas/testing.conf", "CLAUDE.md",
 		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
-		".claude/settings.json", ".claude/rules/fidelity.md",
-		".claude/skills/helm/SKILL.md", ".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
+		".claude/settings.json", ".claude/rules/claims-fidelity.md",
+		".claude/skills/comper/SKILL.md", ".claude/skills/drafter/SKILL.md", ".claude/skills/builder/SKILL.md", ".claude/skills/auditor/SKILL.md", ".claude/skills/scriber/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); err != nil {
 			t.Errorf("%s was not installed: %v", rel, err)
@@ -31,8 +31,8 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	if !strings.HasPrefix(p.read("CLAUDE.md"), "# "+filepath.Base(p.root)+"\n") {
 		t.Errorf("CLAUDE.md does not name the project:\n%s", p.read("CLAUDE.md"))
 	}
-	if c := conffile.Parse(p.read("deltas/deltas.config")); len(c.Problems) != 0 {
-		t.Errorf("the installed deltas.config has problems: %v", c.Problems)
+	if c := conffile.Parse(p.read("deltas/budget.conf"), p.read("deltas/testing.conf")); len(c.Problems) != 0 {
+		t.Errorf("the installed config files have problems: %v", c.Problems)
 	}
 	var settings struct {
 		Hooks map[string]json.RawMessage `json:"hooks"`
@@ -75,14 +75,14 @@ func TestInitTwiceChangesNothingTheSecondTime(t *testing.T) {
 func TestInitKeepsWhatTheProjectAlreadyHas(t *testing.T) {
 	p := gitProject(t)
 	p.write("CLAUDE.md", "# my own router\n")
-	p.write(".claude/rules/fidelity.md", "# my fidelity rule\n")
+	p.write(".claude/rules/claims-fidelity.md", "# my fidelity rule\n")
 	p.write(".claude/settings.json", `{"model": "opus", "permissions": {"deny": ["Bash(rm -rf *)"]}}`)
 
 	code, out, _ := p.delta("", "init")
-	if code != 0 || !strings.Contains(out, "CLAUDE.md") || !strings.Contains(out, ".claude/rules/fidelity.md") || !strings.Contains(out, "left as they are") {
+	if code != 0 || !strings.Contains(out, "CLAUDE.md") || !strings.Contains(out, ".claude/rules/claims-fidelity.md") || !strings.Contains(out, "left as they are") {
 		t.Fatalf("init = %d %q", code, out)
 	}
-	if p.read("CLAUDE.md") != "# my own router\n" || p.read(".claude/rules/fidelity.md") != "# my fidelity rule\n" {
+	if p.read("CLAUDE.md") != "# my own router\n" || p.read(".claude/rules/claims-fidelity.md") != "# my fidelity rule\n" {
 		t.Error("init replaced a file the project had")
 	}
 	var settings map[string]any
@@ -95,32 +95,6 @@ func TestInitKeepsWhatTheProjectAlreadyHas(t *testing.T) {
 	}
 }
 
-// A clone that never ran init is told so when a Claude Code session starts.
-func TestSessionStartTellsAFreshCloneToRunInit(t *testing.T) {
-	p := gitProject(t)
-	code, out, errOut := p.delta(hookEvent(t, "SessionStart", "", "", ""), "hook")
-	if code != 0 || errOut != "" || !strings.Contains(out, "core.hooksPath") && !strings.Contains(out, "git does not check commit messages") {
-		t.Fatalf("SessionStart = %d %q %q", code, out, errOut)
-	}
-	if !strings.Contains(out, "run delta init") {
-		t.Errorf("the warning does not say what to do:\n%s", out)
-	}
-}
-
-// base=off in deltas.config keeps the base preset out, and update retires it once installed.
-func TestInitLeavesOutTheBasePresetWhenTheConfigTurnsItOff(t *testing.T) {
-	p := gitProject(t)
-	p.write("deltas/deltas.config", "base=off\n")
-	if code, out, errOut := p.delta("", "init"); code != 0 {
-		t.Fatalf("init = %d %q %q", code, out, errOut)
-	}
-	for rel, want := range map[string]bool{".claude/rules/fidelity.md": true, ".claude/rules/honesty.md": true, ".claude/rules/base-scope.md": false, ".claude/rules/base-reliability.md": false} {
-		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); (err == nil) != want {
-			t.Errorf("%s installed = %v, want %v", rel, err == nil, want)
-		}
-	}
-}
-
 // The docs are seeds: init installs the templates, status asks for the first one, and neither a second init
 // nor delta update touches what a person wrote.
 func TestInitInstallsDocTemplatesThatStatusTracksAndUpdateLeavesAlone(t *testing.T) {
@@ -128,7 +102,7 @@ func TestInitInstallsDocTemplatesThatStatusTracksAndUpdateLeavesAlone(t *testing
 	if code, _, errOut := p.delta("", "init"); code != 0 {
 		t.Fatalf("init = %d %q", code, errOut)
 	}
-	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 0 of 4 written; next: /atlas overview") {
+	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 0 of 4 written; next: /scriber overview") {
 		t.Fatalf("status = %d %q", code, out)
 	}
 	if !strings.Contains(p.read("deltas/docs/overview.md"), "of "+filepath.Base(p.root)+".") {
@@ -137,7 +111,7 @@ func TestInitInstallsDocTemplatesThatStatusTracksAndUpdateLeavesAlone(t *testing
 
 	written := "# Overview\n\nWhat the project is.\n"
 	p.write("deltas/docs/overview.md", written)
-	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 1 of 4 written; next: /atlas structure") {
+	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 1 of 4 written; next: /scriber structure") {
 		t.Fatalf("status = %d %q", code, out)
 	}
 	for _, args := range [][]string{{"init"}, {"update"}} {

@@ -72,7 +72,7 @@ const (
 
 var tests = fakeTests{{Path: "billing/total_test.go", Text: "// INV-01\n// INV-02\n"}}
 
-func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil, nil) }
+func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil) }
 
 func TestCheckJudgesEveryKindOfClaim(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing, failing, uncited, manual, untagged)}
@@ -194,20 +194,20 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	}
 	marks := &fakeMarks{}
 	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
-	if _, err := New(specs, tests, run, marks, nil).Check(ctx, ""); err != nil {
+	if _, err := New(specs, tests, run, marks).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
 	}
 	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/specs/billing.spec.md") || billing.Covers("README.md") {
-		t.Fatalf("the scope of billing = %+v, want every code file and its spec when deltas.config names no paths", billing)
+		t.Fatalf("the scope of billing = %+v, want every code file and its spec", billing)
 	}
 }
 
 func TestCheckStillReportsWhenItCannotBeRemembered(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing)}
-	rep, err := New(specs, tests, &fakeRunner{}, &fakeMarks{err: errors.New("disk full")}, nil).Check(ctx, "")
+	rep, err := New(specs, tests, &fakeRunner{}, &fakeMarks{err: errors.New("disk full")}).Check(ctx, "")
 	if err != nil || len(rep.Results) != 1 {
 		t.Fatalf("Check = %+v, %v; the results must survive a failed record", rep, err)
 	}
@@ -218,23 +218,11 @@ func TestCheckStillReportsWhenItCannotBeRemembered(t *testing.T) {
 
 func TestCheckRecordsNothingWhenNoSliceWasChecked(t *testing.T) {
 	marks := &fakeMarks{}
-	if _, err := New(fakeSpecs{"broken": "no frontmatter"}, tests, &fakeRunner{}, marks, nil).Check(ctx, ""); err != nil {
+	if _, err := New(fakeSpecs{"broken": "no frontmatter"}, tests, &fakeRunner{}, marks).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	if marks.got != nil {
 		t.Fatalf("recorded %v for a project with nothing checked", marks.got)
-	}
-}
-
-func TestCheckRecordsTheNarrowScopeDeltaConfDeclares(t *testing.T) {
-	specs := fakeSpecs{"billing": specOf("billing", passing)}
-	marks := &fakeMarks{}
-	scopes := map[string][]string{"billing": {"billing", "shared/money"}}
-	if _, err := New(specs, tests, &fakeRunner{}, marks, scopes).Check(ctx, ""); err != nil {
-		t.Fatal(err)
-	}
-	if s := marks.seen[0].Scope; !s.Covers("shared/money/round.go") || s.Covers("payments/pay.go") {
-		t.Fatalf("scope = %+v, want only billing, shared/money and the spec", s)
 	}
 }
 
@@ -264,7 +252,7 @@ func TestCheckLeavesTheStatusAloneUnlessItIsBuiltAndClean(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			specs := fakeSpecs{"billing": spec}
 			run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
-			rep, err := New(specs, tests, run, nil, nil).Check(ctx, "")
+			rep, err := New(specs, tests, run, nil).Check(ctx, "")
 			if err != nil || len(rep.Verified) != 0 || specs["billing"] != spec {
 				t.Fatalf("Check = %+v, %v; stored %q", rep, err, specs["billing"])
 			}
@@ -278,7 +266,7 @@ func TestCheckSaysWhichSlicesEndVerified(t *testing.T) {
 		"payments": strings.Replace(builtSpec("payments", passing), "status: built", "status: verified", 1),
 	}
 	marks := &fakeMarks{}
-	if _, err := New(specs, tests, &fakeRunner{}, marks, nil).Check(ctx, ""); err != nil {
+	if _, err := New(specs, tests, &fakeRunner{}, marks).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range marks.seen {
@@ -295,7 +283,7 @@ func TestCheckDoesNotCallASliceVerifiedUnlessItHolds(t *testing.T) {
 	}
 	marks := &fakeMarks{}
 	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
-	if _, err := New(specs, tests, run, marks, nil).Check(ctx, ""); err != nil {
+	if _, err := New(specs, tests, run, marks).Check(ctx, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range marks.seen {

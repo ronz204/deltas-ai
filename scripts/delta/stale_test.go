@@ -57,9 +57,9 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 		t.Fatalf("stale = %d %q; want it to list main.go and fail", code, out)
 	}
 
-	// Forge rebuilds it: built, then checked, which is the new baseline.
+	// Builder rebuilds it: built, then checked, which is the new baseline.
 	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
-		t.Fatalf("ready = %d %q; a stale slice is ready for Forge", code, errOut)
+		t.Fatalf("ready = %d %q; a stale slice is ready for Builder", code, errOut)
 	}
 	if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
 		t.Fatalf("built = %d %q", code, errOut)
@@ -69,28 +69,6 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 	}
 	if code, out, errOut := p.delta("", "stale"); code != 0 || out != "" {
 		t.Fatalf("stale after the rebuild = %d %q %q; want nothing to say", code, out, errOut)
-	}
-}
-
-// A change that no slice depends on is no drift: deltas.config narrows what billing depends on.
-func TestAChangeOutsideTheScopeOfASliceDoesNotMakeItStale(t *testing.T) {
-	p := gitProject(t)
-	p.write("deltas/deltas.config", "scope.billing=billing\n")
-	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
-	p.write("billing/billing_test.go", "// INV-01\n")
-	p.write("other/main.go", "package other\n")
-	commitAll(t, p, "chore(repo): add the billing slice")
-	if code, _, _ := p.delta("", "check"); code != 0 {
-		t.Fatal("check failed")
-	}
-
-	p.write("other/main.go", "package other\n\nfunc F() {}\n")
-	if code, out, errOut := p.delta("", "stale"); code != 0 || out != "" {
-		t.Fatalf("stale = %d %q %q; other/ is not part of billing", code, out, errOut)
-	}
-	p.write("billing/total.go", "package billing\n")
-	if code, out, _ := p.delta("", "stale"); code != 1 || !strings.Contains(out, "billing/total.go") {
-		t.Fatalf("stale = %d %q; a new file in billing/ is drift", code, out)
 	}
 }
 
@@ -106,7 +84,7 @@ func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 	}
 }
 
-// What delta installs is not code: running update, or editing deltas.config, must not make a slice stale.
+// What delta installs is not code: running update, or editing budget.conf, must not make a slice stale.
 func TestChangingDeltasOwnFilesDoesNotMakeASliceStale(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
@@ -119,7 +97,7 @@ func TestChangingDeltasOwnFilesDoesNotMakeASliceStale(t *testing.T) {
 	if code, _, errOut := p.delta("", "init"); code != 0 {
 		t.Fatalf("init = %d %q", code, errOut)
 	}
-	p.write("deltas/deltas.config", "command_timeout=5m\n")
+	p.write("deltas/budget.conf", "doc_lines=250\n")
 	p.write(".claude/settings.json", "{}\n")
 	if code, out, errOut := p.delta("", "stale"); code != 0 || out != "" {
 		t.Fatalf("stale = %d %q %q; delta's own files are not the slice's code", code, out, errOut)

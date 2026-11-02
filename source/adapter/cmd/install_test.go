@@ -10,25 +10,13 @@ import (
 func TestInitReportsEachStep(t *testing.T) {
 	m := newMemory()
 	out, _, err := m.run("", "init")
-	if err != nil || out != "installed .githooks/commit-msg\nset core.hooksPath to .githooks\ninstalled 1 file from the harness\nrecorded the installed harness files in deltas/deltas.manifest\ninstalled .claude/settings.json\n" {
+	if err != nil || out != "installed 1 file from the harness\ninstalled .claude/settings.json\n" {
 		t.Fatalf("out = %q, err = %v", out, err)
-	}
-	if _, ok := m.project[".githooks/commit-msg"]; !ok || m.hooksDir != ".githooks" {
-		t.Fatalf("hook stored: %v, hooksPath = %q", ok, m.hooksDir)
 	}
 
 	out, _, err = m.run("", "init")
-	if err != nil || !strings.Contains(out, "already installed") || !strings.Contains(out, "already points") {
+	if err != nil || !strings.Contains(out, "already installed") {
 		t.Fatalf("a second run: out = %q, err = %v", out, err)
-	}
-}
-
-func TestInitLeavesAnotherHooksPathAlone(t *testing.T) {
-	m := newMemory()
-	m.hooksDir = ".husky"
-	out, _, err := m.run("", "init")
-	if err != nil || m.hooksDir != ".husky" || !strings.Contains(out, "core.hooksPath is .husky: left as it is") {
-		t.Fatalf("out = %q, hooksPath = %q, err = %v", out, m.hooksDir, err)
 	}
 }
 
@@ -40,8 +28,6 @@ func TestInitTakesNoArguments(t *testing.T) {
 
 func healthyProject() *memory {
 	m := newMemory()
-	m.project[".githooks/commit-msg"] = []byte("#!/bin/sh\n")
-	m.hooksDir = ".githooks"
 	m.onPath, m.self = "/usr/bin/delta", true
 	return m
 }
@@ -54,8 +40,7 @@ func TestStatusWarnsOnStderrAboutTheSetup(t *testing.T) {
 		t.Fatalf("out = %q, err = %v; a warning must not fail the command", out, err)
 	}
 	for _, want := range []string{
-		"warning: git does not check commit messages yet: run delta init",
-		"warning: delta is not on the PATH, so the git hook cannot run it",
+		"warning: delta is not on the PATH, so the hooks of Claude Code cannot run it",
 	} {
 		if !strings.Contains(errOut, want) {
 			t.Errorf("stderr lacks %q:\n%s", want, errOut)
@@ -81,7 +66,7 @@ func TestStatusSaysHowManyDocsAreWrittenAndWhichIsNext(t *testing.T) {
 		{Path: "deltas/docs/structure.md", Text: "# Structure\n\n<!-- todo -->\n"},
 	}
 	out, _, err := m.run("", "status")
-	if err != nil || !strings.Contains(out, "docs: 1 of 2 written; next: /atlas structure\n") {
+	if err != nil || !strings.Contains(out, "docs: 1 of 2 written; next: /scriber structure\n") {
 		t.Fatalf("status = %q, %v", out, err)
 	}
 	m.kb = []budget.File{{Path: "deltas/docs/overview.md", Text: "Written."}}

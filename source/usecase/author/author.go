@@ -121,12 +121,12 @@ func hasError(ds []findings.Diagnostic) bool {
 	return false
 }
 
-// Approve is the person's sign-off on a clean draft: the contract Forge builds from.
+// Approve is the person's sign-off on a clean draft: the contract Builder builds from.
 func (a *Author) Approve(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
 	return a.move(ctx, slice, lifecycle.Approved)
 }
 
-// Built records that Forge finished building an approved (or stale) slice.
+// Built records that Builder finished building an approved (or stale) slice.
 func (a *Author) Built(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
 	return a.move(ctx, slice, lifecycle.Built)
 }

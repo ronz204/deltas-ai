@@ -41,7 +41,7 @@ func TestReport(t *testing.T) {
 		"b": "---\nformat: 1\nslice: b\nstatus: verified\n---\n",
 		"c": "not a spec",
 	}
-	rows, err := New(specs, nil).Report(context.Background())
+	rows, err := New(specs).Report(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,25 +62,8 @@ func TestReport(t *testing.T) {
 	}
 }
 
-func TestReportNarrowsOnlyTheSlicesDeltaConfLists(t *testing.T) {
-	specs := fake{
-		"a": "---\nformat: 1\nslice: a\nstatus: approved\n---\n",
-		"b": "---\nformat: 1\nslice: b\nstatus: approved\n---\n",
-	}
-	rows, err := New(specs, map[string][]string{"a": {"a", "shared"}}).Report(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if a := rows[0].Scope; !a.Covers("shared/x.go") || a.Covers("b/x.go") {
-		t.Errorf("a = %+v, want only a, shared and its spec", a)
-	}
-	if b := rows[1].Scope; !b.Covers("a/x.go") {
-		t.Errorf("b = %+v, want every code file: deltas.config says nothing about it", b)
-	}
-}
-
 func TestReportOfAnEmptyProject(t *testing.T) {
-	rows, err := New(fake{}, nil).Report(context.Background())
+	rows, err := New(fake{}).Report(context.Background())
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("Report = %v, %v", rows, err)
 	}
@@ -103,7 +86,7 @@ func TestReadyOnlyForACleanApprovedOrStaleSlice(t *testing.T) {
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := New(fake{"a": c.src}, nil).Ready(context.Background(), "a")
+			err := New(fake{"a": c.src}).Ready(context.Background(), "a")
 			var notReady *NotReady
 			if c.ready != (err == nil) || (!c.ready && !errors.As(err, &notReady)) {
 				t.Fatalf("Ready = %v, want ready = %v", err, c.ready)
@@ -113,7 +96,7 @@ func TestReadyOnlyForACleanApprovedOrStaleSlice(t *testing.T) {
 }
 
 func TestReadyFailsPlainlyForAMissingSpec(t *testing.T) {
-	err := New(fake{}, nil).Ready(context.Background(), "a")
+	err := New(fake{}).Ready(context.Background(), "a")
 	var notReady *NotReady
 	if err == nil || errors.As(err, &notReady) {
 		t.Fatalf("Ready = %v, want a plain error", err)
@@ -134,7 +117,7 @@ func spec(slice, state string) string {
 
 func TestStaleMarksAVerifiedSliceWhoseFilesChanged(t *testing.T) {
 	specs := fake{"a": spec("a", "verified"), "b": spec("b", "verified")}
-	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go"}, "b": {}}, specs)
+	r := New(specs).WithDrift(drifts{"a": {"a/x.go"}, "b": {}}, specs)
 	got, err := r.Stale(context.Background())
 	if want := []Drift{{Slice: "a", Files: []string{"a/x.go"}, Marked: true}}; err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("Stale = %+v, %v; want %+v", got, err, want)
@@ -146,7 +129,7 @@ func TestStaleMarksAVerifiedSliceWhoseFilesChanged(t *testing.T) {
 
 func TestStaleKeepsReportingAStaleSliceWithoutMarkingItAgain(t *testing.T) {
 	specs := fake{"a": spec("a", "stale")}
-	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go", "deltas/specs/a.spec.md"}}, specs)
+	r := New(specs).WithDrift(drifts{"a": {"a/x.go", "deltas/specs/a.spec.md"}}, specs)
 	got, err := r.Stale(context.Background())
 	if want := []Drift{{Slice: "a", Files: []string{"a/x.go"}}}; err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("Stale = %+v, %v; want %+v (its own spec is not news)", got, err, want)
@@ -155,7 +138,7 @@ func TestStaleKeepsReportingAStaleSliceWithoutMarkingItAgain(t *testing.T) {
 
 func TestStaleLeavesAloneWhatWasNeverVerifiedOrIsNotVerified(t *testing.T) {
 	specs := fake{"a": spec("a", "verified"), "b": spec("b", "built"), "c": "not a spec"}
-	r := New(specs, nil).WithDrift(drifts{"b": {"b/x.go"}, "c": {"c/x.go"}}, specs)
+	r := New(specs).WithDrift(drifts{"b": {"b/x.go"}, "c": {"c/x.go"}}, specs)
 	if got, err := r.Stale(context.Background()); err != nil || len(got) != 0 {
 		t.Fatalf("Stale = %+v, %v; a slice with no baseline, one still being built and a broken spec are never stale", got, err)
 	}
@@ -166,7 +149,7 @@ func TestStaleLeavesAloneWhatWasNeverVerifiedOrIsNotVerified(t *testing.T) {
 
 func TestStaleIsOffUntilDriftIsWiredIn(t *testing.T) {
 	specs := fake{"a": spec("a", "verified")}
-	if got, err := New(specs, nil).Stale(context.Background()); err != nil || got != nil {
+	if got, err := New(specs).Stale(context.Background()); err != nil || got != nil {
 		t.Fatalf("Stale = %+v, %v", got, err)
 	}
 }
@@ -179,19 +162,19 @@ func (brokenDrift) Drift(context.Context, string, linkcheck.Scope) ([]string, bo
 
 func TestStaleReportsWhyItCouldNotTell(t *testing.T) {
 	specs := fake{"a": spec("a", "verified")}
-	if _, err := New(specs, nil).WithDrift(brokenDrift{}, specs).Stale(context.Background()); err == nil {
+	if _, err := New(specs).WithDrift(brokenDrift{}, specs).Stale(context.Background()); err == nil {
 		t.Fatal("Stale hid an error")
 	}
 }
 
 func TestReportShowsWhatWentStaleAndStillWorksWhenDriftCannotBeTold(t *testing.T) {
 	specs := fake{"a": spec("a", "verified")}
-	rows, err := New(specs, nil).WithDrift(drifts{"a": {"a/x.go"}}, specs).Report(context.Background())
+	rows, err := New(specs).WithDrift(drifts{"a": {"a/x.go"}}, specs).Report(context.Background())
 	if err != nil || rows[0].Status != lifecycle.Stale || !reflect.DeepEqual(rows[0].Changed, []string{"a/x.go"}) {
 		t.Fatalf("rows = %+v, %v; want a stale with its changed file", rows, err)
 	}
 	specs = fake{"a": spec("a", "verified")}
-	rows, err = New(specs, nil).WithDrift(brokenDrift{}, specs).Report(context.Background())
+	rows, err = New(specs).WithDrift(brokenDrift{}, specs).Report(context.Background())
 	if err != nil || rows[0].Status != lifecycle.Verified {
 		t.Fatalf("rows = %+v, %v; a status report must not fail because git did", rows, err)
 	}
@@ -209,7 +192,7 @@ func TestDocsCountsTheWrittenOnesAndNamesTheNextInOrder(t *testing.T) {
 		{Path: "deltas/docs/expertise.md", Text: "# Expertise\n\nDone.\n"},
 		{Path: "deltas/docs/deep/other.md", Text: "<!-- not a doc -->"},
 	}
-	got, err := New(fake{}, nil).WithDocs(files).Docs(context.Background())
+	got, err := New(fake{}).WithDocs(files).Docs(context.Background())
 	if want := (DocsRow{Total: 4, Filled: 2, Next: "structure"}); err != nil || got != want {
 		t.Fatalf("Docs = %+v, %v; want %+v", got, err, want)
 	}
@@ -217,20 +200,20 @@ func TestDocsCountsTheWrittenOnesAndNamesTheNextInOrder(t *testing.T) {
 
 func TestDocsHasNoNextWhenAllAreWrittenOrThereAreNone(t *testing.T) {
 	done := docFiles{{Path: "deltas/docs/overview.md", Text: "ok"}}
-	if got, _ := New(fake{}, nil).WithDocs(done).Docs(context.Background()); got != (DocsRow{Total: 1, Filled: 1}) {
+	if got, _ := New(fake{}).WithDocs(done).Docs(context.Background()); got != (DocsRow{Total: 1, Filled: 1}) {
 		t.Errorf("Docs = %+v", got)
 	}
-	if got, err := New(fake{}, nil).WithDocs(docFiles{}).Docs(context.Background()); err != nil || got != (DocsRow{}) {
+	if got, err := New(fake{}).WithDocs(docFiles{}).Docs(context.Background()); err != nil || got != (DocsRow{}) {
 		t.Errorf("Docs of a project with none = %+v, %v", got, err)
 	}
-	if got, err := New(fake{}, nil).Docs(context.Background()); err != nil || got != (DocsRow{}) {
+	if got, err := New(fake{}).Docs(context.Background()); err != nil || got != (DocsRow{}) {
 		t.Errorf("Docs with nothing to read files from = %+v, %v", got, err)
 	}
 }
 
 func TestDocsNamesAnExtraTemplateWhenTheUsualOnesAreDone(t *testing.T) {
 	files := docFiles{{Path: "deltas/docs/overview.md", Text: "ok"}, {Path: "deltas/docs/security.md", Text: "<!-- x -->"}}
-	if got, _ := New(fake{}, nil).WithDocs(files).Docs(context.Background()); got.Next != "security" {
+	if got, _ := New(fake{}).WithDocs(files).Docs(context.Background()); got.Next != "security" {
 		t.Errorf("Docs = %+v, want security next", got)
 	}
 }

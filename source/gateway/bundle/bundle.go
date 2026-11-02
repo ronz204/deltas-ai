@@ -14,17 +14,13 @@ import (
 
 type Bundle struct{}
 
-func (Bundle) Spec() ([]byte, error) { return agents.FS.ReadFile("core/templates/spec.md") }
-
-func (Bundle) GitHook(name string) ([]byte, error) {
-	return agents.FS.ReadFile("core/githooks/" + name)
-}
+func (Bundle) Spec() ([]byte, error) { return agents.FS.ReadFile("core/samples/specify.md") }
 
 // Settings is the part of .claude/settings.json that delta needs: its hooks and permissions.
 func (Bundle) Settings() ([]byte, error) { return agents.FS.ReadFile("core/configs/settings.json") }
 
 // Assets lists what init copies into a project, in a fixed order: the skills and the rules under .claude/,
-// deltas/deltas.config, the doc templates under deltas/docs/, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
+// the config files under deltas/, the doc templates under deltas/docs/, and a CLAUDE.md that names the project.
 func (Bundle) Assets(project string) ([]setup.Asset, error) {
 	var out []setup.Asset
 	err := fs.WalkDir(agents.FS, ".", func(p string, d fs.DirEntry, err error) error {
@@ -39,31 +35,29 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 		if err != nil {
 			return err
 		}
-		if p == "core/templates/CLAUDE.md" || strings.HasPrefix(p, "docs/") {
+		if p == "core/samples/CLAUDE.md" || strings.HasPrefix(p, "docs/") {
 			if content, err = fill(p, content, project); err != nil {
 				return err
 			}
 		}
-		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p), Base: strings.HasPrefix(p, "rules/base/")})
+		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p)})
 		return nil
 	})
 	return out, err
 }
 
 // managed says whether delta keeps a harness file up to date once it is installed: the skills and the rules.
-// The CLAUDE.md, deltas.config and doc templates it starts a project with are the project's from then on.
+// The CLAUDE.md, config files and doc templates it starts a project with are the project's from then on.
 func managed(p string) bool { return strings.HasPrefix(p, "skills/") || strings.HasPrefix(p, "rules/") }
 
 // destination maps a path in the harness to its place in a project; not every file is copied.
 func destination(p string) (string, bool) {
 	switch {
-	case strings.HasPrefix(p, "skills/"):
+	case strings.HasPrefix(p, "skills/"), strings.HasPrefix(p, "rules/"):
 		return ".claude/" + p, true
-	case strings.HasPrefix(p, "rules/"):
-		return ".claude/rules/" + path.Base(p), true
-	case p == "core/configs/deltas.config":
-		return "deltas/deltas.config", true
-	case p == "core/templates/CLAUDE.md":
+	case p == "core/configs/budget.conf", p == "core/configs/testing.conf":
+		return "deltas/" + path.Base(p), true
+	case p == "core/samples/CLAUDE.md":
 		return "CLAUDE.md", true
 	case strings.HasPrefix(p, "docs/"):
 		return "deltas/" + p, true

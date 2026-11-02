@@ -11,7 +11,7 @@ func budgetProject(t *testing.T) *project {
 	p.write("CLAUDE.md", "# Acme\n"+strings.Repeat("a line\n", 9))
 	p.write(".claude/rules/always.md", "# Rule\n"+strings.Repeat("a line\n", 10))
 	p.write(".claude/rules/scoped.md", "---\npaths:\n  - \"src/**\"\n---\n"+strings.Repeat("a line\n", 200))
-	p.write(".claude/skills/quill/SKILL.md", "---\nname: quill\ndescription: >-\n  Drafts the contract\n  of one slice.\n---\n"+strings.Repeat("a line\n", 300))
+	p.write(".claude/skills/drafter/SKILL.md", "---\nname: drafter\ndescription: >-\n  Drafts the contract\n  of one slice.\n---\n"+strings.Repeat("a line\n", 300))
 	p.write(".claude/docs/overview.md", strings.Repeat("a line\n", 500))
 	return p
 }
@@ -22,7 +22,7 @@ func TestBudgetWeighsOnlyWhatLoadsOnEveryTurn(t *testing.T) {
 	if code != 0 || errOut != "" {
 		t.Fatalf("budget = %d %q %q", code, out, errOut)
 	}
-	for _, want := range []string{"CLAUDE.md", ".claude/rules/always.md", ".claude/skills/quill/SKILL.md", "total: about", "of 3500"} {
+	for _, want := range []string{"CLAUDE.md", ".claude/rules/always.md", ".claude/skills/drafter/SKILL.md", "total: about", "of 3500"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the table lacks %q:\n%s", want, out)
 		}
@@ -36,7 +36,7 @@ func TestBudgetWeighsOnlyWhatLoadsOnEveryTurn(t *testing.T) {
 
 func TestBudgetFailsWhenTheConfCeilingIsPassed(t *testing.T) {
 	p := budgetProject(t)
-	p.write(".claude/budget.conf", "always_tokens=20\nrule_always_lines=5\n")
+	p.write("deltas/budget.conf", "always_tokens=20\nrule_always_lines=5\n")
 	code, out, errOut := p.delta("", "budget")
 	if code != 1 {
 		t.Fatalf("exit %d, want 1\n%s", code, out)

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ronz204/deltas-ai/source/adapter/cmd"
-	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/conffile"
 	"github.com/ronz204/deltas-ai/source/gateway/bundle"
 	"github.com/ronz204/deltas-ai/source/gateway/gitcli"
@@ -33,18 +32,14 @@ const commandTimeout = 10 * time.Minute
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, cwd string) int {
 	root := vaults.FindRoot(cwd)
 	conf := loadConf(root)
-	vault := vaults.New(root).Matching(conf.TestFiles)
-	timeout := commandTimeout
-	if conf.Timeout > 0 {
-		timeout = conf.Timeout
-	}
-	programs := runner.New(root, timeout, errOut)
+	vault := vaults.New(root).Matching(conf.Files.Match).Skipping(conf.Files.Skip)
+	programs := runner.New(root, commandTimeout, errOut)
 	git := gitcli.New(root)
 	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
 	checks := ledger.New(cache, root, git)
-	report := status.New(vault, conf.Scopes).WithDrift(checks, vault).WithDocs(vault)
-	installer := setup.New(vault, git, bundle.Bundle{}, programs, conf)
-	checker := verify.New(vault, vault, programs, checks, conf.Scopes)
+	report := status.New(vault).WithDrift(checks, vault).WithDocs(vault)
+	installer := setup.New(vault, bundle.Bundle{}, programs, conf)
+	checker := verify.New(vault, vault, programs, checks)
 	app := cmd.New(cmd.Deps{
 		Author:    author.New(vault, bundle.Bundle{}),
 		Checker:   checker,
@@ -72,22 +67,19 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	}
 }
 
-// loadConf reads deltas.config. Without one it falls back to the budget ceilings of the older .claude/budget.conf,
-// and a file that cannot be read leaves the defaults and says so.
+// loadConf reads budget.conf and testing.conf; one that is missing leaves its defaults, and one that cannot be
+// read leaves them too and says so.
 func loadConf(root string) conffile.Conf {
 	vault := vaults.New(root)
-	text, err := vault.ReadFile(context.Background(), conffile.Name)
-	switch {
-	case err == nil:
-		return conffile.Parse(string(text))
-	case !errors.Is(err, fs.ErrNotExist):
-		c := conffile.Parse("")
-		c.Problems = append(c.Problems, fmt.Sprintf("%s could not be read: %v", conffile.Name, err))
-		return c
+	var problems []string
+	read := func(name string) string {
+		text, err := vault.ReadFile(context.Background(), name)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			problems = append(problems, fmt.Sprintf("%s could not be read: %v", name, err))
+		}
+		return string(text)
 	}
-	c := conffile.Parse("")
-	if legacy, err := vault.ReadFile(context.Background(), ".claude/budget.conf"); err == nil {
-		c.Budget = budget.ParseCeilings(string(legacy))
-	}
+	c := conffile.Parse(read(conffile.BudgetName), read(conffile.TestingName))
+	c.Problems = append(problems, c.Problems...)
 	return c
 }

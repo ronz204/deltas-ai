@@ -22,20 +22,40 @@ const (
 	suffix   = ".spec.md"
 )
 
-// skipDirs are never searched for test files: they hold other people's code or the contracts.
-var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
+// skipDirs are the folders never searched for test files when testing.conf names none: they hold other people's
+// code. The folder of the contracts is never searched either.
+var skipDirs = []string{".git", "node_modules", "vendor"}
 
 // Contracts live in the project's deltas/specs/ folder, one <slice>.spec.md each.
 type Vault struct {
 	root   string
 	isTest func(string) bool
+	skip   map[string]bool
 }
 
-func New(root string) *Vault { return &Vault{root: root, isTest: linkcheck.IsTestFile} }
+func New(root string) *Vault {
+	return &Vault{root: root, isTest: linkcheck.IsTestFile, skip: skipping(nil)}
+}
 
 // Matching is a vault that takes as test files those whose name matches one of the patterns.
 func (s *Vault) Matching(patterns []string) *Vault {
-	return &Vault{root: s.root, isTest: linkcheck.TestMatcher(patterns)}
+	return &Vault{root: s.root, isTest: linkcheck.TestMatcher(patterns), skip: s.skip}
+}
+
+// Skipping is a vault that never searches the folders with these names for test files.
+func (s *Vault) Skipping(dirs []string) *Vault {
+	return &Vault{root: s.root, isTest: s.isTest, skip: skipping(dirs)}
+}
+
+func skipping(dirs []string) map[string]bool {
+	if len(dirs) == 0 {
+		dirs = skipDirs
+	}
+	out := map[string]bool{dirName: true}
+	for _, d := range dirs {
+		out[d] = true
+	}
+	return out
 }
 
 func (s *Vault) IsTest(rel string) bool { return s.isTest(rel) }
@@ -217,7 +237,7 @@ func (s *Vault) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
 			return err
 		}
 		if d.IsDir() {
-			if p != s.root && skipDirs[d.Name()] {
+			if p != s.root && s.skip[d.Name()] {
 				return fs.SkipDir
 			}
 			return ctx.Err()

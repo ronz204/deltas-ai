@@ -1,6 +1,6 @@
 # Harness refactor notes
 
-Harness first, code later. Nothing in `source/` or `scripts/` is touched until the go-ahead.
+Harness first, code later. Phase 1 (the code follows the harness) is done: see "Phase 1: what was done" at the end. Phase 2 (`package/domain` and the domain renames) is described there too.
 
 ## 1. Rules: done
 
@@ -85,10 +85,9 @@ Slash forms: `/comper [slice]`, `/drafter <slice>`, `/builder <slice>`, `/audito
 
 - `core/configs/deltas.config` is gone.
 - `core/configs/budget.conf` holds the context budget, with the same keys as before.
-- `core/configs/testing.conf` holds what a test is, grouped in sections:
+- `core/configs/testing.conf` holds what a test is, as flat keys:
 
 ```
-[files]
 match=*_test.go,test_*.py,*_test.py,*.test.*,*.spec.*
 skip=.git,node_modules,vendor
 ```
@@ -97,7 +96,7 @@ Dropped for good: `test_files` as a flat key, `command_timeout`, `required_tools
 
 ### Decisions behind it
 
-- Sections, not one key per action: the format is INI-like (`[files]`, then `key=value`), so a new topic is a new section and not a new prefix.
+- Plain `key=value` lines: `match` and `skip`. If the file grows, sections can be added later.
 - No `scope`. A claim of type `test` is judged by running its command again, so it needs no list of what the slice depends on. A slice goes stale only for claims verified by reading (`manual`, `none`). Still to check in the code: how `verify.Check` treats a slice with only test claims when the code changes, and when the re-check runs (`delta check` on demand or at the Stop hook).
 - The timeout stays as the constant in `scripts/delta/run.go:29`; no required tools.
 
@@ -181,3 +180,23 @@ What goes away is the check: nothing refuses a commit message any more. The rule
 - Decision to make: keep it (the agent is still checked) or remove it together with the git hook, which leaves the rule as the only guide and lets the `commits` package, the `Bash` matcher in `settings.json` and their tests go.
 
 `agents/agents.go` has no comments any more, the package one included. Its `//go:embed core docs skills rules` line is unchanged.
+
+## Phase 1: what was done
+
+The code now follows sections 1 to 6, and `go vet`, `gofmt` and `go test ./...` pass.
+
+- **Skills and rules:** the old names are replaced by `comper`, `drafter`, `builder`, `auditor`, `scriber` in the hook messages (`guard.go`), `delta status` and the tests. The prompt context line now says the person may speak plainly or call a skill by name.
+- **Base preset:** `Asset.Base`, `NoBase`, the `base` key and the `rules/base/` marker are gone.
+- **Configs:** `conffile` reads `deltas/budget.conf` (the budget keys) and `deltas/testing.conf` (`match`, `skip`), and reports problems with the file name and line. `Timeout`, `Tools`, `Scopes` and the legacy `.claude/budget.conf` fallback are gone; the command timeout is the constant in `run.go`. `Vault.Skipping` makes `skip` configurable, with `.git`, `node_modules` and `vendor` as the default (the folder `deltas` is never searched).
+- **Git hook and commit validation:** `core/githooks`, `GitHook`, `HooksPath`/`SetHooksPath`, `pointHooksPath`, the install check for `core.hooksPath`, `delta commit-msg`, `source/domain/commits` and the `Bash` commit check of `guard.go` are removed, and with them the `Bash` group of `PreToolUse` in `settings.json`. `setup.New` no longer takes a git.
+- **Samples:** `core/samples/CLAUDE.md` and `core/samples/specify.md` are read by `bundle.go`.
+- **Scope:** `Scope` has no paths any more: every code file counts, except Markdown and what delta installs (`.claude/`, `deltas/`). `status.New`, `verify.New` and `run.go` no longer take scopes.
+- **README:** names, rules, install list and layout follow the new design.
+
+### Not done: stale only for claims verified by reading
+
+Section 4 decided that a slice with only `test` claims needs no "stale" because the check runs its commands again. That is a change of behavior in `lifecycle`, `status.Stale`, `ledger` and `guard.stop`, and it needs a design pass of its own (when the re-check runs, what `verified` means for a slice with reading claims). Today a verified slice still goes stale when any code file changes, and the Stop hook still asks for `delta check` when code changed.
+
+### Phase 2
+
+`source/domain` becomes `package/domain` with folders and files of 6 to 8 characters and no folder with an icon in Material Icon Theme: `assertion` to `claimset`, `linkcheck` to `linking`, `lifecycle` to `states`, `knowledge` to `kbpaths`, `language` to `english`, `docs` to `guides`, `drift` to `diffing`, `conffile` to `testconf`. `commits` is already gone. `budget`, `findings`, `judgment`, `manifest` and `specfile` keep their names.

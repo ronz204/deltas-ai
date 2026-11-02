@@ -13,7 +13,7 @@ import (
 
 func render(t *testing.T, name string, data any) string {
 	t.Helper()
-	raw, err := agents.FS.ReadFile("core/templates/" + name)
+	raw, err := agents.FS.ReadFile("core/samples/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,27 +35,9 @@ func TestSpecIsTheSpecTemplate(t *testing.T) {
 	}
 }
 
-// A CR before the newline would break the hook's shebang on Unix.
-func TestCommitMsgHookIsAShellScriptThatCallsDelta(t *testing.T) {
-	src, err := Bundle{}.GitHook("commit-msg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(src)
-	if !strings.HasPrefix(text, "#!/bin/sh\n") || strings.Contains(text, "\r") || !strings.Contains(text, `exec delta commit-msg "$1"`) {
-		t.Fatalf("the hook is not what delta init should install:\n%s", text)
-	}
-	if !strings.Contains(text, "exit 0") {
-		t.Fatal("a missing delta must let the commit through, with a warning")
-	}
-	if _, err := (Bundle{}).GitHook("nope"); err == nil {
-		t.Fatal("an unknown hook was found")
-	}
-}
-
 // The spec template is what delta spec new will start from, so it must already be a valid spec.
 func TestSpecTemplateParses(t *testing.T) {
-	src := render(t, "spec.md", struct{ Slice string }{"billing"})
+	src := render(t, "specify.md", struct{ Slice string }{"billing"})
 	sp, ds := specfile.Parse("billing.spec.md", []byte(src))
 	if len(ds) != 0 {
 		t.Fatalf("the template is not a valid spec: %v", ds)

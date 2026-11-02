@@ -13,22 +13,22 @@ import (
 func TestWriteFileThenReadFile(t *testing.T) {
 	root := t.TempDir()
 	v := New(root)
-	if err := v.WriteFile(ctx, ".githooks/commit-msg", []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got, err := v.ReadFile(ctx, ".githooks/commit-msg")
+	got, err := v.ReadFile(ctx, ".claude/rules/x.md")
 	if err != nil || string(got) != "#!/bin/sh\n" {
 		t.Fatalf("ReadFile = %q, %v", got, err)
 	}
-	if err := v.WriteFile(ctx, ".githooks/commit-msg", []byte("new"), 0o755); err != nil {
+	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("new"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := v.ReadFile(ctx, ".githooks/commit-msg"); string(got) != "new" {
+	if got, _ := v.ReadFile(ctx, ".claude/rules/x.md"); string(got) != "new" {
 		t.Fatalf("a second write left %q", got)
 	}
-	entries, _ := os.ReadDir(filepath.Join(root, ".githooks"))
+	entries, _ := os.ReadDir(filepath.Join(root, ".claude/rules"))
 	if len(entries) != 1 {
-		t.Fatalf(".githooks holds %d entries, want only the hook (no temporary file)", len(entries))
+		t.Fatalf(".claude/rules holds %d entries, want only the rule (no temporary file)", len(entries))
 	}
 }
 
@@ -74,8 +74,8 @@ func TestGlobReadsWhatMatchesAndSkipsFolders(t *testing.T) {
 	write(t, root, ".claude/rules/a.md", "rule a")
 	write(t, root, ".claude/rules/b.txt", "not a rule")
 	write(t, root, ".claude/rules/deep/c.md", "too deep for *")
-	write(t, root, ".claude/skills/quill/SKILL.md", "skill")
-	write(t, root, ".claude/skills/quill/references/guide.md", "reference")
+	write(t, root, ".claude/skills/drafter/SKILL.md", "skill")
+	write(t, root, ".claude/skills/drafter/references/guide.md", "reference")
 	if err := os.MkdirAll(filepath.Join(root, ".claude", "agents", "folder.md"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestGlobReadsWhatMatchesAndSkipsFolders(t *testing.T) {
 	for _, f := range got {
 		seen = append(seen, f.Path+"="+f.Text)
 	}
-	want := []string{"CLAUDE.md=router", ".claude/rules/a.md=rule a", ".claude/skills/quill/SKILL.md=skill"}
+	want := []string{"CLAUDE.md=router", ".claude/rules/a.md=rule a", ".claude/skills/drafter/SKILL.md=skill"}
 	if !reflect.DeepEqual(seen, want) {
 		t.Fatalf("Glob = %v, want %v", seen, want)
 	}

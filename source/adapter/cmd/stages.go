@@ -14,7 +14,7 @@ import (
 func approveCmd(d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "approve <slice>",
-		Short: "Sign off a draft spec so Forge can build it (for a person to run)",
+		Short: "Sign off a draft spec so Builder can build it (for a person to run)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return moved(cmd, args[0], "approved", d.Author.Approve)
@@ -36,7 +36,7 @@ func builtCmd(d Deps) *cobra.Command {
 func readyCmd(d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "ready <slice>",
-		Short: "Succeed only if the slice has a clean spec and is approved, ready for Forge",
+		Short: "Succeed only if the slice has a clean spec and is approved, ready for Builder",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := d.Report.Ready(cmd.Context(), args[0])

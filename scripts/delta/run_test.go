@@ -287,22 +287,6 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-func TestCommitMsg(t *testing.T) {
-	p := newProject(t)
-	p.write("good", "feat(domain): add spec parser and claim rules\n# comment\n")
-	p.write("bad", "Updated stuff.\n")
-	if code, _, errOut := p.delta("", "commit-msg", filepath.Join(p.root, "good")); code != 0 {
-		t.Fatalf("good message = %d %q", code, errOut)
-	}
-	code, _, errOut := p.delta("", "commit-msg", filepath.Join(p.root, "bad"))
-	if code != 1 || !strings.Contains(errOut, "COMMIT-") {
-		t.Fatalf("bad message = %d %q", code, errOut)
-	}
-	if code, _, _ := p.delta("", "commit-msg", filepath.Join(p.root, "missing")); code != 2 {
-		t.Fatalf("a missing message file = %d, want 2", code)
-	}
-}
-
 func TestRunsFromASubdirectory(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))

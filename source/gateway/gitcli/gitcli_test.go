@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
@@ -14,7 +13,7 @@ import (
 var ctx = context.Background()
 
 // everything is the scope of a slice whose commands name no path: every code file.
-var everything = linkcheck.NewScope("", nil)
+var everything = linkcheck.NewScope("")
 
 // repo makes an empty repository that ignores the global and system git configuration, so the
 // tests do not depend on who runs them.
@@ -34,50 +33,6 @@ func repo(t *testing.T) string {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 	return dir
-}
-
-func TestHooksPathIsEmptyUntilItIsSet(t *testing.T) {
-	g := New(repo(t))
-	if got, err := g.HooksPath(ctx); err != nil || got != "" {
-		t.Fatalf("HooksPath = %q, %v; want empty and no error", got, err)
-	}
-	if err := g.SetHooksPath(ctx, ".githooks"); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := g.HooksPath(ctx); err != nil || got != ".githooks" {
-		t.Fatalf("HooksPath = %q, %v; want .githooks", got, err)
-	}
-}
-
-func TestSetHooksPathWritesTheLocalConfigOnly(t *testing.T) {
-	dir := repo(t)
-	if err := New(dir).SetHooksPath(ctx, ".githooks"); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := os.ReadFile(filepath.Join(dir, ".git", "config"))
-	if err != nil || !strings.Contains(string(cfg), "hooksPath = .githooks") {
-		t.Fatalf("the repository config lacks the setting: %q, %v", cfg, err)
-	}
-}
-
-func TestHooksPathSeesAValueFromAnotherLevel(t *testing.T) {
-	dir := repo(t)
-	global := filepath.Join(t.TempDir(), "global")
-	if err := os.WriteFile(global, []byte("[core]\n\thooksPath = /company/hooks\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("GIT_CONFIG_GLOBAL", global)
-	if got, err := New(dir).HooksPath(ctx); err != nil || got != "/company/hooks" {
-		t.Fatalf("HooksPath = %q, %v; want the global value", got, err)
-	}
-}
-
-func TestSetHooksPathOutsideARepositoryFailsWithGitsReason(t *testing.T) {
-	repo(t) // only to isolate the configuration and to skip when git is missing
-	err := New(t.TempDir()).SetHooksPath(ctx, ".githooks")
-	if err == nil || !strings.Contains(err.Error(), "git config") {
-		t.Fatalf("err = %v, want a git config error", err)
-	}
 }
 
 func commit(t *testing.T, dir string) {
@@ -186,29 +141,21 @@ func TestTreeOutsideARepositoryFails(t *testing.T) {
 	}
 }
 
-func TestTreeLooksOnlyAtTheScopeAndIgnoresDocumentation(t *testing.T) {
+func TestTreeIgnoresDocumentation(t *testing.T) {
 	dir := repo(t)
 	put(t, dir, "billing.go", "one")
 	put(t, dir, "payments.go", "one")
 	put(t, dir, "README.md", "one")
 	commit(t, dir)
 	g := New(dir)
-	billing := linkcheck.NewScope("deltas/specs/billing.spec.md", []string{"billing.go"})
 
 	put(t, dir, "README.md", "two")
 	if hash, dirty, _ := g.Tree(ctx, everything); dirty || hash != "" {
 		t.Fatal("a change to documentation made the tree dirty")
 	}
 	put(t, dir, "payments.go", "two")
-	if _, dirty, _ := g.Tree(ctx, billing); dirty {
-		t.Fatal("a change to payments.go is outside what billing depends on")
-	}
 	if _, dirty, _ := g.Tree(ctx, everything); !dirty {
 		t.Fatal("a change to code is not seen by the whole-project scope")
-	}
-	put(t, dir, "billing.go", "two")
-	if _, dirty, _ := g.Tree(ctx, billing); !dirty {
-		t.Fatal("a change inside the scope was missed")
 	}
 }
 
@@ -246,19 +193,5 @@ func TestFilesChangeWithTheContentOfAFileOnly(t *testing.T) {
 	}
 	if gone, _ := g.Files(ctx, everything); gone["b.go"] == after["b.go"] {
 		t.Fatal("a deleted file must not keep the hash it had")
-	}
-}
-
-func TestFilesKeepsToTheScope(t *testing.T) {
-	dir := repo(t)
-	put(t, dir, "a.go", "one")
-	if err := os.Mkdir(filepath.Join(dir, "billing"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	put(t, dir, "billing/total.go", "one")
-	commit(t, dir)
-	files, err := New(dir).Files(ctx, linkcheck.NewScope("", []string{"billing"}))
-	if err != nil || len(files) != 1 || files["billing/total.go"] == "" {
-		t.Fatalf("Files = %v, %v; want only billing/total.go", files, err)
 	}
 }

@@ -51,12 +51,12 @@ func steps(t *testing.T, w *world) string {
 func TestInitRecordsWhatItInstalled(t *testing.T) {
 	w := installed(t)
 	m := manifest.Parse(string(w.files[manifest.Name]))
-	for _, path := range []string{".githooks/commit-msg", rule, skill} {
+	for _, path := range []string{rule, skill} {
 		if m.Files[path] != manifest.Hash(w.files[path]) {
 			t.Errorf("%s is not recorded with its hash: %v", path, m.Files)
 		}
 	}
-	if _, ok := m.Files["CLAUDE.md"]; ok || len(m.Files) != 3 {
+	if _, ok := m.Files["CLAUDE.md"]; ok || len(m.Files) != 2 {
 		t.Errorf("only the managed files are recorded: %v", m.Files)
 	}
 }
@@ -153,11 +153,11 @@ func TestUpdateRemovesWhatTheHarnessNoLongerShipsUnlessTheProjectChangedIt(t *te
 
 func TestUpdateNeverTouchesWhatIsInstalledOnce(t *testing.T) {
 	w := installed(t)
-	w.assets = append(w.assets, Asset{Path: "deltas/deltas.config", Content: []byte("a=1\n"), Mode: 0o644})
-	w.files["deltas/deltas.config"] = []byte("test_files=*_x.go\n")
+	w.assets = append(w.assets, Asset{Path: "deltas/budget.conf", Content: []byte("a=1\n"), Mode: 0o644})
+	w.files["deltas/budget.conf"] = []byte("doc_lines=250\n")
 	steps(t, w)
-	if string(w.files["deltas/deltas.config"]) != "test_files=*_x.go\n" {
-		t.Fatalf("the config the project edited was replaced: %q", w.files["deltas/deltas.config"])
+	if string(w.files["deltas/budget.conf"]) != "doc_lines=250\n" {
+		t.Fatalf("the config the project edited was replaced: %q", w.files["deltas/budget.conf"])
 	}
 }
 

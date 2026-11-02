@@ -12,17 +12,13 @@ import (
 	"github.com/ronz204/deltas-ai/source/domain/manifest"
 )
 
-// managed lists the files delta keeps up to date: the git hook and the managed assets of the harness.
+// managed lists the files delta keeps up to date: the managed assets of the harness.
 func (i *Installer) managed() ([]Asset, error) {
-	hook, err := i.harness.GitHook(hookName)
-	if err != nil {
-		return nil, err
-	}
 	assets, err := i.assets()
 	if err != nil {
 		return nil, err
 	}
-	out := []Asset{{Path: hookPath, Content: hook, Mode: 0o755, Managed: true}}
+	var out []Asset
 	for _, a := range assets {
 		if a.Managed {
 			out = append(out, a)
