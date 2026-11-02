@@ -313,8 +313,8 @@ You rarely type these: the skills run them for you. The ones worth knowing by ha
 
 | Command | What it does |
 |---|---|
-| `delta ready` | Gate the build: only approved contracts pass |
-| `delta built <slice>` | Record that the build is done |
+| `delta ready <slice>` | Gate the build (any contract that is not a draft passes) and start following it |
+| `delta built <slice>` | Record that the build is done, and the files it changed as the slice's footprint |
 | `delta link <slice> <id> "<cmd>"` | Set a claim's tag to `test: <cmd>` |
 | `delta check [slice]` | Run every test claim and record the result |
 | `delta stale` | List verified slices whose code changed since they were verified (read-only) |

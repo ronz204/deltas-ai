@@ -17,6 +17,7 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 	"github.com/ronz204/deltas-ai/package/usecase/drafting"
 	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracing"
 	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 	"github.com/ronz204/deltas-ai/package/usecase/weighing"
@@ -40,13 +41,14 @@ func newApp(root string, errOut io.Writer) *cobra.Command {
 	programs := executor.New(root, commandTimeout, errOut)
 	cache, _ := os.UserCacheDir()
 	checks := recorder.New(cache, root, gitshell.New(root))
-	report := tracking.New(vault).WithDrift(checks).WithDocs(vault)
+	report := tracking.New(vault).WithDrift(checks).WithFootprints(vault).WithDocs(vault)
 	installer := deployer.New(vault, embedded.Bundle{}, programs, conf)
-	checker := verifier.New(vault, vault, programs, checks)
+	checker := verifier.New(vault, vault, programs, checks).WithFootprints(vault)
 	return terminal.New(terminal.Deps{
 		Author:    drafting.New(vault, embedded.Bundle{}),
 		Checker:   checker,
 		Report:    report,
+		Tracer:    tracing.New(checks, vault),
 		Guard:     sentinel.New(root, report, installer, checks, checker),
 		Installer: installer,
 		Meter:     weighing.New(vault, conf.Budget),

@@ -31,19 +31,29 @@ type Seen struct {
 	Verified bool
 }
 
+type Footprints interface {
+	Footprint(ctx context.Context, slice string) ([]string, error)
+}
+
 type Marks interface {
 	Record(ctx context.Context, seen []Seen) error
 }
 
 type Checker struct {
-	specs Specs
-	tests Tests
-	run   Runner
-	marks Marks
+	specs      Specs
+	tests      Tests
+	run        Runner
+	marks      Marks
+	footprints Footprints
 }
 
 func New(specs Specs, tests Tests, run Runner, marks Marks) *Checker {
 	return &Checker{specs: specs, tests: tests, run: run, marks: marks}
+}
+
+func (v *Checker) WithFootprints(f Footprints) *Checker {
+	v.footprints = f
+	return v
 }
 
 func (v *Checker) IsTest(rel string) bool { return v.tests.IsTest(rel) }

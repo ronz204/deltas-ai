@@ -297,11 +297,24 @@ Builder does both for you with `delta link billing INV-01 "go test ./billing"`. 
 
 A citation only counts under the paths the command names. A command that names no path (`make test`) accepts a citation anywhere.
 
+### The footprint of a slice
+
+Delta has to know which files belong to a slice. It does not guess from how your project is laid out: it watches the build. `delta ready billing` takes a snapshot of the project's code, and `delta built billing` compares it with the code now. Every file that is new, changed or deleted in between is recorded in `deltas/specs/billing.files`, one path per line:
+
+```
+src/billing/total.ts
+testing/unit/billing.test.ts
+```
+
+That works whether tests sit beside the code, in a folder of their own, or in a tree shaped differently from the source. The file is committed with the spec, so a teammate's clone sees the same footprint. The agent cannot edit it; a person can, to take out something that does not belong. A later build adds its files to the footprint and drops the ones it deleted.
+
+Once a slice has a footprint, only those files (and the folders its test commands name, if every command names one) count as its code. Changing `go.mod`, an image or another slice's code does not touch it. A slice built before this existed has no footprint and keeps the rule below.
+
 ### How drift is decided
 
 When `delta check` verifies a slice, Delta remembers a fingerprint of the files the slice depends on. If any of them changes later, `delta status` and `delta stale` list the slice with the files that changed, and the session start tells the agent to run `delta check` on it. The spec itself is never rewritten for this: drift is read from the files, not stored in the contract.
 
-A slice depends on **the code its test commands name**:
+A slice with no footprint depends on **the code its test commands name**:
 
 - `go test ./billing` → `billing/`
 - `go test ./billing/...` → `billing/` and below
@@ -420,7 +433,8 @@ delta update
 ### Limits worth knowing
 
 - **`Holds` is not proof of quality.** It means the command exited 0 and a test cites the ID. A weak test makes a weak claim.
-- **Drift is a heuristic.** It follows the paths your commands name. See [How drift is decided](#how-drift-is-decided).
+- **Drift is a heuristic.** It follows the footprint of the build, or the paths your commands name when there is none. A file the slice uses but nobody touched during its build is not in the footprint, so changing it does not show as drift.
+- **Footprints record what changed, not what was meant.** An edit made during a build, by anyone, lands in the footprint. Two slices built at the same time in one working tree mix theirs. Build one at a time and check the list `delta built` prints.
 - **Claims with no command are checked by reading, and a reading is a report.** `/auditor` can say a `none` claim holds, but the slice's state doesn't change because of it. If it holds, write the test.
 - **One slice at a time.** Skills don't sweep every spec unasked.
 - **The agent follows the rules; nothing enforces them except the hooks above.** Commit messages and code conventions are asked, not checked.

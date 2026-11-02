@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -211,5 +212,95 @@ func TestCheckTakesSeveralSlices(t *testing.T) {
 	code, out, errOut := p.delta("", "check", "billing", "payments")
 	if code != 0 || verdict(out, "billing", "INV-01") != "Holds" || verdict(out, "payments", "INV-01") != "Holds" || verdict(out, "refunds", "INV-01") != "" {
 		t.Fatalf("check billing payments = %d %q %q; want those two and not refunds", code, out, errOut)
+	}
+}
+
+func TestAFootprintFollowsASliceWhoseTestsLiveApartFromItsCode(t *testing.T) {
+	p := gitProject(t)
+	p.write("go.mod", "module jobs\n")
+	p.write("src/billing/total.go", "package billing\n")
+	p.write("src/payments/pay.go", "package payments\n")
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
+	commitAll(t, p, "chore(repo): add the billing slice")
+
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+		t.Fatalf("ready = %d %q", code, errOut)
+	}
+	p.write("src/billing/total.go", "package billing\n\nfunc Total() {}\n")
+	p.write("testing/unit/billing_test.go", "// INV-01\n")
+	code, out, errOut := p.delta("", "built", "billing")
+	if code != 0 || !strings.Contains(out, "billing footprint: 2 files") || errOut != "" {
+		t.Fatalf("built = %d %q %q", code, out, errOut)
+	}
+	if got := p.read("deltas/specs/billing.files"); got != "src/billing/total.go\ntesting/unit/billing_test.go\n" {
+		t.Fatalf("footprint = %q", got)
+	}
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") {
+		t.Fatalf("check = %d %q", code, out)
+	}
+	commitAll(t, p, "feat(billing): build the billing slice")
+	startSession(t, p)
+
+	p.write("go.mod", "module jobs\n\ngo 1.24\n")
+	p.write("src/payments/pay.go", "package payments\n\nfunc Pay() {}\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("go.mod and another slice's code: Stop = %d %q, want it allowed", code, errOut)
+	}
+	if code, out, _ := p.delta("", "stale"); code != 0 || out != "" {
+		t.Fatalf("stale = %d %q; only the footprint of billing is its code", code, out)
+	}
+
+	p.write("src/billing/total.go", "package billing\n\nfunc Total() int { return 1 }\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "delta check billing") {
+		t.Fatalf("code of billing: Stop = %d %q, want a block that asks for the check", code, errOut)
+	}
+	if code, out, _ := p.delta("", "stale"); code != 1 || !strings.Contains(out, "src/billing/total.go") {
+		t.Fatalf("stale = %d %q; want the file of the footprint listed", code, out)
+	}
+}
+
+func TestRebuildingASliceGrowsItsFootprint(t *testing.T) {
+	p := gitProject(t)
+	p.write("src/billing/total.go", "package billing\n")
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	commitAll(t, p, "chore(repo): add the billing slice")
+
+	build := func(files ...string) {
+		t.Helper()
+		if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+			t.Fatalf("ready = %d %q", code, errOut)
+		}
+		for _, f := range files {
+			p.write(f, "package billing\n// "+f+"\n")
+		}
+		if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
+			t.Fatalf("built = %d %q", code, errOut)
+		}
+	}
+	build("src/billing/total.go", "src/billing/tax.go")
+	build("src/billing/refund.go")
+	if got := p.read("deltas/specs/billing.files"); got != "src/billing/refund.go\nsrc/billing/tax.go\nsrc/billing/total.go\n" {
+		t.Fatalf("footprint = %q, want the files of both builds", got)
+	}
+}
+
+func TestBuiltWithoutReadyKeepsTheFootprintAndSaysSo(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	commitAll(t, p, "chore(repo): add the billing slice")
+	code, out, errOut := p.delta("", "built", "billing")
+	if code != 0 || !strings.Contains(out, "billing is built") || !strings.Contains(errOut, "no snapshot from delta ready billing") {
+		t.Fatalf("built = %d %q %q", code, out, errOut)
+	}
+	if _, err := os.Stat(filepath.Join(p.root, "deltas", "specs", "billing.files")); !os.IsNotExist(err) {
+		t.Fatalf("a footprint was written without a snapshot: %v", err)
+	}
+}
+
+func TestFootprintFilesAreNotEditedByTheAgent(t *testing.T) {
+	p := newProject(t)
+	code, _, errOut := p.delta(hookEvent(t, "PreToolUse", "Write", filepath.Join(p.root, "deltas", "specs", "billing.files"), ""), "hook")
+	if code != 2 || !strings.Contains(errOut, "knowledge base") {
+		t.Fatalf("a write to the footprint = %d %q, want a block", code, errOut)
 	}
 }

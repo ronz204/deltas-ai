@@ -1,6 +1,7 @@
 package linking
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/ronz204/deltas-ai/package/domain/claimset"
@@ -9,10 +10,11 @@ import (
 type Scope struct {
 	spec  string
 	paths []string
+	files []string
 }
 
-func NewScope(spec string, claims []claimset.Claim) Scope {
-	return Scope{spec: spec, paths: testPaths(claims)}
+func NewScope(spec string, claims []claimset.Claim, footprint []string) Scope {
+	return Scope{spec: spec, paths: testPaths(claims), files: footprint}
 }
 
 func testPaths(claims []claimset.Claim) []string {
@@ -40,6 +42,8 @@ func (s Scope) Covers(file string) bool {
 		return true
 	case !Code(file):
 		return false
+	case len(s.files) > 0:
+		return slices.Contains(s.files, file) || len(s.paths) > 0 && underAny(file, s.paths)
 	}
 	return underAny(file, s.paths)
 }

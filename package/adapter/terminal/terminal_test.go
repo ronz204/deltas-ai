@@ -19,6 +19,7 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 	"github.com/ronz204/deltas-ai/package/usecase/drafting"
 	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracing"
 	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 	"github.com/ronz204/deltas-ai/package/usecase/weighing"
@@ -40,10 +41,41 @@ type memory struct {
 	kb      []budget.File
 	onPath  string
 	self    bool
+
+	snapshotted bool
+	changed     []string
+	gone        []string
+	prints      map[string][]string
 }
 
 func newMemory() *memory {
 	return &memory{specs: map[string]string{}, exits: map[string]int{}, project: map[string][]byte{}}
+}
+
+func (m *memory) Snapshot(context.Context, string) error {
+	m.snapshotted = true
+	return nil
+}
+
+func (m *memory) Compare(context.Context, string) (changed, gone []string, known bool, err error) {
+	return m.changed, m.gone, m.snapshotted, nil
+}
+
+func (m *memory) Drop(context.Context, string) error {
+	m.snapshotted = false
+	return nil
+}
+
+func (m *memory) Footprint(_ context.Context, slice string) ([]string, error) {
+	return m.prints[slice], nil
+}
+
+func (m *memory) SaveFootprint(_ context.Context, slice string, files []string) error {
+	if m.prints == nil {
+		m.prints = map[string][]string{}
+	}
+	m.prints[slice] = files
+	return nil
 }
 
 func (m *memory) GitHook(string) ([]byte, error) { return []byte("#!/bin/sh\n"), nil }
@@ -109,6 +141,7 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 		Author:    drafting.New(m, m),
 		Checker:   verifier.New(m, m, m, nil),
 		Report:    tracking.New(m).WithDocs(m),
+		Tracer:    tracing.New(m, m),
 		Guard:     sentinel.New(root, tracking.New(m), installer, nil, nil),
 		Installer: installer,
 		Meter:     weighing.New(m, budget.Defaults()),

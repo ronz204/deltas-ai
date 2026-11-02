@@ -60,8 +60,8 @@ func (t *tree) Tree(_ context.Context, scope linking.Scope) (string, bool, error
 }
 
 var (
-	billing  = linking.NewScope("deltas/specs/billing.spec.md", nil)
-	payments = linking.NewScope("deltas/specs/payments.spec.md", nil)
+	billing  = linking.NewScope("deltas/specs/billing.spec.md", nil, nil)
+	payments = linking.NewScope("deltas/specs/payments.spec.md", nil, nil)
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
@@ -296,6 +296,44 @@ func TestASessionWithoutACacheIsUnknown(t *testing.T) {
 		t.Fatal("Begin without a cache directory must say so")
 	}
 	if _, known, err := l.Touched(ctx, "s1"); known || err != nil {
+		t.Fatalf("known = %v, %v", known, err)
+	}
+}
+
+func TestASnapshotTellsWhatAnotherTreeAddedChangedAndRemoved(t *testing.T) {
+	tr := &tree{all: map[string]string{"a.go": "1", "b.go": "1", "keep.go": "1", "README.md": "1"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if _, _, known, err := l.Compare(ctx, "billing"); known || err != nil {
+		t.Fatalf("before Snapshot: known = %v, %v", known, err)
+	}
+	if err := l.Snapshot(ctx, "billing"); err != nil {
+		t.Fatal(err)
+	}
+	tr.all = map[string]string{"a.go": "2", "c.go": "1", "keep.go": "1", "README.md": "2"}
+	changed, gone, known, err := l.Compare(ctx, "billing")
+	if err != nil || !known || !slices.Equal(changed, []string{"a.go", "c.go"}) || !slices.Equal(gone, []string{"b.go"}) {
+		t.Fatalf("Compare = %v %v %v %v; want a.go and c.go changed, b.go gone, documentation ignored", changed, gone, known, err)
+	}
+	if _, _, known, _ := l.Compare(ctx, "payments"); known {
+		t.Fatal("another slice read the snapshot of billing")
+	}
+	if err := l.Drop(ctx, "billing"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, known, _ := l.Compare(ctx, "billing"); known {
+		t.Fatal("the snapshot survived Drop")
+	}
+	if err := l.Drop(ctx, "billing"); err != nil {
+		t.Fatalf("dropping what is not there failed: %v", err)
+	}
+}
+
+func TestASnapshotWithoutACacheSaysSo(t *testing.T) {
+	l := New("", "/repo", &tree{})
+	if l.Snapshot(ctx, "billing") == nil {
+		t.Fatal("Snapshot without a cache directory must say so")
+	}
+	if _, _, known, err := l.Compare(ctx, "billing"); known || err != nil {
 		t.Fatalf("known = %v, %v", known, err)
 	}
 }

@@ -20,14 +20,19 @@ type Baselines interface {
 	Drift(ctx context.Context, slice string, scope linking.Scope) (changed []string, known bool, err error)
 }
 
+type Footprints interface {
+	Footprint(ctx context.Context, slice string) ([]string, error)
+}
+
 type Files interface {
 	Glob(ctx context.Context, patterns []string) ([]budget.File, error)
 }
 
 type Reporter struct {
-	specs     Specs
-	baselines Baselines
-	files     Files
+	specs      Specs
+	baselines  Baselines
+	footprints Footprints
+	files      Files
 }
 
 func New(specs Specs) *Reporter {
@@ -37,6 +42,22 @@ func New(specs Specs) *Reporter {
 func (r *Reporter) WithDrift(b Baselines) *Reporter {
 	r.baselines = b
 	return r
+}
+
+func (r *Reporter) WithFootprints(f Footprints) *Reporter {
+	r.footprints = f
+	return r
+}
+
+func (r *Reporter) scopeOf(ctx context.Context, slice, file string, claims []claimset.Claim) (linking.Scope, error) {
+	var footprint []string
+	if r.footprints != nil {
+		var err error
+		if footprint, err = r.footprints.Footprint(ctx, slice); err != nil {
+			return linking.Scope{}, err
+		}
+	}
+	return linking.NewScope(file, claims, footprint), nil
 }
 
 func (r *Reporter) WithDocs(f Files) *Reporter {
@@ -75,7 +96,11 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linking.NewScope(file, sp.Claims), Changed: changed[name]}
+		scope, err := r.scopeOf(ctx, name, file, sp.Claims)
+		if err != nil {
+			return nil, err
+		}
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: scope, Changed: changed[name]}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
 			case claimset.Test:

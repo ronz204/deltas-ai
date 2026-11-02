@@ -18,7 +18,7 @@ The slice is `$ARGUMENTS`. It is handed over by `comper` or called as `/builder 
 ## Step 0 — The gate
 
 - If `$ARGUMENTS` is empty, stop and ask which slice. Don't guess it from `git status`.
-- Run `delta ready <slice>`. If it exits non-zero, stop and relay its message (a missing spec, problems to fix with `delta spec lint`, or a draft that a person must approve with `delta approve <slice>`). Don't work around it, don't edit the spec's status, and don't run `delta approve` yourself: approval is the person's.
+- Run `delta ready <slice>`. If it exits non-zero, stop and relay its message (a missing spec, problems to fix with `delta spec lint`, or a draft that a person must approve with `delta approve <slice>`). Don't work around it, don't edit the spec's status, and don't run `delta approve` yourself: approval is the person's. When it passes it also starts following the build: every file that changes from here until `delta built` becomes the slice's footprint, wherever the project keeps its code and its tests.
 - Read the spec in full. If a Deferred / Open question blocks the work, ask the user rather than guessing its answer.
 - Find the project's real test and build commands from its manifest or task runner, and check the permission policy lets you run them. If it doesn't, say so now, not at the end.
 
@@ -48,7 +48,7 @@ For each task:
 - Make the test cite the claim's ID in its name or a comment (`INV-01`, `INV_01` and `INV01` all count), so `delta check` can tie the test to the claim.
 - A claim in an EARS or Given/When/Then form maps straight onto the test: its state or context is the setup, its trigger the action, its response the assertion.
 - Write the least code that makes it pass, then run that test again.
-- Stay inside the slice: its source and its tests. A change to shared code outside it, a new dependency, or a refactor of unrelated code gets asked about first.
+- Stay inside the slice: its source and its tests. A change to shared code outside it, a new dependency, or a refactor of unrelated code gets asked about first. Whatever changes during the build lands in the slice's footprint, so an unrelated edit would make that slice answer for it.
 - Follow the project's own rules and conventions; they load by path as files are touched.
 - Never edit `deltas/` or anything under `.claude/`; the knowledge base changes only through the `delta` commands. And never weaken, skip or delete a failing test to turn it green: if the test is wrong, say why and ask.
 - If a claim looks mistaken (two claims contradict, one can't be met, a test shows the contract is off), stop that task and surface it for `drafter`. Don't bend the code around a bad claim, and don't change the claim.
@@ -57,12 +57,12 @@ For each task:
 
 - For each claim now covered by a new test, run `delta link <slice> <ID> "<command>"`. The command runs that test and names its path (`go test ./billing`), because `delta check` only counts a citation under the paths the command names. This is the one change Builder makes to the spec, and `delta link` makes it, never an edit.
 - Run `delta lint`, then the project's whole suite once, since code changed, to catch regressions.
-- When every task of the plan is done and its tests pass, run `delta built <slice>`, then `delta check <slice>`: it moves the slice to `verified` when every `test` claim holds. A `Violated` or `Unverified` claim leaves it `built`; fix it, don't mark around it.
+- When every task of the plan is done and its tests pass, run `delta built <slice>`, which prints the footprint it recorded in `deltas/specs/<slice>.files`, then `delta check <slice>`: it moves the slice to `verified` when every `test` claim holds. A `Violated` or `Unverified` claim leaves it `built`; fix it, don't mark around it.
 - If an independent check is wanted, especially for claims verified only by reading, suggest `auditor` on the slice.
 
 ## Step 5 — Report
 
-Keep it short: what was built (files), which claims are now verified by execution and which remain unverified and why, the status the slice ended in, and any spec problem found. Don't commit; the project's own conventions decide that.
+Keep it short: what was built (the footprint, and anything in it that is not the slice's, which a person can remove from `deltas/specs/<slice>.files`), which claims are now verified by execution and which remain unverified and why, the status the slice ended in, and any spec problem found. Don't commit; the project's own conventions decide that.
 
 ---
 

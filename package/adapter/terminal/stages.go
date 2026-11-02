@@ -27,7 +27,11 @@ func builtCmd(d Deps) *cobra.Command {
 		Short: "Record that an approved slice is built; delta check then verifies it",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return moved(cmd, args[0], "built", d.Author.Built)
+			if err := moved(cmd, args[0], "built", d.Author.Built); err != nil {
+				return err
+			}
+			printFootprint(cmd, d, args[0])
+			return nil
 		},
 	}
 }
@@ -45,10 +49,28 @@ func readyCmd(d Deps) *cobra.Command {
 				return ErrFound
 			}
 			if err == nil {
+				if err := d.Tracer.Begin(cmd.Context(), args[0]); err != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), "warning: the footprint of the build cannot be followed:", err)
+				}
 				fmt.Fprintf(cmd.OutOrStdout(), "%s is ready to build\n", args[0])
 			}
 			return err
 		},
+	}
+}
+
+func printFootprint(cmd *cobra.Command, d Deps, slice string) {
+	files, recorded, err := d.Tracer.Finish(cmd.Context(), slice)
+	switch {
+	case err != nil:
+		fmt.Fprintln(cmd.ErrOrStderr(), "warning: the footprint was not updated:", err)
+	case !recorded:
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: no snapshot from delta ready %s; the footprint was not updated\n", slice)
+	default:
+		fmt.Fprintf(cmd.OutOrStdout(), "%s footprint: %d files\n", slice, len(files))
+		for _, f := range files {
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", f)
+		}
 	}
 }
 

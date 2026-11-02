@@ -212,3 +212,34 @@ func TestDocsNamesAnExtraTemplateWhenTheUsualOnesAreDone(t *testing.T) {
 		t.Errorf("Docs = %+v, want security next", got)
 	}
 }
+
+type prints map[string][]string
+
+func (p prints) Footprint(_ context.Context, slice string) ([]string, error) { return p[slice], nil }
+
+func TestReportScopesASliceByItsFootprint(t *testing.T) {
+	specs := fake{"a": spec("a", "verified"), "b": spec("b", "verified")}
+	rows, err := New(specs).WithFootprints(prints{"a": {"src/a.ts"}}).Report(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := rows[0].Scope; !a.Covers("src/a.ts") || a.Covers("go.mod") || a.Covers("src/b.ts") {
+		t.Fatalf("scope of a = %+v, want only its footprint", a)
+	}
+	if b := rows[1].Scope; !b.Covers("go.mod") {
+		t.Fatalf("scope of b = %+v, want every code file while it has no footprint", b)
+	}
+}
+
+type brokenPrints struct{}
+
+func (brokenPrints) Footprint(context.Context, string) ([]string, error) {
+	return nil, errors.New("disk on fire")
+}
+
+func TestReportFailsWhenAFootprintCannotBeRead(t *testing.T) {
+	specs := fake{"a": spec("a", "verified")}
+	if _, err := New(specs).WithFootprints(brokenPrints{}).Report(context.Background()); err == nil {
+		t.Fatal("a footprint that could not be read was ignored")
+	}
+}

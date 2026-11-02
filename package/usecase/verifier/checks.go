@@ -62,7 +62,14 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 }
 
 func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File, rep *Report) (Seen, error) {
-	s := Seen{Slice: l.slice, Scope: linking.NewScope(l.file, l.spec.Claims)}
+	var footprint []string
+	if v.footprints != nil {
+		var err error
+		if footprint, err = v.footprints.Footprint(ctx, l.slice); err != nil {
+			return Seen{}, err
+		}
+	}
+	s := Seen{Slice: l.slice, Scope: linking.NewScope(l.file, l.spec.Claims, footprint)}
 	var held, open int
 	for _, c := range l.spec.Claims {
 		if err := ctx.Err(); err != nil {

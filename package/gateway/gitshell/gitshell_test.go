@@ -14,7 +14,7 @@ import (
 
 var ctx = context.Background()
 
-var everything = linking.NewScope("", nil)
+var everything = linking.NewScope("", nil, nil)
 
 func repo(t *testing.T) string {
 	t.Helper()

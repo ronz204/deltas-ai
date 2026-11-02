@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 
-	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/package/domain/specfile"
 	"github.com/ronz204/deltas-ai/package/domain/states"
 )
@@ -33,7 +32,11 @@ func (r *Reporter) Drifts(ctx context.Context) ([]Drift, error) {
 		if len(ds) > 0 || (sp.Status != states.Verified && sp.Status != states.Stale) {
 			continue
 		}
-		files, known, err := r.baselines.Drift(ctx, name, linking.NewScope(file, sp.Claims))
+		scope, err := r.scopeOf(ctx, name, file, sp.Claims)
+		if err != nil {
+			return out, err
+		}
+		files, known, err := r.baselines.Drift(ctx, name, scope)
 		if err != nil {
 			return out, err
 		}

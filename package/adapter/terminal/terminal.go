@@ -10,6 +10,7 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 	"github.com/ronz204/deltas-ai/package/usecase/drafting"
 	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracing"
 	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 	"github.com/ronz204/deltas-ai/package/usecase/weighing"
@@ -26,6 +27,7 @@ type Deps struct {
 	Author    *drafting.Author
 	Checker   *verifier.Checker
 	Report    *tracking.Reporter
+	Tracer    *tracing.Tracer
 	Guard     *sentinel.Guard
 	Installer *deployer.Installer
 	Meter     *weighing.Meter

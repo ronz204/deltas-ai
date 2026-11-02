@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,5 +78,48 @@ func TestSpecWriteWarnsWhenAChangedContractFallsBackToDraft(t *testing.T) {
 	}
 	if !strings.Contains(m.specs["billing"], "status: draft") {
 		t.Fatalf("stored %q", m.specs["billing"])
+	}
+}
+
+func TestReadyThenBuiltRecordsTheFootprintOfTheBuild(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = strings.Replace(head, "approved", "built", 1) + claim("INV-01", "none")
+	m.prints = map[string][]string{"billing": {"src/old.go", "src/gone.go"}}
+
+	if out, errOut, err := m.run("", "ready", "billing"); err != nil || out != "billing is ready to build\n" || errOut != "" || !m.snapshotted {
+		t.Fatalf("ready = %q %q, %v (snapshot taken: %v)", out, errOut, err, m.snapshotted)
+	}
+	m.changed, m.gone = []string{"src/new.go", "testing/new_test.go"}, []string{"src/gone.go"}
+	out, errOut, err := m.run("", "built", "billing")
+	want := "billing is built\nbilling footprint: 3 files\n  src/new.go\n  src/old.go\n  testing/new_test.go\n"
+	if err != nil || out != want || errOut != "" {
+		t.Fatalf("built = %q %q, %v; want %q", out, errOut, err, want)
+	}
+	if got := m.prints["billing"]; !slices.Equal(got, []string{"src/new.go", "src/old.go", "testing/new_test.go"}) {
+		t.Fatalf("stored footprint = %v; the build adds its files and drops the deleted ones", got)
+	}
+	if m.snapshotted {
+		t.Fatal("the snapshot outlived the build")
+	}
+}
+
+func TestBuiltWithoutReadyWarnsAndLeavesTheFootprintAlone(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = head + claim("INV-01", "none")
+	m.prints = map[string][]string{"billing": {"src/old.go"}}
+	out, errOut, err := m.run("", "built", "billing")
+	if err != nil || out != "billing is built\n" || !strings.Contains(errOut, "no snapshot from delta ready billing") {
+		t.Fatalf("built = %q %q, %v", out, errOut, err)
+	}
+	if got := m.prints["billing"]; !slices.Equal(got, []string{"src/old.go"}) {
+		t.Fatalf("footprint = %v, want it untouched", got)
+	}
+}
+
+func TestReadyThatRefusesTakesNoSnapshot(t *testing.T) {
+	m := newMemory()
+	m.specs["billing"] = draftHead + claim("INV-01", "none")
+	if _, _, err := m.run("", "ready", "billing"); !errors.Is(err, ErrFound) || m.snapshotted {
+		t.Fatalf("err = %v, snapshot taken: %v; a draft is not ready, so nothing starts", err, m.snapshotted)
 	}
 }

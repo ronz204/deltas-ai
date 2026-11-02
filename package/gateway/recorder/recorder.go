@@ -23,6 +23,8 @@ type Tree interface {
 	Since(ctx context.Context, b diffing.Baseline) ([]string, error)
 }
 
+var everything = linking.NewScope("", nil, nil)
+
 type Ledger struct {
 	file string
 	tree Tree

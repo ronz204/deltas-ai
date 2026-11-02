@@ -11,6 +11,7 @@ const (
 	dirName  = "deltas"
 	specsDir = "specs"
 	suffix   = ".spec.md"
+	prints   = ".files"
 )
 
 var skipDirs = []string{".git", "node_modules", "vendor"}

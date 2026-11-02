@@ -207,3 +207,55 @@ func TestCreateAndSaveGoToSpecifies(t *testing.T) {
 		t.Fatalf("file = %q, %v", got, err)
 	}
 }
+
+func TestAFootprintIsKeptBesideTheSpecSortedAndOnePathPerLine(t *testing.T) {
+	root := t.TempDir()
+	s := New(root)
+	if files, err := s.Footprint(ctx, "billing"); err != nil || files != nil {
+		t.Fatalf("a slice with no footprint: %v, %v", files, err)
+	}
+	if err := s.SaveFootprint(ctx, "billing", []string{"src/billing/total.go", "testing/total_test.go"}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "deltas", "specs", "billing.files"))
+	if err != nil || string(raw) != "src/billing/total.go\ntesting/total_test.go\n" {
+		t.Fatalf("file = %q, %v", raw, err)
+	}
+	files, err := s.Footprint(ctx, "billing")
+	if err != nil || !reflect.DeepEqual(files, []string{"src/billing/total.go", "testing/total_test.go"}) {
+		t.Fatalf("Footprint = %v, %v", files, err)
+	}
+}
+
+func TestAnEmptyFootprintRemovesTheFile(t *testing.T) {
+	root := t.TempDir()
+	s := New(root)
+	if err := s.SaveFootprint(ctx, "billing", []string{"a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveFootprint(ctx, "billing", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "deltas", "specs", "billing.files")); !os.IsNotExist(err) {
+		t.Fatalf("the file is still there: %v", err)
+	}
+	if err := s.SaveFootprint(ctx, "billing", nil); err != nil {
+		t.Fatalf("removing what is not there failed: %v", err)
+	}
+}
+
+func TestAFootprintIsNotASliceAndFollowsTheSliceNameRules(t *testing.T) {
+	s := New(t.TempDir())
+	if err := s.SaveFootprint(ctx, "billing", []string{"a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if names, err := s.List(ctx); err != nil || len(names) != 0 {
+		t.Fatalf("List = %v, %v; a footprint is not a spec", names, err)
+	}
+	if err := s.SaveFootprint(ctx, "../evil", []string{"a.go"}); err == nil {
+		t.Fatal("a footprint escaped deltas/specs")
+	}
+	if _, err := s.Footprint(ctx, "Bad Name"); err == nil {
+		t.Fatal("a bad slice name was read")
+	}
+}
