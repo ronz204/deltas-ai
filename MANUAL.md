@@ -31,17 +31,41 @@ The short version: you describe a feature, the agent drafts a **contract** for i
 
 - A git repository for your project.
 - [Claude Code](https://claude.com/claude-code). Delta's skills and hooks are for it.
-- Go, only to build the `delta` binary.
+- Go, only if you build `delta` from source. The ready-made binary does not need it.
 
 ### Install the CLI
 
-From a clone of this repository:
+Run the installer for your system. It downloads the latest release, checks its SHA-256 against the published `checksums.txt`, and puts `delta` on your `PATH`. You do not need Go.
+
+**Linux and macOS**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ronz204/deltas-ai/main/install.sh | sh
+```
+
+It installs to `~/.local/bin`. If that folder is not on your `PATH`, the script prints the line to add to your shell profile.
+
+**Windows (PowerShell)**
+
+```powershell
+irm https://raw.githubusercontent.com/ronz204/deltas-ai/main/install.ps1 | iex
+```
+
+It installs to `%LOCALAPPDATA%\Programs\delta` and adds that folder to your user `PATH`, with no administrator rights. Restart open terminals afterwards.
+
+Check it with `delta version`, which prints `delta (deltas-ai) 0.1.0` (or whichever version you installed).
+
+Both installers read the same settings from the environment: `DELTA_VERSION` to pick a release other than the latest, and `DELTA_INSTALL_DIR` to choose the folder.
+
+**Downloading by hand.** Each [release](https://github.com/ronz204/deltas-ai/releases) has an archive per system (`delta_<version>_<os>_<arch>`, as `.tar.gz` or `.zip`) and a `checksums.txt`. Unpack it and put `delta` on your `PATH`. The binaries are not code-signed, so Windows SmartScreen or macOS Gatekeeper may warn the first time you run one downloaded with a browser; the installers do not trigger it.
+
+**Build from source.** From a clone of this repository, with Go installed:
 
 ```
 go build -o dist/delta ./cmd/delta
 ```
 
-Put `dist/delta` on your `PATH` and check it with `delta version`, which prints `delta (deltas-ai) dev`.
+Put `dist/delta` on your `PATH`. A local build prints `delta (deltas-ai) dev`.
 
 The binary has to be called `delta`: the hooks and permissions call it by that name. If another program called `delta` comes first on your `PATH` (the `git-delta` pager, for example), `delta status` warns you.
 
@@ -355,7 +379,11 @@ These docs are for people, and the agent rarely reads them. Anything the agent m
 
 ### Keeping Delta up to date
 
-After you rebuild the `delta` binary:
+The binary and the files it installs in your project are updated separately.
+
+**The binary.** Run the installer again. It replaces the old `delta` with the latest release (or the one in `DELTA_VERSION`).
+
+**The files in your project.** After a new binary is in place:
 
 ```
 delta update --check    # list what would change; exit 1 if anything would
@@ -369,7 +397,7 @@ delta update
 ### Troubleshooting
 
 **Setup**
-- *`delta is not on the PATH, so the hooks of Claude Code cannot run it`*: put `dist/delta` on your `PATH` and restart Claude Code.
+- *`delta is not on the PATH, so the hooks of Claude Code cannot run it`*: put the folder with `delta` on your `PATH` and restart Claude Code. The installers use `~/.local/bin` on Linux and macOS and `%LOCALAPPDATA%\Programs\delta` on Windows; a build from source is in `dist/`.
 - *`the delta on the PATH (…) is not this program`*: another program called `delta` comes first. Reorder your `PATH`.
 - *`the installed harness is out of date`*: run `delta update`.
 

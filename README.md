@@ -8,7 +8,7 @@
 [![Skills](https://img.shields.io/badge/skills-5-blueviolet?style=flat-square)](#the-five-skills)
 [![Language](https://img.shields.io/badge/CLI-Go-00ADD8?style=flat-square)](#development)
 
-[Why](#why-delta) · [How it works](#how-it-works) · [Walkthrough](#a-walkthrough) · [Contract format](#what-a-contract-looks-like) · [Reference](#reference) · [User manual](MANUAL.md)
+[Install](#install) · [Why](#why-delta) · [How it works](#how-it-works) · [Walkthrough](#a-walkthrough) · [Contract format](#what-a-contract-looks-like) · [Reference](#reference) · [User manual](MANUAL.md)
 
 </div>
 
@@ -27,6 +27,24 @@ It is three pieces working together:
 | **Five skills** | Do the creative work: interview you, draft, plan, build and audit |
 
 Contracts describe what is true *now* and are edited in place. There is no decision log; git already records what used to be true.
+
+## Install
+
+You do not need Go. The installer downloads the latest release, verifies its checksum and puts `delta` on your `PATH`.
+
+**Linux and macOS**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ronz204/deltas-ai/main/install.sh | sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+irm https://raw.githubusercontent.com/ronz204/deltas-ai/main/install.ps1 | iex
+```
+
+Then check it with `delta version` and run `delta init` inside your project. The [manual](MANUAL.md#install-the-cli) covers manual downloads, updating and building from source.
 
 ## Why Delta?
 
@@ -357,7 +375,7 @@ go build -o dist/delta ./cmd/delta
 go build -ldflags "-X main.version=1.2.3" -o dist/delta ./cmd/delta   # with a version
 ```
 
-The binary must be called `delta`, because hooks, permissions and the PATH check depend on it. The entrypoint lives in `cmd/delta`, so both the build above and `go install ./cmd/delta` produce a binary with that name. Put it on your `PATH`.
+The binary must be called `delta`, because hooks, permissions and the PATH check depend on it. The entrypoint lives in `cmd/delta`, so both the build above and `go install ./cmd/delta` produce a binary with that name. Put it on your `PATH`. Releases are built with [GoReleaser](https://goreleaser.com); [RELEASE.md](RELEASE.md) explains how to cut one.
 
 Tests need `git`. The TypeScript compatibility test needs a `node` that runs TypeScript and is skipped without one.
 
