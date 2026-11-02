@@ -91,7 +91,7 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File
 	if err := v.verified(ctx, l); err != nil {
 		rep.Diags = append(rep.Diags, findings.Diagnostic{File: l.file, Code: CodeStatus, Warn: true,
 			Message: "every test claim holds, but the slice could not be marked verified: " + err.Error()})
-		return s, nil
+		return s, nil //nolint:nilerr // reported as a warning in the report, not as a failure of the check
 	}
 	rep.Verified = append(rep.Verified, l.slice)
 	s.Verified = true

@@ -49,7 +49,7 @@ func (s *Vault) RemoveFile(_ context.Context, rel string) error {
 			break
 		}
 	}
-	return nil
+	return nil //nolint:nilerr // pruning empty folders is best effort: stop at the first one that stays
 }
 
 func (s *Vault) Glob(_ context.Context, patterns []string) ([]budget.File, error) {

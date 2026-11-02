@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -77,16 +76,4 @@ func gitProject(t *testing.T) *project {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 	return &project{t: t, root: root}
-}
-
-func buildDelta(t *testing.T) string {
-	t.Helper()
-	bin := filepath.Join(t.TempDir(), "delta")
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, out)
-	}
-	return bin
 }
