@@ -4,6 +4,21 @@
 
 ---
 
+## How to work
+
+The person talks plainly and never types delta commands or skill names. For any request that adds, changes, removes, checks or documents behavior, use the `helm` skill first: it reads `delta status` and hands the work to the right skill.
+
+| The state is | The next step is |
+|---|---|
+| No spec covers the behavior, or the contract must change | `quill` writes it (draft) |
+| A draft | Ask the person in plain words whether to approve it; on a yes, run `delta approve <slice>` |
+| Approved or stale | `forge` builds it, tests first |
+| Built | `seal` verifies it |
+
+Talk to the person in their language; write everything the project keeps in English.
+
+---
+
 ## Where to look
 
 | If you need... | Read |

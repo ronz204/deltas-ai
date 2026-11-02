@@ -18,7 +18,7 @@ import (
 
 // Event is what a Claude Code hook tells us is about to happen or has just happened.
 type Event struct {
-	Name    string // SessionStart, PreToolUse, PostToolUse or Stop
+	Name    string // SessionStart, UserPromptSubmit, PreToolUse, PostToolUse or Stop
 	Tool    string
 	Path    string // a file the tool is about to touch
 	Command string // the command line a Bash call is about to run
@@ -72,6 +72,8 @@ func (g *Guard) Decide(ctx context.Context, e Event) (Decision, error) {
 	switch e.Name {
 	case "SessionStart":
 		return g.start(ctx)
+	case "UserPromptSubmit":
+		return g.prompt(ctx)
 	case "PreToolUse":
 		return g.before(e), nil
 	case "PostToolUse":
@@ -288,4 +290,38 @@ func (g *Guard) start(ctx context.Context) (Decision, error) {
 	}
 	b.WriteString("The knowledge base is not edited directly: specs are written with delta spec write and tests are linked with delta link.")
 	return Decision{Context: b.String()}, nil
+}
+
+// prompt tells Claude, with every message the person sends, where each slice stands and what the next step of
+// each one is, so that the choice of skill follows the state of the project and not the words of the request.
+func (g *Guard) prompt(ctx context.Context) (Decision, error) {
+	rows, err := g.slices.Report(ctx)
+	if err != nil {
+		return Decision{}, err
+	}
+	var b strings.Builder
+	b.WriteString("Delta: if this request adds, changes, removes, checks or documents what the project does, use the helm skill before touching any file; the person speaks plainly and never types delta commands.\n")
+	for _, r := range rows {
+		if next := nextStep(r); next != "" {
+			fmt.Fprintf(&b, "- %s: %s\n", r.Slice, next)
+		}
+	}
+	return Decision{Context: strings.TrimRight(b.String(), "\n")}, nil
+}
+
+// nextStep is what a slice waits for, or "" when it waits for nothing.
+func nextStep(r status.Row) string {
+	switch {
+	case r.Issues > 0:
+		return "its spec has problems: fix them with the quill skill"
+	case r.Status == lifecycle.Draft:
+		return "draft: ask the person in plain words whether to approve it, and on a yes run delta approve"
+	case r.Status == lifecycle.Approved:
+		return "approved, not built: the forge skill builds it"
+	case r.Status == lifecycle.Stale:
+		return "stale: the forge skill rebuilds it, or the quill skill if the contract is out of date"
+	case r.Status == lifecycle.Built:
+		return "built, not verified: the seal skill checks it"
+	}
+	return ""
 }

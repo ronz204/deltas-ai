@@ -131,6 +131,37 @@ func TestSessionStartSaysNothingWithoutSlices(t *testing.T) {
 	}
 }
 
+func TestEveryPromptCarriesTheNextStepOfEachSlice(t *testing.T) {
+	g, _ := newGuard(t, specs{
+		"billing":  "---\nformat: 1\nslice: billing\nstatus: draft\n---\n- INV-01 [none]\n  When x, y.\n",
+		"payments": "---\nformat: 1\nslice: payments\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n",
+	})
+	d, err := g.Decide(ctx, Event{Name: "UserPromptSubmit"})
+	if err != nil || d.Block {
+		t.Fatalf("%+v, %v", d, err)
+	}
+	for _, want := range []string{"helm skill", "- billing: draft: ask the person in plain words", "- payments: approved, not built: the forge skill"} {
+		if !strings.Contains(d.Context, want) {
+			t.Errorf("the context lacks %q:\n%s", want, d.Context)
+		}
+	}
+}
+
+func TestAPromptWithoutSlicesStillPointsAtHelm(t *testing.T) {
+	g, _ := newGuard(t, nil)
+	d, err := g.Decide(ctx, Event{Name: "UserPromptSubmit"})
+	if err != nil || !strings.Contains(d.Context, "helm skill") || strings.Contains(d.Context, "\n-") {
+		t.Fatalf("%+v, %v; want only the pointer to helm", d, err)
+	}
+}
+
+func TestAVerifiedSliceWaitsForNothing(t *testing.T) {
+	g, _ := newGuard(t, specs{"billing": "---\nformat: 1\nslice: billing\nstatus: verified\n---\n- INV-01 [none]\n  When x, y.\n"})
+	if d, _ := g.Decide(ctx, Event{Name: "UserPromptSubmit"}); strings.Contains(d.Context, "billing") {
+		t.Fatalf("context = %q, want no line for a verified slice", d.Context)
+	}
+}
+
 type health []string
 
 func (h health) Check(context.Context) []string { return h }

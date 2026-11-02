@@ -49,6 +49,9 @@ func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
 	if len(matchers["SessionStart"]) != 1 {
 		t.Errorf("SessionStart groups = %v, want one", matchers["SessionStart"])
 	}
+	if len(matchers["UserPromptSubmit"]) != 1 {
+		t.Errorf("UserPromptSubmit groups = %v, want one", matchers["UserPromptSubmit"])
+	}
 	if got := matchers["PostToolUse"]; len(got) != 1 || got[0] != "Write|Edit" {
 		t.Errorf("PostToolUse matchers = %q, want Write|Edit", got)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
 	"github.com/ronz204/deltas-ai/source/domain/findings"
+	"github.com/ronz204/deltas-ai/source/domain/language"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
 )
@@ -70,6 +71,10 @@ func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]fin
 	content, ds, err := a.settle(ctx, file, slice, sp.Status, content)
 	if err != nil || hasError(ds) {
 		return ds, err
+	}
+	if language.NotEnglish(string(content)) {
+		ds = append(ds, findings.Diagnostic{File: file, Code: language.Code, Warn: true,
+			Message: "the spec is not in English; the knowledge base is written in English whatever language the user speaks: translate it and write it again"})
 	}
 	return ds, a.store.Save(ctx, slice, content)
 }

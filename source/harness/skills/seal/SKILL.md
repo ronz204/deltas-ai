@@ -1,7 +1,7 @@
 ---
 name: seal
 description: >-
-  Use to verify a slice against its contract: `delta check` runs the commands of its test claims, and this skill reads the code only for the claims no command covers (manual and none). It reports Holds, Violated or Unverified per claim and never edits anything. Trigger when the user asks to verify, audit or certify a slice, wants to know if a spec is still accurate, or has just finished implementing one, e.g. "is this spec still accurate?", "does X still meet its invariants?", "check this slice for drift", /seal <slice>. Defaults to one slice and never sweeps every spec unasked.
+  Use to verify a slice against its contract: `delta check` runs the commands of its test claims, and this skill reads the code only for the claims no command covers (manual and none). It reports Holds, Violated or Unverified per claim and never edits anything. helm hands the work to it once a slice is built. Trigger when the user asks to verify, audit or certify a slice, wants to know if a spec is still accurate, or has just finished implementing one, e.g. "is this spec still accurate?", "does X still meet its invariants?", "check this slice for drift", /seal <slice>. Defaults to one slice and never sweeps every spec unasked.
 argument-hint: <slice>
 ---
 

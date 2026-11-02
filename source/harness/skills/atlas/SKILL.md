@@ -1,9 +1,8 @@
 ---
 name: atlas
 description: >-
-  Use to write one of the project's docs for people (overview, structure, expertise or approach, under deltas/docs/), invoked as /atlas <doc>. It reads the code and the project files for what they show, interviews the user only for what they don't, drafts the doc from its template for approval, then writes it with a sources list. Never invents: what it can't find stays an open question. Not for specs (that is quill) and not for rules or CLAUDE.md.
+  Use to write one of the project's docs for people (overview, structure, expertise or approach, under deltas/docs/); helm hands the work to it when the person wants the project explained or written down, and the person may also call it as /atlas <doc>. It reads the code and the project files for what they show, interviews the user only for what they don't, drafts the doc from its template for approval, then writes it with a sources list. Never invents: what it can't find stays an open question. Not for specs (that is quill) and not for rules or CLAUDE.md.
 argument-hint: "[overview|structure|expertise|approach]"
-disable-model-invocation: true
 ---
 
 # Atlas
@@ -12,7 +11,7 @@ disable-model-invocation: true
 
 These docs are for people. The agent rarely reads them, so they are not written to steer it: no instructions to Claude, no rules, nothing a future session must obey. What goes in is what the code does not show: intent, concepts, decisions and why. What the code already shows (folders, classes, tables, endpoints) stays out, because a copy of it only goes stale.
 
-The doc is `$ARGUMENTS`. It runs only when invoked as `/atlas <doc>`, one doc per run.
+The doc is `$ARGUMENTS`. It is handed over by `helm` or called as `/atlas <doc>`, one doc per run. The doc is written in English, whatever language the interview is in.
 
 ---
 

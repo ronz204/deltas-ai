@@ -30,6 +30,11 @@
         "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",

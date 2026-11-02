@@ -31,8 +31,8 @@ func assetsOf(t *testing.T) map[string]setup.Asset {
 func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	by := assetsOf(t)
 	for _, want := range []string{
-		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
-		".claude/rules/fidelity.md", ".claude/rules/honesty.md", ".claude/rules/base-scope.md", ".claude/rules/base-reliability.md", "deltas/deltas.config", "CLAUDE.md",
+		".claude/skills/helm/SKILL.md", ".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
+		".claude/rules/fidelity.md", ".claude/rules/language.md", ".claude/rules/honesty.md", ".claude/rules/base-scope.md", ".claude/rules/base-reliability.md", "deltas/deltas.config", "CLAUDE.md",
 		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
 	} {
 		if _, ok := by[want]; !ok {

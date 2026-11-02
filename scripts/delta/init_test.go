@@ -22,7 +22,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 		".githooks/commit-msg", "deltas/specs/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
 		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
 		".claude/settings.json", ".claude/rules/fidelity.md",
-		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
+		".claude/skills/helm/SKILL.md", ".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); err != nil {
 			t.Errorf("%s was not installed: %v", rel, err)
@@ -37,7 +37,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	var settings struct {
 		Hooks map[string]json.RawMessage `json:"hooks"`
 	}
-	if err := json.Unmarshal([]byte(p.read(".claude/settings.json")), &settings); err != nil || len(settings.Hooks) != 4 {
+	if err := json.Unmarshal([]byte(p.read(".claude/settings.json")), &settings); err != nil || len(settings.Hooks) != 5 {
 		t.Errorf("settings.json: %v, %d hook events", err, len(settings.Hooks))
 	}
 	for _, gone := range []string{"archivist", "surveyor"} {

@@ -1,7 +1,7 @@
 ---
 name: quill
 description: >-
-  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /quill <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
+  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. helm hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /quill <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
 argument-hint: <slice>
 ---
 
@@ -11,7 +11,7 @@ Code shows what a slice currently does. It doesn't show why the slice exists, wh
 
 Quill owns the span of the cycle up to `draft`. A person owns the next step: `delta approve`. Nothing below assumes a specific stack.
 
-The slice is `$ARGUMENTS`; if it is empty, ask which slice.
+The slice is `$ARGUMENTS`; if it is empty, ask which slice. Interview the user in their language, but write the spec in English.
 
 ---
 
