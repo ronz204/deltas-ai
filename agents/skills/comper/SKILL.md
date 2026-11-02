@@ -1,18 +1,18 @@
 ---
-name: starship
+name: comper
 description: >-
-  Use for any request about what the project does or should do: adding, changing, removing, fixing, verifying or documenting behavior, deciding whether a spec is right, or approving one. It reads the state of the slices with `delta status` and hands the work to drafter (contract), builder (build), auditor (verify) or scribe (docs). It works two ways: the person asks in plain words and starship routes the request, or calls /starship to be told which skill comes next. Use it before touching code or anything under deltas/. Not for questions about the code, and not for trivial edits that no claim covers (a typo, a rename, a formatting change).
+  Use for any request about what the project does or should do: adding, changing, removing, fixing, verifying or documenting behavior, deciding whether a spec is right, or approving one. It reads the state of the slices with `delta status` and hands the work to drafter (contract), builder (build), auditor (verify) or scriber (docs). It works two ways: the person asks in plain words and comper routes the request, or calls /comper to be told which skill comes next. Use it before touching code or anything under deltas/. Not for questions about the code, and not for trivial edits that no claim covers (a typo, a rename, a formatting change).
 argument-hint: "[slice]"
 ---
 
-# Starship
+# Comper
 
-`drafter` writes the contract, `builder` builds it, `auditor` checks it, `scribe` documents the project. `starship` knows where the project is in that flow: it decides which of them is next from the state of the project, not from the words of the request.
+`drafter` writes the contract, `builder` builds it, `auditor` checks it, `scriber` documents the project. `comper` knows where the project is in that flow: it decides which of them is next from the state of the project, not from the words of the request.
 
 It has two entrances:
 
 - **A plain request** ("add refunds", "is billing still right?"): it routes the request, hands the work over and carries it through.
-- **`/starship [slice]`** with no request: it reports the state of the slice (or of all of them) and names the skill that comes next, so the person can call it directly. It does not run that skill unless the person says so.
+- **`/comper [slice]`** with no request: it reports the state of the slice (or of all of them) and names the skill that comes next, so the person can call it directly. It does not run that skill unless the person says so.
 
 The person may speak plainly or call skills by name, in their own language. Everything the project keeps (specs, docs, commit messages, code) is written in English, whatever language the conversation is in.
 
@@ -32,14 +32,14 @@ The person may speak plainly or call skills by name, in their own language. Ever
 | The spec is wrong, thin or missing something | any | `drafter` |
 | To build or fix something an approved spec already asks for | `approved`, `stale` | `builder` |
 | To know whether it works, still holds or drifted | `built`, `verified`, `stale` | `auditor` |
-| The project explained or written down (overview, structure, expertise, approach) | | `scribe` |
+| The project explained or written down (overview, structure, expertise, approach) | | `scriber` |
 | To approve a spec | `draft` | Step 3 |
 
 If the request is not about behavior (a question, an explanation, a typo, a rename, formatting, a change no claim covers), do not route it: answer or do it as usual.
 
 ## Step 2 — Hand over
 
-If the person called `/starship` with no request, stop here: say in one or two lines where the slice is and which skill is next, with the call to make, e.g. "billing is approved and not built: next is `/builder billing`." Run it only if they say so.
+If the person called `/comper` with no request, stop here: say in one or two lines where the slice is and which skill is next, with the call to make, e.g. "billing is approved and not built: next is `/builder billing`." Run it only if they say so.
 
 Otherwise invoke the skill with the Skill tool and pass the slice as its argument. Do not do its work yourself: do not write a spec, code or test before its skill has run, and do not edit anything under `deltas/` by hand (a hook blocks it).
 
@@ -61,7 +61,7 @@ End with a short plain summary: which skills ran, what changed, what is verified
 
 ---
 
-## What starship does not do
+## What comper does not do
 
 - Doesn't write specs, code, tests or docs: the four skills do.
 - Doesn't approve, and doesn't skip the gate of `builder` (`delta ready`).

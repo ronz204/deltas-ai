@@ -6,7 +6,7 @@
 
 ## How to work
 
-The person never types `delta` commands. They either ask in plain words or call a skill by name. For any plain request that adds, changes, removes, checks or documents behavior, use the `starship` skill first: it reads `delta status` and hands the work to the right skill. `/starship` alone says which skill comes next.
+The person never types `delta` commands. They either ask in plain words or call a skill by name. For any plain request that adds, changes, removes, checks or documents behavior, use the `comper` skill first: it reads `delta status` and hands the work to the right skill. `/comper` alone says which skill comes next.
 
 | The state is | The next step is |
 |---|---|
@@ -14,7 +14,7 @@ The person never types `delta` commands. They either ask in plain words or call 
 | A draft | Ask the person in plain words whether to approve it; on a yes, run `delta approve <slice>` |
 | Approved or stale | `/builder <slice>` builds it, tests first |
 | Built | `/auditor <slice>` verifies it |
-| The project needs explaining | `/scribe <doc>` writes a doc for people |
+| The project needs explaining | `/scriber <doc>` writes a doc for people |
 
 Talk to the person in their language; write everything the project keeps in English.
 

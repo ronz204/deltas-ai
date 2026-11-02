@@ -1,7 +1,7 @@
 ---
 name: drafter
 description: >-
-  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. starship hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /drafter <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
+  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. comper hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /drafter <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
 argument-hint: <slice>
 ---
 

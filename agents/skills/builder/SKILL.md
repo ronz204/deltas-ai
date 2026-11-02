@@ -1,7 +1,7 @@
 ---
 name: builder
 description: >-
-  Use to implement or fix one slice against its approved <slice>.spec.md; starship hands the work to it once the spec is approved, and the person may also call it as /builder <slice>. It refuses to start unless `delta ready <slice>` passes (spec clean and approved), derives the work from the claims that are not verified yet, proposes the plan for approval, then writes tests first and the code that satisfies them, and links each test to its claim with `delta link`. Never edits specs or anything under deltas/. Not for coding with no spec behind it.
+  Use to implement or fix one slice against its approved <slice>.spec.md; comper hands the work to it once the spec is approved, and the person may also call it as /builder <slice>. It refuses to start unless `delta ready <slice>` passes (spec clean and approved), derives the work from the claims that are not verified yet, proposes the plan for approval, then writes tests first and the code that satisfies them, and links each test to its claim with `delta link`. Never edits specs or anything under deltas/. Not for coding with no spec behind it.
 argument-hint: <slice>
 ---
 
@@ -11,7 +11,7 @@ argument-hint: <slice>
 
 What makes it different from just asking for the code: the work is derived from the contract, not invented. Each task exists because a claim in the spec isn't verified yet, and it ends when a test says so. There is no plan or task file. The contract, its tags, the tests and git are the state, so a later session resumes by computing the same list again.
 
-The slice is `$ARGUMENTS`. It is handed over by `starship` or called as `/builder <slice>`, one slice per run.
+The slice is `$ARGUMENTS`. It is handed over by `comper` or called as `/builder <slice>`, one slice per run.
 
 ---
 
