@@ -31,7 +31,7 @@ This governs how much context each knowledge-base artifact may cost, and what to
 
 ## Measuring
 
-- `delta budget` reads `deltas/deltas.config`, weighs what is always loaded and reports overruns. It only reads, so running it costs no model tokens. Token figures are estimates (about 3.3 characters per token, calibrated against Claude Code's own `/context` report); line and character counts are exact.
+- `delta budget` reads `deltas/budget.conf`, weighs what is always loaded and reports overruns. It only reads, so running it costs no model tokens. Token figures are estimates (about 3.3 characters per token, calibrated against Claude Code's own `/context` report); line and character counts are exact.
 
 ---
 

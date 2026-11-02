@@ -287,3 +287,11 @@ The Go code is now `delta/` (the entrypoint) and `package/{domain,usecase,gatewa
 `delta/` is now `deltas/`; only the folder changes. `go install ./deltas` would name the binary `deltas`, so it is built with `go build -o dist/delta ./deltas` and the binary keeps being `delta` (the hooks, the permissions, `Locate("delta")` and the `delta (deltas-ai) <version>` line depend on that name). The README says so.
 
 One thing to remember if delta is ever used on this repository itself: in a delta project every path whose parent folder is `deltas` belongs to the knowledge base (`kbpaths.Covers`), is not code for a slice's scope and is skipped when searching tests, so `deltas/*.go` would be blocked for the agent and ignored by the checks.
+
+## Open items (after Phase 10)
+
+Everything decided in sections 1 to 6 and Phases 1 to 10 is in the code and the harness, and `go vet`, `gofmt` and `go test ./...` pass. What is left is not code that is missing but things nobody has tried or decided:
+
+- **Installs from before the config split.** A project that ran `delta init` with the old `deltas/deltas.config` keeps that file, and delta no longer reads it: its settings are ignored without a warning. Options: `delta status` warns when the file exists, or `update` moves its keys. Not needed while no project depends on the old file.
+- **Never run inside Claude Code.** The hooks and the `ask` permission for `delta approve`, `init` and `update` are tested through the CLI, not in a real session. The precedence (deny, ask, allow) comes from Claude Code's documentation. Try one slice end to end before relying on it.
+- **`docs/` is deleted in the working tree** (`backstory.md`, `blueprint.md`, `direction.md`, `waypoints.md`) and the deletion is not committed. The README no longer points to them.
