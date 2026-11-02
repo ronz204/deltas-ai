@@ -98,7 +98,7 @@ A project's knowledge base has three layers: a router, a curated reference, and 
 CLAUDE.md                          router — orients a session fast, points at everything else
 .claude/docs/                      curated reference, created on demand and only if it holds what the code doesn't show
 .claude/rules/<topic>.md           conventions loaded when matching files are touched
-deltas/specifies/<slice>.spec.md  per-feature living contracts ("slices")
+deltas/specs/<slice>.spec.md  per-feature living contracts ("slices")
 ```
 
 Docs and rules stay self-contained and free of volatile references (no citing a specific file path or function as proof a convention exists), since that breaks the moment something is renamed. A spec, by contrast, is expected to name the real implementation, since that is the point of a contract checked against it.
@@ -125,7 +125,7 @@ Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repos
 
 - `.githooks/commit-msg` and `core.hooksPath`, so git checks commit messages;
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
-- `deltas/deltas.config`, a minimal `CLAUDE.md` and the `deltas/specifies/` folder.
+- `deltas/deltas.config`, a minimal `CLAUDE.md` and the `deltas/specs/` folder.
 
 After upgrading the `delta` binary, run `delta update` to bring those files up to date: it replaces the ones you have not touched, removes those the harness no longer ships, and keeps your changes (`delta update --check` only lists what would change).
 

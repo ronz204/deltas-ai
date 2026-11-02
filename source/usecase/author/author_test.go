@@ -18,7 +18,7 @@ type memory struct {
 
 func newMemory() *memory { return &memory{specs: map[string]string{}} }
 
-func (m *memory) Path(slice string) string { return "deltas/specifies/" + slice + ".spec.md" }
+func (m *memory) Path(slice string) string { return "deltas/specs/" + slice + ".spec.md" }
 
 func (m *memory) Load(_ context.Context, slice string) ([]byte, error) {
 	s, ok := m.specs[slice]
@@ -54,7 +54,7 @@ const valid = "---\nformat: 1\nslice: billing\nstatus: draft\n---\n- INV-01 [non
 func TestCreateMakesADraftFromTheTemplate(t *testing.T) {
 	m := newMemory()
 	path, err := New(m, tmpl(tpl)).Create(ctx, "billing")
-	if err != nil || path != "deltas/specifies/billing.spec.md" {
+	if err != nil || path != "deltas/specs/billing.spec.md" {
 		t.Fatalf("Create = %q, %v", path, err)
 	}
 	sp, ds := specfile.ParseSlice(path, "billing", []byte(m.specs["billing"]))
@@ -104,7 +104,7 @@ func TestWriteRefusesAnInvalidSpecAndWritesNothing(t *testing.T) {
 			if len(m.specs) != 0 {
 				t.Fatalf("an invalid spec was stored: %v", m.specs)
 			}
-			if ds[0].File != "deltas/specifies/billing.spec.md" {
+			if ds[0].File != "deltas/specs/billing.spec.md" {
 				t.Errorf("diagnostics are labeled %q", ds[0].File)
 			}
 		})

@@ -19,7 +19,7 @@ func id(t *testing.T, s string) assertion.ID {
 
 func TestIsTestFile(t *testing.T) {
 	yes := []string{"total_test.go", "a/b/total_test.go", "total.test.ts", "src/x.spec.tsx", "e2e/consecutivo.e2e.test.ts", "test_total.py", "total_test.py", "x.test.mjs"}
-	no := []string{"total.go", "test.go", "test_total.go", "invoicing.spec.md", "deltas/specifies/x.spec.md", "total.ts", "contest.ts", "x.test.md", "total.py", "testing.py"}
+	no := []string{"total.go", "test.go", "test_total.go", "invoicing.spec.md", "deltas/specs/x.spec.md", "total.ts", "contest.ts", "x.test.md", "total.py", "testing.py"}
 	for _, p := range yes {
 		if !IsTestFile(p) {
 			t.Errorf("%s should be a test file", p)
@@ -95,11 +95,11 @@ func slice(t *testing.T, file string, claims ...assertion.Claim) Slice {
 func TestCheck(t *testing.T) {
 	test := func(cmd string) assertion.Tag { return assertion.Tag{Method: assertion.Test, Arg: cmd} }
 	slices := []Slice{
-		slice(t, "deltas/specifies/billing.spec.md",
+		slice(t, "deltas/specs/billing.spec.md",
 			assertion.Claim{ID: id(t, "INV-01"), Tag: test("go test ./billing"), Line: 7},
 			assertion.Claim{ID: id(t, "INV-02"), Tag: test("go test ./billing"), Line: 9},
 			assertion.Claim{ID: id(t, "INV-03"), Tag: assertion.Tag{Method: assertion.None}, Line: 11}),
-		slice(t, "deltas/specifies/payments.spec.md",
+		slice(t, "deltas/specs/payments.spec.md",
 			assertion.Claim{ID: id(t, "INV-01"), Tag: test("go test ./payments"), Line: 7}),
 	}
 	files := []File{
@@ -118,8 +118,8 @@ func TestCheck(t *testing.T) {
 		have = append(have, short{d.File, d.Code, d.Line, d.Warn})
 	}
 	want := []short{
-		{"deltas/specifies/billing.spec.md", CodeNoCite, 9, false},  // INV-02: no test cites it
-		{"deltas/specifies/payments.spec.md", CodeNoCite, 7, false}, // INV-01 is cited only under ./billing
+		{"deltas/specs/billing.spec.md", CodeNoCite, 9, false},  // INV-02: no test cites it
+		{"deltas/specs/payments.spec.md", CodeNoCite, 7, false}, // INV-01 is cited only under ./billing
 		{"billing/total_test.go", CodeUnknownID, 3, true},
 		{"billing/total_test.go", CodeSkip, 4, true},
 		{"web/cart.test.ts", CodeUnknownID, 1, true},
@@ -131,7 +131,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestCheckAcceptsACleanProject(t *testing.T) {
-	slices := []Slice{slice(t, "deltas/specifies/a.spec.md", assertion.Claim{ID: id(t, "ACC-01"), Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./a"}, Line: 6})}
+	slices := []Slice{slice(t, "deltas/specs/a.spec.md", assertion.Claim{ID: id(t, "ACC-01"), Tag: assertion.Tag{Method: assertion.Test, Arg: "go test ./a"}, Line: 6})}
 	files := []File{{Path: "a/a_test.go", Text: "func TestACC01(t *testing.T) {}\n"}}
 	if got := Check(slices, files); len(got) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", got)

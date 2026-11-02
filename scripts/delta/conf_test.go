@@ -8,7 +8,7 @@ import (
 // A project whose tests are Ruby specs: deltas.config says so, and a citation in one of them makes a claim hold.
 func TestDeltaConfChoosesWhichFilesAreTests(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	p.write("spec/billing_spec.rb", "# INV-01\n")
 
 	if code, _, errOut := p.delta("", "lint"); code != 1 || !strings.Contains(errOut, "LINT-NO-CITE") {
@@ -64,7 +64,7 @@ func TestStatusWarnsAboutDeltaConfProblemsAndMissingTools(t *testing.T) {
 func TestACommandTimeoutFromDeltaConfIsUsed(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/deltas.config", "command_timeout=1ns\n")
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	p.write("billing_test.go", "// INV-01\n")
 	_, out, _ := p.delta("", "check")
 	if verdict(out, "billing", "INV-01") != "Unverified" {

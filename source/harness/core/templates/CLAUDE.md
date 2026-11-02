@@ -8,7 +8,7 @@
 
 | If you need... | Read |
 |---|---|
-| The contract of a capability before changing its behavior | `deltas/specifies/`: list the folder and open the spec that matches |
+| The contract of a capability before changing its behavior | `deltas/specs/`: list the folder and open the spec that matches |
 | Which contracts are stale or unverified | `delta status` |
 | A convention for the files you are editing | Nothing to do: `.claude/rules/` loads by itself when a matching file is read |
 

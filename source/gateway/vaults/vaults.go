@@ -18,14 +18,14 @@ import (
 
 const (
 	dirName  = "deltas"
-	specsDir = "specifies"
+	specsDir = "specs"
 	suffix   = ".spec.md"
 )
 
 // skipDirs are never searched for test files: they hold other people's code or the contracts.
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, dirName: true}
 
-// Contracts live in the project's deltas/specifies/ folder, one <slice>.spec.md each.
+// Contracts live in the project's deltas/specs/ folder, one <slice>.spec.md each.
 type Vault struct {
 	root   string
 	isTest func(string) bool
@@ -66,7 +66,7 @@ func (s *Vault) file(slice string) (string, error) {
 	return filepath.Join(s.root, dirName, specsDir, slice+suffix), nil
 }
 
-// List gives the name of every slice, sorted. A project with no specifies/ folder has none.
+// List gives the name of every slice, sorted. A project with no specs/ folder has none.
 func (s *Vault) List(context.Context) ([]string, error) {
 	entries, err := os.ReadDir(filepath.Join(s.root, dirName, specsDir))
 	if errors.Is(err, fs.ErrNotExist) {

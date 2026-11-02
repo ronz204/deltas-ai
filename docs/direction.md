@@ -137,7 +137,7 @@ Un binario único, sin runtime. Propuesta de comandos:
 
 | Comando | Qué hace | Reemplaza |
 |---|---|---|
-| `delta init` | Crea la estructura base (`CLAUDE.md` router mínimo, `deltas/` con `specifies/` y `deltas.config`, hooks de Claude Code, `.githooks/`, config) y fija `core.hooksPath` en el clon. Es idempotente: se corre de nuevo en cada clon. `delta update` mantiene al día el harness instalado con `deltas.manifest`, sin tocar lo que el proyecto cambió | Parte determinista de Surveyor |
+| `delta init` | Crea la estructura base (`CLAUDE.md` router mínimo, `deltas/` con `specs/` y `deltas.config`, hooks de Claude Code, `.githooks/`, config) y fija `core.hooksPath` en el clon. Es idempotente: se corre de nuevo en cada clon. `delta update` mantiene al día el harness instalado con `deltas.manifest`, sin tocar lo que el proyecto cambió | Parte determinista de Surveyor |
 | `delta spec new <slice>` | Crea un spec desde la plantilla con frontmatter y estado `draft` | Parte de Archivist |
 | `delta spec lint [slice]` | Valida estructura, notación EARS, IDs únicos y tags válidos | Revisión manual |
 | `delta spec write` | Único punto de escritura de la KB; valida antes de escribir | Archivist |

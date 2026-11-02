@@ -48,8 +48,8 @@ El CLI **no depende de Claude Code**. Los hooks son un adaptador fino encima (se
 | 16 | `Stop` exige un `delta check` sobre lo que cada slice mira del árbol (todo el código, salvo lo que `deltas.config` acote); la marca vive en la caché del usuario, no en el proyecto ni en `.git` | Decidido, hecho (sección 8.7) |
 | 17 | `deltas/deltas.config` (antes `deltas.config` en la raíz), claves planas, que absorbe a `budget.conf` y trae los patrones de archivos de test (sección 8.8) | Decidido, hecho |
 | 18 | ~~Varios `deltas/` por proyecto~~ Retirado: un solo `deltas/` en la raíz, también en un monorepo, para que la KB no se disperse. Un slice es un nombre sin carpeta y sus comandos corren desde la raíz | Decidido, hecho |
-| 19 | `deltas/`, `specifies/` y `.spec.md` son el formato del producto y quedan fijos; lo que ata a un lenguaje (qué es un archivo de test) se configura | Decidido |
-| 20 | Todo lo de Delta que no es de Claude Code vive en `deltas/`: `deltas.config`, `deltas.manifest` (sección 12) y `specifies/` con los specs. La raíz del proyecto solo gana el `CLAUDE.md`. Hay un único `deltas/`, el de la raíz (decisión 18) | Decidido, hecho |
+| 19 | `deltas/`, `specs/` y `.spec.md` son el formato del producto y quedan fijos; lo que ata a un lenguaje (qué es un archivo de test) se configura | Decidido |
+| 20 | Todo lo de Delta que no es de Claude Code vive en `deltas/`: `deltas.config`, `deltas.manifest` (sección 12) y `specs/` con los specs. La raíz del proyecto solo gana el `CLAUDE.md`. Hay un único `deltas/`, el de la raíz (decisión 18) | Decidido, hecho |
 | 20 | Los hooks de `settings.json` tienen un límite de 20 s | Decidido, hecho |
 
 ---
@@ -160,7 +160,7 @@ type Runner interface {
 | `drift` | Cuándo un contrato está viejo | `Changed(before, after map[string]string) []string`: los archivos añadidos, borrados o editados entre dos huellas (ruta → hash de contenido) |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs. `Scope` es la parte del proyecto de la que depende un slice: todos los archivos de código, o solo las rutas que `deltas.config` declare para él, más su propio spec; el Markdown no cuenta. `TestMatcher` dice qué archivos son tests, con los patrones de `deltas.config` o con la regla propia de Delta. `Under(files, dir)` nombra los archivos desde la carpeta en que corre un comando |
 | `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
-| `knowledge` | Qué archivos son de la KB | `Covers(path) bool`: la raíz de `CLAUDE.md`, `.claude/{docs,rules,agents,skills}/` y, en cualquier carpeta `deltas/` a cualquier profundidad, sus archivos directos (`deltas.config`, `deltas.manifest`) y los de su `specifies/` |
+| `knowledge` | Qué archivos son de la KB | `Covers(path) bool`: la raíz de `CLAUDE.md`, `.claude/{docs,rules,agents,skills}/` y, en cualquier carpeta `deltas/` a cualquier profundidad, sus archivos directos (`deltas.config`, `deltas.manifest`) y los de su `specs/` |
 | `budget` | Presupuesto de contexto | `Measure(files, ceilings) Report` pesa el router, las reglas sin `paths:` y las descripciones de skills y agentes; `Report.Findings()` nombra cada techo superado; `ParseCeilings` lee `budget.conf` |
 | `conffile` | Lo que un proyecto configura | `Parse(text) Conf`: los techos del presupuesto, `test_files`, `command_timeout`, `required_tools` y `scope.<slice>`; las líneas que no sirven se dejan fuera y se cuentan en `Conf.Problems` (sección 8.8) |
 
@@ -188,7 +188,7 @@ Observaciones:
 
 | Paquete | Efecto | Detalles |
 |---|---|---|
-| `vaults` | Lee y escribe la KB y los archivos del proyecto | Escritura atómica: archivo temporal en la misma carpeta y renombrado. Conserva LF. Localiza la raíz del repo y lista y lee los specs de `deltas/specifies/` (`List`, `Load`). Ningún camino sale del proyecto |
+| `vaults` | Lee y escribe la KB y los archivos del proyecto | Escritura atómica: archivo temporal en la misma carpeta y renombrado. Conserva LF. Localiza la raíz del repo y lista y lee los specs de `deltas/specs/` (`List`, `Load`). Ningún camino sale del proyecto |
 | `runner` | Ejecuta comandos | `os/exec` con `context` y timeout, desde la carpeta que se le indique. Parte el comando en argumentos sin expandir variables. *Shortcut: sin shell, no admite pipes ni redirecciones; si hacen falta, se escribe un programa* |
 | `gitcli` | Llama a `git` | Leer y fijar `core.hooksPath`, y `Tree(scope)`: la huella de la parte del árbol de trabajo que cubre un `Scope` (sección 8.7). Se usa el binario de git, no una librería |
 | `ledger` | Recuerda qué árbol revisó cada `delta check` | Un archivo JSON por proyecto en `os.UserCacheDir()/delta/`, con la ruta de la raíz como clave. Si falta o se daña, `Stop` pide un nuevo `delta check`; nunca falla un comando |
@@ -228,7 +228,7 @@ Observaciones:
 | `delta context <slice>` | `cmd` | `status` | `specfile`, `assertion` |
 | `delta hook` | `hook` | `guard` | `knowledge`, `commits` |
 
-`delta init` instala, sin pisar nada que el proyecto ya tenga: `.githooks/commit-msg` y `core.hooksPath`, los skills y las reglas bajo `.claude/`, `deltas.config`, un `CLAUDE.md` mínimo con el nombre del proyecto, la carpeta `deltas/specifies/` y los hooks y permisos de Delta fusionados en `.claude/settings.json` (sección 12). `delta hook` se registra en `source/harness/core/configs/settings.json` y atiende todos los eventos: el evento viene en el JSON.
+`delta init` instala, sin pisar nada que el proyecto ya tenga: `.githooks/commit-msg` y `core.hooksPath`, los skills y las reglas bajo `.claude/`, `deltas.config`, un `CLAUDE.md` mínimo con el nombre del proyecto, la carpeta `deltas/specs/` y los hooks y permisos de Delta fusionados en `.claude/settings.json` (sección 12). `delta hook` se registra en `source/harness/core/configs/settings.json` y atiende todos los eventos: el evento viene en el JSON.
 
 ---
 
@@ -380,7 +380,7 @@ Pesa lo que se carga en **cada turno** y falla (exit 1) si se supera algún tech
 
 ### 8.8 `deltas.config`
 
-Un archivo opcional, `deltas/deltas.config` en la raíz del proyecto (y solo ahí: un `deltas/` de servicio no trae el suyo), con líneas `clave=valor`; las líneas en blanco y las que empiezan con `#` se ignoran, y gana el último valor de una clave. Sin él todo funciona con los valores por defecto: `deltas.config` solo existe para lo que ata a Delta a un lenguaje, a una herramienta o a un tamaño de proyecto. **No** configura `deltas/`, `specifies/` ni `.spec.md`: son el formato del producto. El que instala `delta init` escribe esos valores por defecto en vez de dejarlos comentados (salvo `scope.<slice>`, que no tiene un valor por defecto que escribir), separados por líneas en blanco y con el presupuesto agrupado por clase de carga; una prueba exige que coincidan con los del código.
+Un archivo opcional, `deltas/deltas.config` en la raíz del proyecto (y solo ahí: un `deltas/` de servicio no trae el suyo), con líneas `clave=valor`; las líneas en blanco y las que empiezan con `#` se ignoran, y gana el último valor de una clave. Sin él todo funciona con los valores por defecto: `deltas.config` solo existe para lo que ata a Delta a un lenguaje, a una herramienta o a un tamaño de proyecto. **No** configura `deltas/`, `specs/` ni `.spec.md`: son el formato del producto. El que instala `delta init` escribe esos valores por defecto en vez de dejarlos comentados (salvo `scope.<slice>`, que no tiene un valor por defecto que escribir), separados por líneas en blanco y con el presupuesto agrupado por clase de carga; una prueba exige que coincidan con los del código.
 
 | Clave | Qué hace | Por defecto |
 |---|---|---|
@@ -482,7 +482,7 @@ Todas estas pruebas son gratis y no usan ninguna API: es la "fiabilidad del sist
 - `.claude/settings.json` es la excepción: se **fusiona**. Se añaden los grupos de hooks que no corran ya los mismos comandos con el mismo `matcher` (un `timeout` distinto es decisión del proyecto), las reglas de permisos que falten y las claves de primer nivel que no existan. No se quita ni se cambia nada; al reescribir el archivo se ordenan sus claves. Si el archivo no es un JSON con la forma esperada, se deja como está y se dice.
 - Antes de escribir nada se fija `core.hooksPath`, de modo que fuera de un repositorio git `init` falla sin dejar archivos.
 
-**`deltas/deltas.manifest` y `delta update`.** El manifest (paquete `manifest`) anota, por cada archivo *gestionado*, el SHA-256 que tenía cuando Delta lo escribió (líneas `<hash>  <ruta>`, ordenadas, con los saltos de línea leídos como LF). Son gestionados el hook `.githooks/commit-msg`, los skills y las reglas. Son *semilla* y quedan fuera: `CLAUDE.md`, `deltas.config` y `specifies/.gitkeep`, que se instalan una vez y después son del proyecto. `delta init` lo escribe, anotando solo los archivos que quedaron idénticos al harness. `delta update` decide cada archivo gestionado con tres hashes: el anotado (M), el actual (C) y el del harness de este binario (N):
+**`deltas/deltas.manifest` y `delta update`.** El manifest (paquete `manifest`) anota, por cada archivo *gestionado*, el SHA-256 que tenía cuando Delta lo escribió (líneas `<hash>  <ruta>`, ordenadas, con los saltos de línea leídos como LF). Son gestionados el hook `.githooks/commit-msg`, los skills y las reglas. Son *semilla* y quedan fuera: `CLAUDE.md`, `deltas.config` y `specs/.gitkeep`, que se instalan una vez y después son del proyecto. `delta init` lo escribe, anotando solo los archivos que quedaron idénticos al harness. `delta update` decide cada archivo gestionado con tres hashes: el anotado (M), el actual (C) y el del harness de este binario (N):
 
 | Situación | `update` |
 |---|---|
@@ -562,5 +562,5 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 - **El nombre del binario.** Se conserva `delta`. `delta version` imprime `delta (deltas-ai) <versión>` en su primera línea, y el hook `commit-msg` la comprueba antes de ejecutar nada: si el `delta` del `PATH` es otro (git-delta), avisa y deja pasar el commit en vez de cancelarlo. `delta status` y `SessionStart` también avisan (`setup.Check`).
 - **`Stop` y la evidencia.** Sección 8.7: huella del alcance de cada slice, marca en la caché del usuario y un solo bloqueo.
 - **`PostToolUse`.** Corre `delta lint` cuando Claude escribe un archivo de test y le cuenta los problemas de ese archivo (sección 8.5). Los linters de lenguaje los maneja cada proyecto.
-- **`deltas.config`.** Sección 8.8: patrones de archivos de test, tiempo límite, herramientas requeridas, alcance por slice y los techos del presupuesto. `deltas/`, `specifies/` y `.spec.md` siguen fijos, y `.claude/` lo conocen solo `budget` y `hook`.
+- **`deltas.config`.** Sección 8.8: patrones de archivos de test, tiempo límite, herramientas requeridas, alcance por slice y los techos del presupuesto. `deltas/`, `specs/` y `.spec.md` siguen fijos, y `.claude/` lo conocen solo `budget` y `hook`.
 - **Qué mira `Stop`.** Por defecto, todo el código del proyecto; se acota por slice con `scope.<slice>` en `deltas.config`. Un comando que nombra rutas estrechas no decía qué código alcanza, y un recordatorio que a veces sobra es mejor que uno que a veces falla sin avisar.

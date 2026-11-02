@@ -12,7 +12,7 @@ paths:
 
 # Delta Knowledge-Base Editing Conventions
 
-These paths are the durable knowledge base this project's delta methodology maintains — `CLAUDE.md`, `.claude/docs/`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/`, and every slice's `<slice>.spec.md` under `deltas/specifies/` (the project has a single `deltas/`, at its root, even when it is split into services). They exist to stay grounded and current; editing them ad hoc is exactly the kind of drift the methodology is meant to prevent.
+These paths are the durable knowledge base this project's delta methodology maintains — `CLAUDE.md`, `.claude/docs/`, `.claude/rules/`, `.claude/agents/`, `.claude/skills/`, and every slice's `<slice>.spec.md` under `deltas/specs/` (the project has a single `deltas/`, at its root, even when it is split into services). They exist to stay grounded and current; editing them ad hoc is exactly the kind of drift the methodology is meant to prevent.
 
 ---
 

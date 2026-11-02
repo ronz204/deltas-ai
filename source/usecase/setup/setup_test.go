@@ -106,7 +106,7 @@ func TestAFreshProjectGetsTheFilesOfTheHarness(t *testing.T) {
 	if w.perms[".claude/skills/x/run.sh"] != 0o755 {
 		t.Errorf("a script lost its execute bit: %v", w.perms[".claude/skills/x/run.sh"])
 	}
-	if _, ok := w.files["deltas/specifies/.gitkeep"]; !ok {
+	if _, ok := w.files["deltas/specs/.gitkeep"]; !ok {
 		t.Error("the folder for the contracts was not created")
 	}
 	if string(w.files[".claude/settings.json"]) != fragment {

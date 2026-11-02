@@ -112,7 +112,7 @@ type Step struct {
 }
 
 // skeleton is what every project gets before the harness: the folder that holds the contracts.
-var skeleton = []Asset{{Path: "deltas/specifies/.gitkeep", Mode: 0o644}}
+var skeleton = []Asset{{Path: "deltas/specs/.gitkeep", Mode: 0o644}}
 
 // Run installs the commit-msg git hook and points core.hooksPath at it, then the files of the harness and
 // the settings Claude Code needs. It is safe to run again, and it never replaces a file that differs from

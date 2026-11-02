@@ -75,7 +75,7 @@ func TestCreateRefusesToOverwrite(t *testing.T) {
 
 func TestLoadMissingSliceSaysWhere(t *testing.T) {
 	_, err := New(t.TempDir()).Load(ctx, "ghost")
-	if err == nil || !strings.Contains(err.Error(), "deltas/specifies/ghost.spec.md") {
+	if err == nil || !strings.Contains(err.Error(), "deltas/specs/ghost.spec.md") {
 		t.Fatalf("err = %v, want the expected path in the message", err)
 	}
 }
@@ -101,7 +101,7 @@ func TestSliceNamesCannotEscapeDeltas(t *testing.T) {
 
 func TestListIgnoresWhatIsNotASpec(t *testing.T) {
 	root := t.TempDir()
-	write(t, root, "deltas/specifies/a.spec.md", "x")
+	write(t, root, "deltas/specs/a.spec.md", "x")
 	write(t, root, "deltas/notes.md", "x")
 	write(t, root, "deltas/b.design.md", "x")
 	write(t, root, "deltas/.delta-123.tmp", "x")
@@ -122,7 +122,7 @@ func TestTestFilesFindsTestsAndSkipsVendoredCode(t *testing.T) {
 	write(t, root, "node_modules/lib/x.test.js", "vendored")
 	write(t, root, "vendor/y_test.go", "vendored")
 	write(t, root, ".git/hooks/z_test.go", "git")
-	write(t, root, "deltas/specifies/a.spec.md", "contract")
+	write(t, root, "deltas/specs/a.spec.md", "contract")
 	got, err := New(root).TestFiles(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -167,11 +167,11 @@ func TestFindRootFallsBackToStart(t *testing.T) {
 func TestListGivesTheSlicesSortedAndNothingWithoutASpecifiesFolder(t *testing.T) {
 	root := t.TempDir()
 	if names, err := New(root).List(ctx); err != nil || len(names) != 0 {
-		t.Fatalf("List without specifies/ = %v, %v", names, err)
+		t.Fatalf("List without specs/ = %v, %v", names, err)
 	}
-	write(t, root, "deltas/specifies/payments.spec.md", "x")
-	write(t, root, "deltas/specifies/billing.spec.md", "x")
-	write(t, root, "billing/deltas/specifies/stray.spec.md", "x") // a deltas/ folder elsewhere is not read
+	write(t, root, "deltas/specs/payments.spec.md", "x")
+	write(t, root, "deltas/specs/billing.spec.md", "x")
+	write(t, root, "billing/deltas/specs/stray.spec.md", "x") // a deltas/ folder elsewhere is not read
 	names, err := New(root).List(ctx)
 	if want := []string{"billing", "payments"}; err != nil || !reflect.DeepEqual(names, want) {
 		t.Fatalf("List = %v, %v; want %v", names, err, want)
@@ -202,7 +202,7 @@ func TestCreateAndSaveGoToSpecifies(t *testing.T) {
 	if err := s.Save(ctx, "invoicing", []byte("c")); err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(filepath.Join(root, "deltas", "specifies", "invoicing.spec.md"))
+	got, err := os.ReadFile(filepath.Join(root, "deltas", "specs", "invoicing.spec.md"))
 	if err != nil || string(got) != "c" {
 		t.Fatalf("file = %q, %v", got, err)
 	}

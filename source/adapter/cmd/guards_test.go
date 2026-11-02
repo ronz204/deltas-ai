@@ -27,8 +27,8 @@ func exitCode(t *testing.T, err error) int {
 
 func TestHookBlocksWithExitTwoAndTheReason(t *testing.T) {
 	m := newMemory()
-	out, errOut, err := m.run(event("PreToolUse", "Write", filepath.Join(root, "deltas", "specifies", "a.spec.md"), ""), "hook")
-	if exitCode(t, err) != 2 || out != "" || !strings.Contains(errOut, "deltas/specifies/a.spec.md") {
+	out, errOut, err := m.run(event("PreToolUse", "Write", filepath.Join(root, "deltas", "specs", "a.spec.md"), ""), "hook")
+	if exitCode(t, err) != 2 || out != "" || !strings.Contains(errOut, "deltas/specs/a.spec.md") {
 		t.Fatalf("err = %v, stdout = %q, stderr = %q", err, out, errOut)
 	}
 	_, errOut, err = m.run(event("PreToolUse", "Bash", "", `git commit -m "Fixed it."`), "hook")

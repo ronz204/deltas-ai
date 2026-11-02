@@ -94,10 +94,10 @@ func verdict(out, slice, id string) string {
 
 func TestSpecNewLintAndWrite(t *testing.T) {
 	p := newProject(t)
-	if code, out, _ := p.delta("", "spec", "new", "billing"); code != 0 || !strings.Contains(out, "created deltas/specifies/billing.spec.md") {
+	if code, out, _ := p.delta("", "spec", "new", "billing"); code != 0 || !strings.Contains(out, "created deltas/specs/billing.spec.md") {
 		t.Fatalf("spec new = %d %q", code, out)
 	}
-	if !strings.Contains(p.read("deltas/specifies/billing.spec.md"), "status: draft") {
+	if !strings.Contains(p.read("deltas/specs/billing.spec.md"), "status: draft") {
 		t.Fatal("a new spec must start as a draft")
 	}
 	if code, _, errOut := p.delta("", "spec", "new", "billing"); code != 2 || !strings.Contains(errOut, "already exists") {
@@ -114,7 +114,7 @@ func TestSpecNewLintAndWrite(t *testing.T) {
 	if code, out, _ := p.delta(good, "spec", "write", "billing"); code != 0 || !strings.Contains(out, "wrote") {
 		t.Fatalf("spec write = %d %q", code, out)
 	}
-	if p.read("deltas/specifies/billing.spec.md") != good {
+	if p.read("deltas/specs/billing.spec.md") != good {
 		t.Fatal("the written spec is not what was sent")
 	}
 
@@ -127,7 +127,7 @@ func TestSpecNewLintAndWrite(t *testing.T) {
 		if code != 1 || !strings.Contains(errOut, "nothing was written") {
 			t.Fatalf("%s: spec write = %d %q, want 1", name, code, errOut)
 		}
-		if p.read("deltas/specifies/billing.spec.md") != good {
+		if p.read("deltas/specs/billing.spec.md") != good {
 			t.Fatalf("%s: an invalid write changed the spec", name)
 		}
 	}
@@ -135,7 +135,7 @@ func TestSpecNewLintAndWrite(t *testing.T) {
 
 func TestCheckGivesEveryKindOfVerdict(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing",
+	p.write("deltas/specs/billing.spec.md", spec("billing",
 		claimOf("INV-01", "test: "+command("pass")),
 		claimOf("INV-02", "test: "+command("fail")),
 		claimOf("INV-03", "test: "+command("pass")),
@@ -165,7 +165,7 @@ func TestCheckGivesEveryKindOfVerdict(t *testing.T) {
 
 func TestCheckExitsZeroWhenNothingIsViolated(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass")), claimOf("INV-02", "none")))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass")), claimOf("INV-02", "none")))
 	p.write("billing/total_test.go", "// INV-01\n")
 	if code, out, _ := p.delta("", "check"); code != 0 {
 		t.Fatalf("exit %d with nothing violated\n%s", code, out)
@@ -174,8 +174,8 @@ func TestCheckExitsZeroWhenNothingIsViolated(t *testing.T) {
 
 func TestACitationOnlyCountsUnderTheCommandsPaths(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
-	p.write("deltas/specifies/payments.spec.md", spec("payments", claimOf("INV-01", "test: "+command("pass", "./payments"))))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("deltas/specs/payments.spec.md", spec("payments", claimOf("INV-01", "test: "+command("pass", "./payments"))))
 	p.write("billing/total_test.go", "// INV-01\n")
 	p.write("payments/pay_test.go", "// nothing cited\n")
 
@@ -190,7 +190,7 @@ func TestACitationOnlyCountsUnderTheCommandsPaths(t *testing.T) {
 
 func TestLinkThenCheckClosesTheLoop(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
 	p.write("billing/total_test.go", "func TestINV01(t *testing.T) {}\n")
 	if code, _, _ := p.delta("", "check"); code != 0 {
 		t.Fatal("a spec with only a none claim must check clean")
@@ -198,7 +198,7 @@ func TestLinkThenCheckClosesTheLoop(t *testing.T) {
 	if code, out, errOut := p.delta("", "link", "billing", "INV-01", command("pass")); code != 0 {
 		t.Fatalf("link = %d %q %q", code, out, errOut)
 	}
-	if !strings.Contains(p.read("deltas/specifies/billing.spec.md"), "- INV-01 [test: ") {
+	if !strings.Contains(p.read("deltas/specs/billing.spec.md"), "- INV-01 [test: ") {
 		t.Fatal("link did not change the tag")
 	}
 	code, out, _ := p.delta("", "check")
@@ -227,7 +227,7 @@ func TestASliceWalksFromDraftToVerified(t *testing.T) {
 	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
 		t.Fatalf("an approved slice is ready: %d %q", code, errOut)
 	}
-	if code, _, errOut := p.delta(spec("billing", claimOf("INV-01", "none")), "spec", "write", "billing"); code != 0 || !strings.Contains(p.read("deltas/specifies/billing.spec.md"), "status: approved") {
+	if code, _, errOut := p.delta(spec("billing", claimOf("INV-01", "none")), "spec", "write", "billing"); code != 0 || !strings.Contains(p.read("deltas/specs/billing.spec.md"), "status: approved") {
 		t.Fatalf("writing the same contract back must leave the approval: %d %q", code, errOut)
 	}
 
@@ -238,19 +238,19 @@ func TestASliceWalksFromDraftToVerified(t *testing.T) {
 	if code, _, _ := p.delta("", "built", "billing"); code != 0 {
 		t.Fatal("an approved slice can be built")
 	}
-	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") || !strings.Contains(p.read("deltas/specifies/billing.spec.md"), "status: verified") {
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") || !strings.Contains(p.read("deltas/specs/billing.spec.md"), "status: verified") {
 		t.Fatalf("check must verify a built slice that holds: %d\n%s", code, out)
 	}
 
-	changed := strings.Replace(p.read("deltas/specifies/billing.spec.md"), "When x, y.", "When x, z.", 1)
-	if code, _, errOut := p.delta(changed, "spec", "write", "billing"); code != 0 || !strings.Contains(errOut, "AUTHOR-REAPPROVE") || !strings.Contains(p.read("deltas/specifies/billing.spec.md"), "status: draft") {
+	changed := strings.Replace(p.read("deltas/specs/billing.spec.md"), "When x, y.", "When x, z.", 1)
+	if code, _, errOut := p.delta(changed, "spec", "write", "billing"); code != 0 || !strings.Contains(errOut, "AUTHOR-REAPPROVE") || !strings.Contains(p.read("deltas/specs/billing.spec.md"), "status: draft") {
 		t.Fatalf("a changed contract is a draft again: %d %q", code, errOut)
 	}
 }
 
 func TestLint(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
 	code, _, errOut := p.delta("", "lint")
 	if code != 1 || !strings.Contains(errOut, "LINT-NO-CITE") {
 		t.Fatalf("an uncited test claim = %d %q, want 1 and LINT-NO-CITE", code, errOut)
@@ -272,8 +272,8 @@ func TestStatus(t *testing.T) {
 	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "delta spec new") {
 		t.Fatalf("an empty project = %d %q", code, out)
 	}
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "test: x"), claimOf("INV-02", "none")))
-	p.write("deltas/specifies/broken.spec.md", "not a spec")
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: x"), claimOf("INV-02", "none")))
+	p.write("deltas/specs/broken.spec.md", "not a spec")
 	_, out, _ := p.delta("", "status")
 	for _, want := range []string{"SLICE", "billing", "approved", "broken"} {
 		if !strings.Contains(out, want) {
@@ -305,7 +305,7 @@ func TestCommitMsg(t *testing.T) {
 
 func TestRunsFromASubdirectory(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
 	p.write("sub/dir/keep", "")
 	code, out, _ := p.deltaIn(filepath.Join(p.root, "sub", "dir"), "", "status")
 	if code != 0 || !strings.Contains(out, "billing") {
@@ -326,9 +326,9 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 // One deltas/ per project: a monorepo keeps every spec in the root's, and a nested deltas/ is not read.
 func TestAMonorepoHasOneDeltasFolderAtTheRoot(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/login.spec.md", spec("login", claimOf("INV-01", "test: "+command("pass", "./services/auth"))))
+	p.write("deltas/specs/login.spec.md", spec("login", claimOf("INV-01", "test: "+command("pass", "./services/auth"))))
 	p.write("services/auth/login_test.go", "// INV-01\n")
-	p.write("services/shop/deltas/specifies/cart.spec.md", spec("cart", claimOf("INV-01", "test: "+command("pass", "./cart"))))
+	p.write("services/shop/deltas/specs/cart.spec.md", spec("cart", claimOf("INV-01", "test: "+command("pass", "./cart"))))
 
 	code, out, errOut := p.delta("", "check")
 	if code != 0 || verdict(out, "login", "INV-01") != "Holds" {

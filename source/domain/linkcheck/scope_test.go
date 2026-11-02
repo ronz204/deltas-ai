@@ -5,14 +5,14 @@ import (
 )
 
 func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
-	s := NewScope("deltas/specifies/billing.spec.md", nil)
+	s := NewScope("deltas/specs/billing.spec.md", nil)
 	cases := map[string]bool{
-		"billing/total.go":                  true,
-		"shared/money/round.go":             true,
-		"deltas/specifies/billing.spec.md":  true,
-		"README.md":                         false,
-		"docs/guide.md":                     false,
-		"deltas/specifies/payments.spec.md": false,
+		"billing/total.go":              true,
+		"shared/money/round.go":         true,
+		"deltas/specs/billing.spec.md":  true,
+		"README.md":                     false,
+		"docs/guide.md":                 false,
+		"deltas/specs/payments.spec.md": false,
 	}
 	for file, want := range cases {
 		if got := s.Covers(file); got != want {
@@ -22,17 +22,17 @@ func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
 }
 
 func TestDeclaredPathsNarrowTheScope(t *testing.T) {
-	s := NewScope("deltas/specifies/billing.spec.md", []string{"billing", "shared/money"})
+	s := NewScope("deltas/specs/billing.spec.md", []string{"billing", "shared/money"})
 	cases := map[string]bool{
-		"billing/total.go":                  true,
-		"billing/deep/x_test.go":            true,
-		"shared/money/round.go":             true,
-		"deltas/specifies/billing.spec.md":  true,
-		"billing2/x.go":                     false,
-		"payments/pay.go":                   false,
-		"shared/other.go":                   false,
-		"billing/NOTES.md":                  false,
-		"deltas/specifies/payments.spec.md": false,
+		"billing/total.go":              true,
+		"billing/deep/x_test.go":        true,
+		"shared/money/round.go":         true,
+		"deltas/specs/billing.spec.md":  true,
+		"billing2/x.go":                 false,
+		"payments/pay.go":               false,
+		"shared/other.go":               false,
+		"billing/NOTES.md":              false,
+		"deltas/specs/payments.spec.md": false,
 	}
 	for file, want := range cases {
 		if got := s.Covers(file); got != want {
@@ -43,7 +43,7 @@ func TestDeclaredPathsNarrowTheScope(t *testing.T) {
 
 func TestTestMatcher(t *testing.T) {
 	own := TestMatcher(nil)
-	for file, want := range map[string]bool{"a/b_test.go": true, "x/test_a.py": true, "a.test.ts": true, "a.go": false, "deltas/specifies/a.spec.md": false} {
+	for file, want := range map[string]bool{"a/b_test.go": true, "x/test_a.py": true, "a.test.ts": true, "a.go": false, "deltas/specs/a.spec.md": false} {
 		if got := own(file); got != want {
 			t.Errorf("default: %q = %v, want %v", file, got, want)
 		}

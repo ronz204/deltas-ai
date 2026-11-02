@@ -77,7 +77,7 @@ func (m *memory) RemoveFile(_ context.Context, rel string) error {
 func (m *memory) HooksPath(context.Context) (string, error)      { return m.hooksDir, nil }
 func (m *memory) SetHooksPath(_ context.Context, p string) error { m.hooksDir = p; return nil }
 
-func (m *memory) Path(s string) string { return "deltas/specifies/" + s + ".spec.md" }
+func (m *memory) Path(s string) string { return "deltas/specs/" + s + ".spec.md" }
 
 func (m *memory) List(context.Context) ([]string, error) {
 	return slices.Sorted(maps.Keys(m.specs)), nil
@@ -132,7 +132,7 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 func TestSpecNewCreatesADraftAndSaysWhere(t *testing.T) {
 	m := newMemory()
 	out, _, err := m.run("", "spec", "new", "billing")
-	if err != nil || out != "created deltas/specifies/billing.spec.md\n" {
+	if err != nil || out != "created deltas/specs/billing.spec.md\n" {
 		t.Fatalf("out = %q, err = %v", out, err)
 	}
 	if !strings.Contains(m.specs["billing"], "slice: billing") {
@@ -164,7 +164,7 @@ func TestSpecLintFailsOnAnErrorAndStaysQuietOtherwise(t *testing.T) {
 	m.specs["billing"] = head + claim("INV-01", "none")
 	m.specs["broken"] = "no frontmatter"
 	_, errOut, err := m.run("", "spec", "lint")
-	if !errors.Is(err, ErrFound) || !strings.Contains(errOut, "deltas/specifies/broken.spec.md:1: SPEC-FRONTMATTER") {
+	if !errors.Is(err, ErrFound) || !strings.Contains(errOut, "deltas/specs/broken.spec.md:1: SPEC-FRONTMATTER") {
 		t.Fatalf("err = %v, stderr = %q", err, errOut)
 	}
 	out, errOut, err := m.run("", "spec", "lint", "billing")

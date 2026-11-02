@@ -19,7 +19,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		".githooks/commit-msg", "deltas/specifies/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
+		".githooks/commit-msg", "deltas/specs/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
 		".claude/settings.json", ".claude/rules/fidelity.md",
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 	} {

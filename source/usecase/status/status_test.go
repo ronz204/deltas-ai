@@ -12,7 +12,7 @@ import (
 
 type fake map[string]string
 
-func (f fake) Path(s string) string { return "deltas/specifies/" + s + ".spec.md" }
+func (f fake) Path(s string) string { return "deltas/specs/" + s + ".spec.md" }
 func (f fake) List(context.Context) ([]string, error) {
 	var names []string
 	for _, n := range []string{"a", "b", "c"} {
@@ -56,7 +56,7 @@ func TestReport(t *testing.T) {
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
 	}
-	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/specifies/a.spec.md") {
+	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/specs/a.spec.md") {
 		t.Fatalf("the scope of a = %+v, want every code file and its spec", a)
 	}
 }
@@ -145,7 +145,7 @@ func TestStaleMarksAVerifiedSliceWhoseFilesChanged(t *testing.T) {
 
 func TestStaleKeepsReportingAStaleSliceWithoutMarkingItAgain(t *testing.T) {
 	specs := fake{"a": spec("a", "stale")}
-	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go", "deltas/specifies/a.spec.md"}}, specs)
+	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go", "deltas/specs/a.spec.md"}}, specs)
 	got, err := r.Stale(context.Background())
 	if want := []Drift{{Slice: "a", Files: []string{"a/x.go"}}}; err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("Stale = %+v, %v; want %+v (its own spec is not news)", got, err, want)

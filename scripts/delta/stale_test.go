@@ -34,7 +34,7 @@ func commitAll(t *testing.T, p *project, message string) {
 // is built and verified again.
 func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.T) {
 	p := gitProject(t)
-	p.write("deltas/specifies/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
 	p.write("billing_test.go", "// INV-01\n")
 	p.write("main.go", "package main\n")
 	commitAll(t, p, "chore(repo): add the billing slice")
@@ -76,7 +76,7 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 func TestAChangeOutsideTheScopeOfASliceDoesNotMakeItStale(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/deltas.config", "scope.billing=billing\n")
-	p.write("deltas/specifies/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
 	p.write("billing/billing_test.go", "// INV-01\n")
 	p.write("other/main.go", "package other\n")
 	commitAll(t, p, "chore(repo): add the billing slice")
@@ -97,7 +97,7 @@ func TestAChangeOutsideTheScopeOfASliceDoesNotMakeItStale(t *testing.T) {
 // Nothing was verified on this machine, so there is nothing to compare: a fresh clone is not stale.
 func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 	p := gitProject(t)
-	p.write("deltas/specifies/billing.spec.md", strings.Replace(built("billing", claimOf("INV-01", "test: git --version")), "status: built", "status: verified", 1))
+	p.write("deltas/specs/billing.spec.md", strings.Replace(built("billing", claimOf("INV-01", "test: git --version")), "status: built", "status: verified", 1))
 	p.write("main.go", "package main\n")
 	commitAll(t, p, "chore(repo): add the billing slice")
 	p.write("main.go", "package main\n\nfunc main() {}\n")

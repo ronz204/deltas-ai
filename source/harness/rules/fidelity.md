@@ -1,6 +1,6 @@
 # Fidelity: the contract rules
 
-The spec of a slice (`deltas/specifies/<slice>.spec.md`) is the truth and the scope of the work.
+The spec of a slice (`deltas/specs/<slice>.spec.md`) is the truth and the scope of the work.
 
 - Every test you write cites the ID of the claim it proves (`INV-01`) in its name or body, and the claim is linked with `delta link`. A test that cites no claim is an orphan: link it or delete it.
 - If the code would have to contradict a claim, do not bend either one. Stop and tell the person which claim and why.

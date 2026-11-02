@@ -26,15 +26,15 @@ func hookEvent(t *testing.T, name, tool, path, command string) string {
 
 func TestHookEndToEnd(t *testing.T) {
 	p := newProject(t)
-	p.write("deltas/specifies/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
 
 	code, out, errOut := p.delta(hookEvent(t, "SessionStart", "", "", ""), "hook")
 	if code != 0 || errOut != "" || !strings.Contains(out, "- billing: approved, 1 claims (0 test, 0 manual, 1 none)") {
 		t.Fatalf("SessionStart = %d %q %q", code, out, errOut)
 	}
 
-	code, _, errOut = p.delta(hookEvent(t, "PreToolUse", "Write", filepath.Join(p.root, "deltas", "specifies", "billing.spec.md"), ""), "hook")
-	if code != 2 || !strings.Contains(errOut, "deltas/specifies/billing.spec.md") || !strings.Contains(errOut, "delta spec write") {
+	code, _, errOut = p.delta(hookEvent(t, "PreToolUse", "Write", filepath.Join(p.root, "deltas", "specs", "billing.spec.md"), ""), "hook")
+	if code != 2 || !strings.Contains(errOut, "deltas/specs/billing.spec.md") || !strings.Contains(errOut, "delta spec write") {
 		t.Fatalf("a write into deltas/ = %d %q, want a block that says how to write it", code, errOut)
 	}
 	if code, _, errOut = p.delta(hookEvent(t, "PreToolUse", "Write", filepath.Join(p.root, "main.go"), ""), "hook"); code != 0 || errOut != "" {

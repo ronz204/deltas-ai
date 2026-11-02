@@ -15,7 +15,7 @@ var ctx = context.Background()
 
 type fakeSpecs map[string]string
 
-func (f fakeSpecs) Path(s string) string { return "deltas/specifies/" + s + ".spec.md" }
+func (f fakeSpecs) Path(s string) string { return "deltas/specs/" + s + ".spec.md" }
 func (f fakeSpecs) List(context.Context) ([]string, error) {
 	var names []string
 	for _, n := range []string{"billing", "broken", "payments", "svc/auth/sessions"} { // fixed order, like a sorted listing
@@ -112,7 +112,7 @@ func TestCheckDoesNotRunABrokenSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Diags) == 0 || rep.Diags[0].File != "deltas/specifies/broken.spec.md" {
+	if len(rep.Diags) == 0 || rep.Diags[0].File != "deltas/specs/broken.spec.md" {
 		t.Fatalf("the broken spec was not reported: %+v", rep.Diags)
 	}
 	if len(rep.Results) != 1 || rep.Results[0].Slice != "billing" {
@@ -200,7 +200,7 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
 	}
-	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/specifies/billing.spec.md") || billing.Covers("README.md") {
+	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/specs/billing.spec.md") || billing.Covers("README.md") {
 		t.Fatalf("the scope of billing = %+v, want every code file and its spec when deltas.config names no paths", billing)
 	}
 }
