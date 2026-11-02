@@ -10,7 +10,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 59 de 72 tareas, 82 %**
+**Avance total: 65 de 73 tareas, 89 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
@@ -19,8 +19,8 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 | 2 | Hooks | ✅ Terminada | 15/15, 100 % |
 | 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
 | 4 | Reglas core y preset `base` | ✅ Terminada | 9/9, 100 % |
-| 5 | Deriva automática | 🔲 Pendiente | 0/6, 0 % |
-| 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/7, 0 % |
+| 5 | Deriva automática | ✅ Terminada | 6/6, 100 % |
+| 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/8, 0 % |
 
 Leyenda: 🔲 Pendiente · 🔄 En progreso · ✅ Terminada.
 
@@ -184,19 +184,19 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 ## Fase 5: deriva automática
 
-**Estado: 🔲 Pendiente, 0/6.**
+**Estado: ✅ Terminada, 6/6.**
 
 *La pieza más diferenciadora y la más heurística (§6.1, §10).*
 
 **Entregables**
-- [ ] `delta stale`: compara los archivos modificados con los que cada spec referencia, por archivo (decisión 7).
-- [ ] Integración con `PostToolUse` y `Stop`.
-- [ ] `delta status` muestra `stale` por slice.
+- [x] `delta stale`: compara los archivos modificados con los que cada spec referencia, por archivo (decisión 7). *Un spec no nombra archivos: "referencia" es su alcance (todo el código, o `scope.<slice>` de `deltas.config`). Cuando `delta check` deja un slice `verified`, el ledger anota el hash de cada archivo de su alcance; `delta stale` compara con eso, pasa a `stale` los `verified` que difieren y sale con 1 si queda alguno. La línea base vive en la caché del usuario: un clon recién hecho no tiene y no marca nada (`blueprint.md`, §8.3).*
+- [x] Integración con `PostToolUse` y `Stop`. *`PostToolUse` avisa a Claude, una vez, de los slices que acaban de pasar a `stale` y de los archivos que lo causaron. `Stop` ya pedía `/forge` para un slice `stale` cuyo código cambió; ahora el mensaje dice que está `stale`, no "aprobado sin construir".*
+- [x] `delta status` muestra `stale` por slice. *Con el número de archivos cambiados; `SessionStart` los nombra. `status` marca antes de informar y, si no puede comparar (sin git), informa lo que dicen los specs.*
 
 **Cierra cuando**
-- [ ] Cambiar un archivo referenciado devuelve el slice a `stale` y se avisa solo.
-- [ ] Se conocen los falsos positivos más frecuentes en un caso real, para decidir si hay que afinar la granularidad. Esta fase se cierra de verdad en la Fase 6.
-- [ ] Commit(s) de la fase, uno por concern.
+- [x] Cambiar un archivo referenciado devuelve el slice a `stale` y se avisa solo. *`TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain` recorre el ciclo con un repositorio git real: verificado, cambio de código, aviso de `PostToolUse`, `status`, `delta stale`, y de vuelta a `verified` tras `built` y `check`. Otros dos casos: un cambio fuera de `scope.<slice>` no lo marca, y un slice nunca verificado en esa máquina tampoco.*
+- [x] Se conocen los falsos positivos por diseño, para decidir si hay que afinar la granularidad. *Sin `scope.<slice>`, cualquier cambio de código en el proyecto marca `stale` a todos los slices verificados: es el ruido más probable. Además, un comentario o un renombrado cuentan igual que un cambio de comportamiento. Los falsos negativos son el caso opuesto: un cambio de comportamiento fuera del alcance declarado. Medirlo en un caso real pasa a la Fase 6, porque aquí no hay ninguno.*
+- [x] Commit(s) de la fase, uno por concern. *Uno para el código y los tests, otro para el blueprint y otro para este documento.*
 
 ---
 
@@ -208,6 +208,7 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 **Qué se hace**
 - [ ] Usar Delta en varias features reales de Kelsen, de punta a punta.
+- [ ] Medir el ruido de `stale` en esas features (cuántas marcas fueron deriva real y cuántas no) y decidir si hay que declarar `scope.<slice>` por defecto o afinar la granularidad.
 - [ ] Anotar dónde estorba y dónde salva.
 - [ ] Fijar *antes* de empezar los umbrales de §13, para no ajustarlos después de ver los resultados.
 
