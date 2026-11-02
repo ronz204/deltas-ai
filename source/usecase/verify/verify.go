@@ -30,10 +30,12 @@ type Runner interface {
 }
 
 // Seen is what a check found for one slice: whether a claim was violated, and the part of the project it depends on.
+// Verified says the slice ends the check verified, so the files it depends on are the ones it holds against.
 type Seen struct {
 	Slice    string
 	Scope    linkcheck.Scope
 	Violated bool
+	Verified bool
 }
 
 // Marks remembers what a check saw, so the Stop hook can tell a checked tree from an unchecked one.
@@ -192,7 +194,13 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.Fi
 			open++
 		}
 	}
-	if l.spec.Status != lifecycle.Built || held == 0 || open > 0 {
+	switch {
+	case held == 0 || open > 0:
+		return s, nil
+	case l.spec.Status == lifecycle.Verified: // it still holds against the files as they are now
+		s.Verified = true
+		return s, nil
+	case l.spec.Status != lifecycle.Built:
 		return s, nil
 	}
 	if err := v.verified(ctx, l); err != nil {
@@ -201,6 +209,7 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.Fi
 		return s, nil
 	}
 	rep.Verified = append(rep.Verified, l.slice)
+	s.Verified = true
 	return s, nil
 }
 

@@ -82,19 +82,47 @@ func (g *Guard) Decide(ctx context.Context, e Event) (Decision, error) {
 	return Decision{}, nil
 }
 
-// after lints a test file Claude just wrote and tells it about the problems in that file. Problems in other
-// files are not its business here: a claim without a test yet is normal while the tests are being written.
+// after tells Claude what the file it just wrote changed: a slice that was verified and is now stale, and, for a
+// test file, the lint problems in that file.
 func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
-	if g.linter == nil || !fileTools[e.Tool] {
+	if !fileTools[e.Tool] {
 		return Decision{}, nil
 	}
 	rel, ok := g.relative(e.Path)
-	if !ok || !g.linter.IsTest(rel) {
+	if !ok {
 		return Decision{}, nil
+	}
+	var lines []string
+	if !knowledge.Covers(rel) {
+		drifted, err := g.slices.Stale(ctx)
+		if err != nil {
+			return Decision{}, err
+		}
+		for _, d := range drifted {
+			if d.Marked {
+				lines = append(lines, fmt.Sprintf("%s was verified and is now stale: %s changed. Check that its contract still holds: if it does, rebuild with /forge %s; if the contract is out of date, say so to the user, who decides it with /quill.", d.Slice, fileList(d.Files), d.Slice))
+			}
+		}
+	}
+	lint, err := g.lintOf(ctx, rel)
+	if err != nil {
+		return Decision{}, err
+	}
+	if lines = append(lines, lint...); len(lines) == 0 {
+		return Decision{}, nil
+	}
+	return Decision{Block: true, Reason: strings.Join(lines, "\n")}, nil
+}
+
+// lintOf is the lint problems of one file, if it is a test file. Problems in other files are not its business here:
+// a claim without a test yet is normal while the tests are being written.
+func (g *Guard) lintOf(ctx context.Context, rel string) ([]string, error) {
+	if g.linter == nil || !g.linter.IsTest(rel) {
+		return nil, nil
 	}
 	ds, err := g.linter.Lint(ctx)
 	if err != nil {
-		return Decision{}, err
+		return nil, err
 	}
 	var lines []string
 	for _, d := range ds {
@@ -103,9 +131,18 @@ func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
 		}
 	}
 	if len(lines) == 0 {
-		return Decision{}, nil
+		return nil, nil
 	}
-	return Decision{Block: true, Reason: "delta lint found problems in the test file you just wrote:\n" + strings.Join(lines, "\n")}, nil
+	return append([]string{"delta lint found problems in the test file you just wrote:"}, lines...), nil
+}
+
+// fileList names up to three files and counts the rest.
+func fileList(files []string) string {
+	const shown = 3
+	if len(files) <= shown {
+		return strings.Join(files, ", ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(files[:shown], ", "), len(files)-shown)
 }
 
 // stop keeps Claude from finishing while a slice with test claims has not been checked against the tree as
@@ -152,6 +189,10 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	}
 	var lines []string
 	for _, n := range unbuilt {
+		if state[n] == lifecycle.Stale {
+			lines = append(lines, fmt.Sprintf("%s is stale and its code changed again: bring it up to date with /forge %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
+			continue
+		}
 		lines = append(lines, fmt.Sprintf("%s is approved but not built, and the code changed since: finish it with /forge %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
 	}
 	if len(unchecked) > 0 {
@@ -233,6 +274,9 @@ func (g *Guard) start(ctx context.Context) (Decision, error) {
 		fmt.Fprintf(&b, "- %s: %s, %d claims (%d test, %d manual, %d none)", r.Slice, state, r.Claims, r.Test, r.Manual, r.None)
 		if r.Issues > 0 {
 			fmt.Fprintf(&b, ", %d problems in its spec", r.Issues)
+		}
+		if len(r.Changed) > 0 {
+			fmt.Fprintf(&b, ", changed since it was verified: %s", fileList(r.Changed))
 		}
 		b.WriteByte('\n')
 	}

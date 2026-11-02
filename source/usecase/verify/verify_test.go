@@ -271,3 +271,36 @@ func TestCheckLeavesTheStatusAloneUnlessItIsBuiltAndClean(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckSaysWhichSlicesEndVerified(t *testing.T) {
+	specs := fakeSpecs{
+		"billing":  builtSpec("billing", passing),
+		"payments": strings.Replace(builtSpec("payments", passing), "status: built", "status: verified", 1),
+	}
+	marks := &fakeMarks{}
+	if _, err := New(specs, tests, &fakeRunner{}, marks, nil).Check(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range marks.seen {
+		if !s.Verified {
+			t.Errorf("%s is verified after the check but Seen says it is not", s.Slice)
+		}
+	}
+}
+
+func TestCheckDoesNotCallASliceVerifiedUnlessItHolds(t *testing.T) {
+	specs := fakeSpecs{
+		"billing":  builtSpec("billing", passing, failing),
+		"payments": specOf("payments", passing),
+	}
+	marks := &fakeMarks{}
+	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
+	if _, err := New(specs, tests, run, marks, nil).Check(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range marks.seen {
+		if s.Verified {
+			t.Errorf("%s is not verified after the check but Seen says it is", s.Slice)
+		}
+	}
+}

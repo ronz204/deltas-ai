@@ -54,6 +54,24 @@ func (g *Git) Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dir
 	return hex.EncodeToString(sum.Sum(nil)), true, nil
 }
 
+// Files fingerprints, file by file, every file of the project a scope covers: the tracked ones and the
+// untracked ones that are not ignored. Unlike Tree it does not compare with HEAD, so it tells what changed
+// since an earlier call even after a commit.
+// shortcut: it hashes every covered file on each call; upgrade by keeping size and mtime beside the hash.
+func (g *Git) Files(ctx context.Context, scope linkcheck.Scope) (map[string]string, error) {
+	names, err := g.names(ctx, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	files := make(map[string]string, len(names))
+	for _, name := range names {
+		if scope.Covers(name) {
+			files[name] = g.contentHash(name)
+		}
+	}
+	return files, nil
+}
+
 func (g *Git) names(ctx context.Context, args ...string) ([]string, error) {
 	out, err := g.run(ctx, args...)
 	if err != nil {

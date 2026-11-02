@@ -19,7 +19,18 @@ var ctx = context.Background()
 // tree is a working tree with some changed files: its fingerprint covers the changed files a scope covers.
 type tree struct {
 	changed map[string]string
+	all     map[string]string // every file of the project, with its hash
 	err     error
+}
+
+func (t *tree) Files(_ context.Context, scope linkcheck.Scope) (map[string]string, error) {
+	out := map[string]string{}
+	for name, hash := range t.all {
+		if scope.Covers(name) {
+			out[name] = hash
+		}
+	}
+	return out, t.err
 }
 
 func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, error) {
@@ -143,5 +154,69 @@ func TestFailuresAreReportedNotHidden(t *testing.T) {
 	}
 	if err := New("", "/repo", &tree{}).Record(ctx, seen); err == nil {
 		t.Error("Record without a cache directory succeeded")
+	}
+}
+
+func TestASliceThatWasNeverVerifiedHereHasNoDriftToTell(t *testing.T) {
+	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+		t.Fatal(err)
+	}
+	if changed, known, err := l.Drift(ctx, "billing", billing); err != nil || known || changed != nil {
+		t.Fatalf("Drift = %v, %v, %v; a check that did not verify the slice sets no baseline", changed, known, err)
+	}
+}
+
+func TestDriftListsTheFilesThatChangedSinceTheSliceWasVerified(t *testing.T) {
+	tr := &tree{all: map[string]string{"billing/total.go": "v1", "billing/tax.go": "v1", "payments/pay.go": "v1"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if changed, known, err := l.Drift(ctx, "billing", billing); err != nil || !known || len(changed) != 0 {
+		t.Fatalf("Drift = %v, %v, %v; nothing changed yet", changed, known, err)
+	}
+	tr.all["billing/total.go"] = "v2"
+	tr.all["payments/pay.go"] = "v2" // not a file billing depends on
+	delete(tr.all, "billing/tax.go")
+	tr.all["billing/new.go"] = "v1"
+	changed, known, err := l.Drift(ctx, "billing", billing)
+	if want := []string{"billing/new.go", "billing/tax.go", "billing/total.go"}; err != nil || !known || !slices.Equal(changed, want) {
+		t.Fatalf("Drift = %v, %v, %v; want %v", changed, known, err, want)
+	}
+}
+
+func TestDriftIsKeptAcrossACheckThatDoesNotVerify(t *testing.T) {
+	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+		t.Fatal(err)
+	}
+	tr.all["billing/total.go"] = "v2"
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Violated: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if changed, known, _ := l.Drift(ctx, "billing", billing); !known || len(changed) != 1 {
+		t.Fatalf("Drift = %v, %v; a failing check must not become the new baseline", changed, known)
+	}
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if changed, _, _ := l.Drift(ctx, "billing", billing); len(changed) != 0 {
+		t.Fatalf("Drift = %v; a new verification is the new baseline", changed)
+	}
+}
+
+func TestDriftFailureIsReported(t *testing.T) {
+	boom := errors.New("boom")
+	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+		t.Fatal(err)
+	}
+	tr.err = boom
+	if _, _, err := l.Drift(ctx, "billing", billing); !errors.Is(err, boom) {
+		t.Fatalf("Drift error = %v, want %v", err, boom)
 	}
 }

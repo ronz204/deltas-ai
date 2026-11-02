@@ -43,6 +43,9 @@ func printRows(out io.Writer, rows []status.Row) error {
 		if state == "" {
 			state = "-" // the frontmatter could not be read
 		}
+		if n := len(r.Changed); n > 0 {
+			state = fmt.Sprintf("%s (%d files changed)", state, n)
+		}
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\n", r.Slice, state, r.Claims, r.Test, r.Manual, r.None, r.Issues)
 	}
 	return tw.Flush()

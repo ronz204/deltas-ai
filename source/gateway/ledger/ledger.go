@@ -12,14 +12,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ronz204/deltas-ai/source/domain/drift"
 	"github.com/ronz204/deltas-ai/source/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
 // Tree fingerprints the part of the working tree a scope covers; dirty is false when it has no changes.
+// Files fingerprints every file the scope covers, one hash each, whatever HEAD says.
 type Tree interface {
 	Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dirty bool, err error)
+	Files(ctx context.Context, scope linkcheck.Scope) (map[string]string, error)
 }
 
 type Ledger struct {
@@ -37,9 +40,13 @@ func New(cache, root string, tree Tree) *Ledger {
 	return l
 }
 
+// entry is what the last check left for a slice. Files is set only when that check ended with the slice
+// verified, and stays until another one does: it is what the slice is compared with to find drift.
+// shortcut: a slice that depends on every code file keeps a hash per file; upgrade by sharing one table between slices.
 type entry struct {
-	Tree     string `json:"tree"`
-	Violated bool   `json:"violated"`
+	Tree     string            `json:"tree"`
+	Violated bool              `json:"violated"`
+	Files    map[string]string `json:"files,omitempty"`
 }
 
 // Record marks each slice as checked against its part of the tree as it is now.
@@ -53,9 +60,31 @@ func (l *Ledger) Record(ctx context.Context, seen []verify.Seen) error {
 		if err != nil {
 			return err
 		}
-		marks[s.Slice] = entry{Tree: tree, Violated: s.Violated}
+		e := marks[s.Slice]
+		e.Tree, e.Violated = tree, s.Violated
+		if s.Verified {
+			if e.Files, err = l.tree.Files(ctx, s.Scope); err != nil {
+				return err
+			}
+		}
+		marks[s.Slice] = e
 	}
 	return l.write(marks)
+}
+
+// Drift lists the files of the scope that differ from the ones the slice was last verified against. known is
+// false when it was never verified here (a fresh clone, or a lost record): then there is nothing to compare.
+func (l *Ledger) Drift(ctx context.Context, slice string, scope linkcheck.Scope) (changed []string, known bool, err error) {
+	marks, _ := l.read()
+	e := marks[slice]
+	if e.Files == nil {
+		return nil, false, nil
+	}
+	now, err := l.tree.Files(ctx, scope)
+	if err != nil {
+		return nil, true, err
+	}
+	return drift.Changed(e.Files, now), true, nil
 }
 
 // Standings says what the last check of each slice proves about its part of the tree as it is now. A slice

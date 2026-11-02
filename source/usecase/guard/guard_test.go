@@ -334,3 +334,108 @@ func TestPostToolUseFailureIsAnErrorNotAMessage(t *testing.T) {
 		t.Fatalf("Decide = %+v, %v", d, err)
 	}
 }
+
+func (s specs) Save(_ context.Context, slice string, content []byte) error {
+	s[slice] = string(content)
+	return nil
+}
+
+// drifting says which files changed since each slice was verified; a slice it does not list was never verified here.
+type drifting map[string][]string
+
+func (d drifting) Drift(_ context.Context, slice string, _ linkcheck.Scope) ([]string, bool, error) {
+	files, ok := d[slice]
+	return files, ok, nil
+}
+
+func verifiedBilling(state string) specs {
+	return specs{"billing": "---\nformat: 1\nslice: billing\nstatus: " + state + "\n---\n- INV-01 [test: go test ./billing]\n  When x, y.\n"}
+}
+
+func driftGuard(t *testing.T, s specs, d drifting) (*Guard, string) {
+	t.Helper()
+	root := t.TempDir()
+	return New(root, status.New(s, nil).WithDrift(d, s), nil, nil, nil), root
+}
+
+func TestPostToolUseTellsClaudeThatAVerifiedSliceWentStale(t *testing.T) {
+	s := verifiedBilling("verified")
+	g, root := driftGuard(t, s, drifting{"billing": {"billing/total.go"}})
+	e := Event{Name: "PostToolUse", Tool: "Edit", Path: filepath.Join(root, "billing", "total.go")}
+	d, err := g.Decide(ctx, e)
+	for _, want := range []string{"billing", "stale", "billing/total.go", "/forge billing"} {
+		if err != nil || !d.Block || !strings.Contains(d.Reason, want) {
+			t.Fatalf("Decide = %+v, %v; want a block that mentions %q", d, err, want)
+		}
+	}
+	if !strings.Contains(s["billing"], "status: stale") {
+		t.Fatalf("the spec was not marked stale: %q", s["billing"])
+	}
+	if d, err := g.Decide(ctx, e); err != nil || d.Block {
+		t.Fatalf("second Decide = %+v, %v; a slice already stale is not news again", d, err)
+	}
+}
+
+func TestPostToolUseLeavesAVerifiedSliceAloneWhenNothingChanged(t *testing.T) {
+	s := verifiedBilling("verified")
+	g, root := driftGuard(t, s, drifting{"billing": {}})
+	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "billing", "total.go")}); err != nil || d.Block {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	if !strings.Contains(s["billing"], "status: verified") {
+		t.Fatalf("the spec changed: %q", s["billing"])
+	}
+}
+
+func TestPostToolUseDoesNotLookForDriftWhenTheKnowledgeBaseWasTheEdit(t *testing.T) {
+	s := verifiedBilling("verified")
+	g, root := driftGuard(t, s, drifting{"billing": {"billing/total.go"}})
+	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "CLAUDE.md")}); err != nil || d.Block {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}
+
+func TestPostToolUseKeepsTheLintMessageBesideTheStaleOne(t *testing.T) {
+	s := verifiedBilling("verified")
+	root := t.TempDir()
+	l := &linter{diags: []findings.Diagnostic{{File: "billing/total_test.go", Line: 3, Code: "LINT-SKIP", Message: "skipped", Warn: true}}}
+	g := New(root, status.New(s, nil).WithDrift(drifting{"billing": {"billing/total_test.go"}}, s), nil, nil, l)
+	d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "billing", "total_test.go")})
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "stale") || !strings.Contains(d.Reason, "LINT-SKIP") {
+		t.Fatalf("Decide = %+v, %v; want both messages", d, err)
+	}
+}
+
+func TestPostToolUseSaysWhenItCouldNotTellWhatWentStale(t *testing.T) {
+	s := verifiedBilling("verified")
+	root := t.TempDir()
+	g := New(root, status.New(s, nil).WithDrift(brokenDrifting{}, s), nil, nil, nil)
+	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a.go")}); err == nil || d.Block {
+		t.Fatalf("Decide = %+v, %v; a broken delta must not block", d, err)
+	}
+}
+
+type brokenDrifting struct{}
+
+func (brokenDrifting) Drift(context.Context, string, linkcheck.Scope) ([]string, bool, error) {
+	return nil, true, errors.New("git is gone")
+}
+
+func TestStopSaysAStaleSliceIsStaleNotUnbuilt(t *testing.T) {
+	s := verifiedBilling("stale")
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}}
+	g := New(t.TempDir(), status.New(s, nil), nil, ev, nil)
+	d, err := g.Decide(ctx, Event{Name: "Stop"})
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing is stale") || !strings.Contains(d.Reason, "/forge billing") || strings.Contains(d.Reason, "approved but not built") {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}
+
+func TestSessionStartNamesTheFilesThatMadeASliceStale(t *testing.T) {
+	s := verifiedBilling("verified")
+	g, _ := driftGuard(t, s, drifting{"billing": {"a.go", "b.go", "c.go", "d.go"}})
+	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
+	if err != nil || !strings.Contains(d.Context, "billing: stale") || !strings.Contains(d.Context, "a.go, b.go, c.go and 1 more") {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}

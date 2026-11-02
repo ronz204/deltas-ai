@@ -22,6 +22,7 @@ func (f fake) List(context.Context) ([]string, error) {
 	}
 	return names, nil
 }
+func (f fake) Save(_ context.Context, s string, c []byte) error { f[s] = string(c); return nil }
 func (f fake) Load(_ context.Context, s string) ([]byte, error) {
 	if src, ok := f[s]; ok {
 		return []byte(src), nil
@@ -115,5 +116,82 @@ func TestReadyFailsPlainlyForAMissingSpec(t *testing.T) {
 	var notReady *NotReady
 	if err == nil || errors.As(err, &notReady) {
 		t.Fatalf("Ready = %v, want a plain error", err)
+	}
+}
+
+// drifts says, per slice, which files changed since it was verified; a slice it does not list was never verified here.
+type drifts map[string][]string
+
+func (d drifts) Drift(_ context.Context, slice string, _ linkcheck.Scope) ([]string, bool, error) {
+	files, ok := d[slice]
+	return files, ok, nil
+}
+
+func spec(slice, state string) string {
+	return "---\nformat: 1\nslice: " + slice + "\nstatus: " + state + "\n---\n- INV-01 [none]\n  When x, y.\n"
+}
+
+func TestStaleMarksAVerifiedSliceWhoseFilesChanged(t *testing.T) {
+	specs := fake{"a": spec("a", "verified"), "b": spec("b", "verified")}
+	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go"}, "b": {}}, specs)
+	got, err := r.Stale(context.Background())
+	if want := []Drift{{Slice: "a", Files: []string{"a/x.go"}, Marked: true}}; err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("Stale = %+v, %v; want %+v", got, err, want)
+	}
+	if specs["a"] != spec("a", "stale") || specs["b"] != spec("b", "verified") {
+		t.Fatalf("stored a = %q, b = %q; only a goes stale, and only its status line changes", specs["a"], specs["b"])
+	}
+}
+
+func TestStaleKeepsReportingAStaleSliceWithoutMarkingItAgain(t *testing.T) {
+	specs := fake{"a": spec("a", "stale")}
+	r := New(specs, nil).WithDrift(drifts{"a": {"a/x.go", "deltas/specifies/a.spec.md"}}, specs)
+	got, err := r.Stale(context.Background())
+	if want := []Drift{{Slice: "a", Files: []string{"a/x.go"}}}; err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("Stale = %+v, %v; want %+v (its own spec is not news)", got, err, want)
+	}
+}
+
+func TestStaleLeavesAloneWhatWasNeverVerifiedOrIsNotVerified(t *testing.T) {
+	specs := fake{"a": spec("a", "verified"), "b": spec("b", "built"), "c": "not a spec"}
+	r := New(specs, nil).WithDrift(drifts{"b": {"b/x.go"}, "c": {"c/x.go"}}, specs)
+	if got, err := r.Stale(context.Background()); err != nil || len(got) != 0 {
+		t.Fatalf("Stale = %+v, %v; a slice with no baseline, one still being built and a broken spec are never stale", got, err)
+	}
+	if specs["a"] != spec("a", "verified") || specs["b"] != spec("b", "built") {
+		t.Fatalf("a spec was rewritten: %v", specs)
+	}
+}
+
+func TestStaleIsOffUntilDriftIsWiredIn(t *testing.T) {
+	specs := fake{"a": spec("a", "verified")}
+	if got, err := New(specs, nil).Stale(context.Background()); err != nil || got != nil {
+		t.Fatalf("Stale = %+v, %v", got, err)
+	}
+}
+
+type brokenDrift struct{}
+
+func (brokenDrift) Drift(context.Context, string, linkcheck.Scope) ([]string, bool, error) {
+	return nil, true, errors.New("git is gone")
+}
+
+func TestStaleReportsWhyItCouldNotTell(t *testing.T) {
+	specs := fake{"a": spec("a", "verified")}
+	if _, err := New(specs, nil).WithDrift(brokenDrift{}, specs).Stale(context.Background()); err == nil {
+		t.Fatal("Stale hid an error")
+	}
+}
+
+func TestReportShowsWhatWentStaleAndStillWorksWhenDriftCannotBeTold(t *testing.T) {
+	specs := fake{"a": spec("a", "verified")}
+	rows, err := New(specs, nil).WithDrift(drifts{"a": {"a/x.go"}}, specs).Report(context.Background())
+	if err != nil || rows[0].Status != lifecycle.Stale || !reflect.DeepEqual(rows[0].Changed, []string{"a/x.go"}) {
+		t.Fatalf("rows = %+v, %v; want a stale with its changed file", rows, err)
+	}
+	specs = fake{"a": spec("a", "verified")}
+	rows, err = New(specs, nil).WithDrift(brokenDrift{}, specs).Report(context.Background())
+	if err != nil || rows[0].Status != lifecycle.Verified {
+		t.Fatalf("rows = %+v, %v; a status report must not fail because git did", rows, err)
 	}
 }

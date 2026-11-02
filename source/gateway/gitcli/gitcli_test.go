@@ -211,3 +211,54 @@ func TestTreeLooksOnlyAtTheScopeAndIgnoresDocumentation(t *testing.T) {
 		t.Fatal("a change inside the scope was missed")
 	}
 }
+
+func TestFilesFingerprintsEveryCoveredFileEvenRightAfterACommit(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	put(t, dir, "notes.md", "docs")
+	commit(t, dir)
+	put(t, dir, "b.go", "untracked")
+	put(t, dir, ".gitignore", "ignored.go\n")
+	put(t, dir, "ignored.go", "x")
+	files, err := New(dir).Files(ctx, everything)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := files["a.go"]; !ok || files["b.go"] == "" || len(files) != 3 { // a.go, b.go and .gitignore; not notes.md nor ignored.go
+		t.Fatalf("Files = %v, want a.go, b.go and .gitignore", files)
+	}
+}
+
+func TestFilesChangeWithTheContentOfAFileOnly(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	put(t, dir, "b.go", "one")
+	commit(t, dir)
+	g := New(dir)
+	before, _ := g.Files(ctx, everything)
+	put(t, dir, "a.go", "two")
+	after, err := g.Files(ctx, everything)
+	if err != nil || before["a.go"] == after["a.go"] || before["b.go"] != after["b.go"] {
+		t.Fatalf("before %v, after %v, err %v; only a.go should differ", before, after, err)
+	}
+	if err := os.Remove(filepath.Join(dir, "b.go")); err != nil {
+		t.Fatal(err)
+	}
+	if gone, _ := g.Files(ctx, everything); gone["b.go"] == after["b.go"] {
+		t.Fatal("a deleted file must not keep the hash it had")
+	}
+}
+
+func TestFilesKeepsToTheScope(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	if err := os.Mkdir(filepath.Join(dir, "billing"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	put(t, dir, "billing/total.go", "one")
+	commit(t, dir)
+	files, err := New(dir).Files(ctx, linkcheck.NewScope("", []string{"billing"}))
+	if err != nil || len(files) != 1 || files["billing/total.go"] == "" {
+		t.Fatalf("Files = %v, %v; want only billing/total.go", files, err)
+	}
+}
