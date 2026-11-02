@@ -1,5 +1,5 @@
-// Package harness embeds what delta init installs; it sits beside the files because go:embed cannot go up.
-package harness
+// Package agents embeds what delta init installs; it sits beside the files because go:embed cannot go up.
+package agents
 
 import "embed"
 

@@ -6,14 +6,14 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/ronz204/deltas-ai/agents"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
-	"github.com/ronz204/deltas-ai/source/harness"
 )
 
 func render(t *testing.T, name string, data any) string {
 	t.Helper()
-	raw, err := harness.FS.ReadFile("core/templates/" + name)
+	raw, err := agents.FS.ReadFile("core/templates/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}

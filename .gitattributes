@@ -15,7 +15,7 @@
 go.mod text eol=lf
 go.sum text eol=lf
 .githooks/*        text eol=lf
-source/harness/core/githooks/* text eol=lf
+agents/core/githooks/* text eol=lf
 
 # Binary files git must not touch.
 *.png  binary

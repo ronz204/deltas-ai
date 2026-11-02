@@ -8,26 +8,26 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ronz204/deltas-ai/source/harness"
+	"github.com/ronz204/deltas-ai/agents"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 )
 
 type Bundle struct{}
 
-func (Bundle) Spec() ([]byte, error) { return harness.FS.ReadFile("core/templates/spec.md") }
+func (Bundle) Spec() ([]byte, error) { return agents.FS.ReadFile("core/templates/spec.md") }
 
 func (Bundle) GitHook(name string) ([]byte, error) {
-	return harness.FS.ReadFile("core/githooks/" + name)
+	return agents.FS.ReadFile("core/githooks/" + name)
 }
 
 // Settings is the part of .claude/settings.json that delta needs: its hooks and permissions.
-func (Bundle) Settings() ([]byte, error) { return harness.FS.ReadFile("core/configs/settings.json") }
+func (Bundle) Settings() ([]byte, error) { return agents.FS.ReadFile("core/configs/settings.json") }
 
 // Assets lists what init copies into a project, in a fixed order: the skills and the rules under .claude/,
 // deltas/deltas.config, the doc templates under deltas/docs/, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
 func (Bundle) Assets(project string) ([]setup.Asset, error) {
 	var out []setup.Asset
-	err := fs.WalkDir(harness.FS, ".", func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(agents.FS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -35,7 +35,7 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 		if !ok {
 			return nil
 		}
-		content, err := harness.FS.ReadFile(p)
+		content, err := agents.FS.ReadFile(p)
 		if err != nil {
 			return err
 		}

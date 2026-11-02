@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/harness"
+	"github.com/ronz204/deltas-ai/agents"
 )
 
 type settings struct {
@@ -21,7 +21,7 @@ type settings struct {
 
 // The shape follows Claude Code's documentation: event, then matcher groups, then handlers.
 func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
-	raw, err := harness.FS.ReadFile("core/configs/settings.json")
+	raw, err := agents.FS.ReadFile("core/configs/settings.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -181,7 +181,7 @@ func TestTheHookLetsACommitThroughWhenDeltaIsMissing(t *testing.T) {
 	if err != nil {
 		t.Skip("sh is not on the PATH")
 	}
-	hook, err := os.ReadFile(filepath.Join("..", "..", "source", "harness", "core", "githooks", "commit-msg"))
+	hook, err := os.ReadFile(filepath.Join("..", "..", "agents", "core", "githooks", "commit-msg"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestTheHookLetsACommitThroughWhenAnotherProgramIsCalledDelta(t *testing.T) 
 	if err != nil {
 		t.Skip("grep is not on the PATH")
 	}
-	hook, err := os.ReadFile(filepath.Join("..", "..", "source", "harness", "core", "githooks", "commit-msg"))
+	hook, err := os.ReadFile(filepath.Join("..", "..", "agents", "core", "githooks", "commit-msg"))
 	if err != nil {
 		t.Fatal(err)
 	}
