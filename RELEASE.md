@@ -68,8 +68,8 @@ The installers use GitHub's `releases/latest`, which **ignores pre-releases**. U
 
 ## 3. Cutting a release
 
-1. **Check that `main` is ready.** The latest `ci` run on `main` must be green, and the commit you tag must be the one that passed.
-2. **Optionally dry-run the build.** `goreleaser check` validates the config, and `goreleaser release --snapshot --clean` builds everything into `dist/` without publishing. Run `dist/delta_windows_amd64_v1/delta.exe version` (or the build for your system) and confirm the version is injected.
+1. **Check that `main` is ready.** The latest `ci` run on `main` must be green, and the commit you tag must be the one that passed. The `release-check` job of `ci` already runs `goreleaser check` and a snapshot build on every push and pull request, so a broken release config shows up there and not on a tag.
+2. **Optionally dry-run the build by hand.** `goreleaser check` validates the config, and `goreleaser release --snapshot --clean` builds everything into `dist/` without publishing. Run `dist/delta_windows_amd64_v1/delta.exe version` (or the build for your system) and confirm the version is injected.
 3. **Try a release candidate first when the pipeline changed.**
 
    ```sh
@@ -141,6 +141,5 @@ For `install.sh`, `DELTA_BASE_URL` takes a `file://` URL. To check the safety ne
 
 - **Credit to ponytail.** `agents/rules/code-change-scope.md` says its ladder is adapted from ponytail (MIT). MIT asks that the original copyright notice travels with substantial copied portions, and the README acknowledgment that used to carry it was removed. Decide whether to restore a credit, for example a `NOTICE` file or a line in the rule.
 - **Test `install.sh` on Linux.** A container or a VM is enough, with the one-line command and no `DELTA_VERSION`.
-- **Catch a broken release config in pull requests.** Add `goreleaser check` and `goreleaser release --snapshot --clean` to `ci.yml`, so the problem shows up before a tag.
 - **Package managers.** A Scoop bucket for Windows and a Homebrew tap for Linux and macOS can be added to `.goreleaser.yaml` once people use the tool. Each needs a separate repository for its manifest.
 - **Code signing**, if the warnings turn out to put people off.
