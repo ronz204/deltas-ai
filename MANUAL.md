@@ -38,7 +38,7 @@ The short version: you describe a feature, the agent drafts a **contract** for i
 From a clone of this repository:
 
 ```
-go build -o dist/delta ./deltas
+go build -o dist/delta ./cmd/delta
 ```
 
 Put `dist/delta` on your `PATH` and check it with `delta version`, which prints `delta (deltas-ai) dev`.

@@ -288,7 +288,11 @@ The Go code is now `delta/` (the entrypoint) and `package/{domain,usecase,gatewa
 
 One thing to remember if delta is ever used on this repository itself: in a delta project every path whose parent folder is `deltas` belongs to the knowledge base (`kbpaths.Covers`), is not code for a slice's scope and is skipped when searching tests, so `deltas/*.go` would be blocked for the agent and ignored by the checks.
 
-## Open items (after Phase 10)
+## Phase 11: the entrypoint moves to `cmd/delta/`
+
+`deltas/` is now `cmd/delta/`, the Go convention of `cmd/<binary>/`. The folder has the name of the binary, so `go install ./cmd/delta` produces `delta` and the workaround of building with `-o dist/delta` is no longer needed (it still works). It also stops the problem noted in Phase 10: the parent folder of the entrypoint files is `delta`, not `deltas`, so `kbpaths.Covers` no longer takes them for the knowledge base. Only the folder moved, with its tests and `testdata`; the code is unchanged and `go vet` and `go test ./...` pass.
+
+## Open items (after Phase 11)
 
 Everything decided in sections 1 to 6 and Phases 1 to 10 is in the code and the harness, and `go vet`, `gofmt` and `go test ./...` pass. What is left is not code that is missing but things nobody has tried or decided:
 

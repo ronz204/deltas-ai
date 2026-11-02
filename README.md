@@ -340,7 +340,7 @@ The code is split in layers so the rules can be tested without a terminal, a dis
 | Path | Purpose |
 |---|---|
 | `agents/` | What `delta init` installs, embedded in the binary |
-| `deltas/` | CLI entrypoint. Its tests drive the whole CLI |
+| `cmd/delta/` | CLI entrypoint. Its tests drive the whole CLI |
 | `package/domain` | The rules, with no input or output |
 | `package/usecase` | What each command does |
 | `package/gateway` | The outside world: files, git, commands and the check record |
@@ -353,11 +353,11 @@ The code is split in layers so the rules can be tested without a terminal, a dis
 ```bash
 go vet ./...
 go test ./...
-go build -o dist/delta ./deltas
-go build -ldflags "-X main.version=1.2.3" -o dist/delta ./deltas   # with a version
+go build -o dist/delta ./cmd/delta
+go build -ldflags "-X main.version=1.2.3" -o dist/delta ./cmd/delta   # with a version
 ```
 
-The binary must be called `delta`, because hooks, permissions and the PATH check depend on it. Use the build above instead of `go install ./deltas`, and put `dist/delta` on your `PATH`.
+The binary must be called `delta`, because hooks, permissions and the PATH check depend on it. The entrypoint lives in `cmd/delta`, so both the build above and `go install ./cmd/delta` produce a binary with that name. Put it on your `PATH`.
 
 Tests need `git`. The TypeScript compatibility test needs a `node` that runs TypeScript and is skipped without one.
 
