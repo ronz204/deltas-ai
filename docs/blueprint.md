@@ -157,7 +157,7 @@ type Runner interface {
 | `specfile` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
 | `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool`: el ciclo, y la vuelta a `draft` desde cualquier otro estado |
 | `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome`; `Mark` (el árbol que vio un `delta check` y si hubo violación) y `Mark.At(tree)`, que dice si es `Unchecked`, `Failing` o `Passing` para el árbol de ahora |
-| `drift` | Cuándo un contrato está viejo | `Stale(referenced, changed []string) bool` y qué archivos coinciden |
+| `drift` | Cuándo un contrato está viejo | `Changed(before, after map[string]string) []string`: los archivos añadidos, borrados o editados entre dos huellas (ruta → hash de contenido) |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs. `Scope` es la parte del proyecto de la que depende un slice: todos los archivos de código, o solo las rutas que `deltas.config` declare para él, más su propio spec; el Markdown no cuenta. `TestMatcher` dice qué archivos son tests, con los patrones de `deltas.config` o con la regla propia de Delta. `Under(files, dir)` nombra los archivos desde la carpeta en que corre un comando |
 | `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
 | `knowledge` | Qué archivos son de la KB | `Covers(path) bool`: la raíz de `CLAUDE.md`, `.claude/{docs,rules,agents,skills}/` y, en cualquier carpeta `deltas/` a cualquier profundidad, sus archivos directos (`deltas.config`, `deltas.manifest`) y los de su `specifies/` |
@@ -262,7 +262,7 @@ draft  ->  approved  ->  built  ->  verified
 | `draft → approved` | `delta approve <slice>`, una persona. Exige un spec sin problemas y con claims; `settings.json` obliga a Claude Code a pedir confirmación a la persona |
 | `approved → built` y `stale → built` | `delta built <slice>`, que ejecuta Forge al cerrar su trabajo |
 | `built → verified` | `delta check`, cuando todos los claims `test` del slice se cumplen y hay al menos uno; los `manual` y `none` quedan visibles como deuda. *Se pide uno como mínimo para que un slice sin nada ejecutado no figure como verificado* |
-| `verified → stale` | `delta stale`, en la Fase 5 |
+| `verified → stale` | `delta stale`, y también `delta status`, `SessionStart` y `PostToolUse`, cuando cambió algo del alcance del slice desde su última verificación (sección 8.3) |
 | cualquiera `→ draft` | `spec write`, cuando cambia el contenido de un spec que ya pasó de `draft` (aviso `AUTHOR-REAPPROVE`): un contrato distinto necesita otra aprobación |
 
 `spec write` no puede mover un spec hacia delante: uno nuevo solo puede escribirse como `draft` (`AUTHOR-NEW-STATUS`) y uno existente no puede declarar un estado que no tiene (`AUTHOR-SET-STATUS`). Cambiar solo los tags con `delta link` no cambia el estado.
@@ -299,7 +299,17 @@ Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que ex
 
 ### 8.3 `delta stale`
 
-Para cada spec, `drift` compara los archivos que el spec referencia con los que `gitcli` dice que cambiaron desde la última verificación. La granularidad es el archivo (decisión de `direction.md`). Marca de más si el cambio no altera el comportamiento, y no marca si el comportamiento cambia sin tocar los archivos nombrados. Está documentado como heurística.
+**Qué referencia un spec.** Un spec no nombra archivos: lo que "referencia" es su `Scope` (sección 8.7), es decir, todo el código del proyecto salvo que `deltas/deltas.config` declare `scope.<slice>`. Sin esa clave, cualquier cambio de código en cualquier parte deja viejos a todos los slices verificados; por eso conviene declararla (fase 6).
+
+**Línea base.** Cuando un `delta check` deja un slice `verified` (lo verifica, o ya lo estaba y sus claims `test` siguen cumpliéndose), `ledger` anota la huella de su alcance: `gitcli.Files` da, para cada archivo que cubre (los versionados y los sin versionar no ignorados), el hash de su contenido. Una verificación que no deja el slice `verified` no toca la línea base. Vive en la caché del usuario, igual que la marca de `delta check`, y se pierde con ella: un clon recién hecho no tiene línea base, así que ningún slice figura `stale` hasta que se verifique allí (el estado `verified` del spec no basta para comparar).
+
+**Detección.** `status.Reporter.Stale` recorre los slices `verified` y `stale`, pide a `ledger.Drift` qué archivos de su alcance difieren de la línea base (`drift.Changed`) y, si es un `verified` con diferencias, reescribe solo la línea `status:` a `stale` (`verified → stale` es la transición de `lifecycle`). Un slice `stale` sigue listado con sus archivos, sin su propio spec, que acaba de cambiar por el marcado. Compara por archivo (decisión 7 de `direction.md`): marca de más si el cambio no altera el comportamiento (un comentario, un renombrado) y no marca si el comportamiento cambia sin tocar un archivo del alcance. Es una heurística y así está documentada.
+
+**Quién lo llama.** `delta stale` (sale con 1 si hay algún slice `stale`, para CI), `Report` (así `delta status` y `SessionStart` ya lo muestran, con los archivos) y `PostToolUse` tras un `Write` o `Edit` fuera de la KB: lo avisa a Claude una sola vez, cuando el slice acaba de pasar a `stale`. `Report` ignora un error al comparar (sin git, por ejemplo), porque un informe de estado no debe fallar por eso; `delta stale` y el hook sí lo devuelven.
+
+**Para volver a `verified`.** `/forge <slice>` (`ready` acepta `stale`), que termina con `delta built` y luego `delta check`, que fija la nueva línea base. Si lo viejo es el contrato, lo reescribe `/quill`.
+
+*Shortcut: la línea base guarda un hash por archivo y por slice, y `Files` vuelve a leer todos los archivos del alcance en cada llamada; un proyecto grande con muchos slices sin `scope.<slice>` lo pagará. Se mejora compartiendo una tabla entre slices y guardando tamaño y fecha junto al hash.*
 
 ### 8.4 Escritura atómica de la KB
 
@@ -321,7 +331,7 @@ Un solo comando atiende todos los eventos: `hook` lee el JSON de stdin, `guard` 
 | `SessionStart` | Imprime el resumen de los slices (estado y claims por tag), los problemas de instalación (`setup.Check`) y el hecho de que la KB no se edita directo |
 | `PreToolUse` con `Write` o `Edit` | Bloquea (2) si el archivo es de la KB (`knowledge.Covers`); una persona sí puede editarla a mano |
 | `PreToolUse` con `Bash` | Si la línea es un `git commit` con un mensaje legible (`commits.FromCommand`), lo valida y bloquea (2) si no cumple |
-| `PostToolUse` con `Write` o `Edit` | Si el archivo es de test (`linkcheck.IsTestFile`), corre `delta lint` y le cuenta a Claude (exit 2: la herramienta ya corrió, pero Claude sí ve el stderr) los problemas de **ese** archivo. Los de otros archivos no se dicen: un claim sin test aún es normal mientras se escriben los tests |
+| `PostToolUse` con `Write` o `Edit` | Si el archivo no es de la KB, comprueba la deriva (sección 8.3) y le cuenta a Claude (exit 2: la herramienta ya corrió, pero Claude sí ve el stderr) qué slices acaban de pasar a `stale` y por qué archivos. Si es de test (`linkcheck.IsTestFile`), corre además `delta lint` y dice los problemas de **ese** archivo; los de otros archivos no se dicen: un claim sin test aún es normal mientras se escriben los tests |
 | `Stop` | Bloquea (2), una sola vez, si hay cambios en lo que un slice con claims `test` mira del árbol y no hay un `delta check` sobre ellos, o lo hay con violaciones (sección 8.7). Si el slice está `approved` o `stale` y su alcance cambió, el mensaje es otro: `/forge <slice>`, que termina con `delta built`. Un slice aprobado cuyo código no ha cambiado no es trabajo pendiente |
 
 **Decisiones y límites:**
