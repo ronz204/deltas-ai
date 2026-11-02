@@ -273,7 +273,7 @@ The Go code is now `scripts/delta` (the wiring) and `package/{domain,usecase,gat
 
 ## Phase 9: the entrypoint
 
-`scripts/delta` is `delta/` at the root, and `scripts/` is gone. The folder has to be called `delta` because `go install` names the binary after it, and the hooks, `Locate("delta")` and the `delta (deltas-ai) <version>` line all depend on that name. Build it with `go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o delta ./delta` to set the version (the README says so now, and the comment that said it is gone).
+`scripts/delta` is `delta/` at the root, and `scripts/` is gone. The folder has to be called `delta` because `go install` names the binary after it, and the hooks, `Locate("delta")` and the `delta (deltas-ai) <version>` line all depend on that name. Build it with `go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o dist/delta ./delta` to set the version (`dist/` is ignored by git; `/delta` is no longer, since it would hide the folder) (the README says so now, and the comment that said it is gone).
 
 - `run.go` is split in `wiring.go` (`run`, `newApp` and `exitCode`) and `config.go` (`loadConf`); `main.go` only starts the program. No comments.
 - The tests keep the package `main` and take 6 to 8 characters: `wiring_test`, `install_test`, `stopping_test`, `drifts_test`, `config_test`, `hooking_test` (`budget_test`, `compat_test` and `update_test` are unchanged).

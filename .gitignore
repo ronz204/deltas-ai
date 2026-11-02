@@ -1,5 +1,4 @@
 # Build output
-/delta
 /delta.exe
 /dist/
 *.test

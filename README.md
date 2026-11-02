@@ -120,7 +120,7 @@ Whatever a linter can check goes to a linter, not to a rule. Commit messages are
 
 ## Using this repo today
 
-Build the CLI (`go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o delta ./delta` to set the version) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
+Build the CLI (`go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o dist/delta ./delta` to set the version) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
 
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
 - `deltas/budget.conf` and `deltas/testing.conf`, a minimal `CLAUDE.md` and the `deltas/specs/` folder.
