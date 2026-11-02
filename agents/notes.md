@@ -68,7 +68,7 @@ Slash forms: `/comper [slice]`, `/drafter <slice>`, `/builder <slice>`, `/audito
 
 ### Where the code and the harness are affected
 
-**Harness: done** (folders renamed with `git mv`, text updated): the five `SKILL.md`, `agents/core/templates/CLAUDE.md` (usage paragraph and table, plus a `/scriber` row), and the mentions in `claims-fidelity`, `kb-deltas-routing`, `context-budgets` and the `paths:` of `when-write-delta` (now `.claude/skills/drafter/**`).
+**Harness: done** (folders renamed with `git mv`, text updated): the five `SKILL.md`, `agents/core/samples/CLAUDE.md` (usage paragraph and table, plus a `/scriber` row), and the mentions in `claims-fidelity`, `kb-deltas-routing`, `context-budgets` and the `paths:` of `when-write-delta` (now `.claude/skills/drafter/**`).
 
 **Code: pending the go-ahead.** Where it still says the old names:
 
@@ -144,3 +144,40 @@ Dropped for good: `test_files` as a flat key, `command_timeout`, `required_tools
 `allow` is now only what delta needs (`delta status`, `stale`, `ready`, `check`, `lint`, `spec`, `link`, `built`, `budget`, and read-only git). `delta approve`, `init` and `update` are in `ask`, so the person confirms them. `WebSearch`, `curl` and `Skill(update-config)` are gone, and `deny` adds `*.pem` and `*.key`. `git push` and `git pull` stay denied.
 
 Installed projects keep what they have: the merge only adds. The `ask` rules and the precedence (deny, ask, allow) come from Claude Code's documentation and are not tried here.
+
+## 6. Templates and the git hook
+
+### Done in the harness
+
+- `core/templates/spec.md` is now `core/samples/specify.md`: the folder `templates/` is renamed `samples/` and the file `spec.md` is renamed `specify.md`.
+- `core/githooks/commit-msg` is removed, and with it the `githooks/` folder. The comment of `agents.go:6` no longer mentions it.
+- New rule `rules/commit-messages.md` (15 characters, 9 lines, always loaded): the same convention the validator applied, as plain guidance. Type list, `type(scope): subject`, 40 to 50 characters, imperative, lowercase, no period, blank line before the body, the body says why.
+
+What goes away is the check: nothing refuses a commit message any more. The rule asks, and the agent follows it.
+
+### Code that changes (pending the go-ahead)
+
+**The template rename:**
+
+- `source/gateway/bundle/bundle.go:17`: `ReadFile("core/templates/spec.md")` becomes `core/samples/specify.md`. `bundle.go:42` and `:66` name `core/templates/CLAUDE.md` and become `core/samples/CLAUDE.md`. The method `Spec()` and the `Template` interface of `author.go:33,44` can keep their names.
+- `source/gateway/bundle/assets_test.go` and any test that reads the template by name.
+
+**The git hook, installed by `delta init`:**
+
+- `source/gateway/bundle/bundle.go:19-21`: the `GitHook(name)` method.
+- `source/usecase/setup/setup.go:16-18`: the constants `hooksDir`, `hookName`, `hookPath`.
+- `setup.go:29-30` and `source/gateway/gitcli/gitcli.go:17-29`: `HooksPath` and `SetHooksPath`, only used for this.
+- `setup.go:77-92`: the install check that reports `core.hooksPath is not set` and `.githooks/commit-msg is missing`.
+- `setup.go:117-145` (`Run`) and `:216-232` (`pointHooksPath`): they write the hook and set `core.hooksPath`.
+- `source/usecase/setup/update.go:25`: the hook as a managed asset.
+- `source/adapter/cmd/commit.go`: the command `delta commit-msg <file>`.
+- `source/domain/linkcheck/scope.go:7,30`: `.githooks/` in the list of paths that are not code (it goes away with the scope itself).
+- Tests: `scripts/delta/hooks_test.go`, `run_test.go:292`, `setup_test.go`, `update_test.go`, `install_test.go`, `gitcli_test.go`.
+- Projects already installed keep `.githooks/commit-msg` and `core.hooksPath`. `update` has to retire the hook it installed, but a `core.hooksPath` that the project set itself should not be touched.
+
+**Not part of the git hook, but it enforces the same thing:**
+
+- `source/usecase/guard/guard.go:222-224,230-239` (`before` and `commitDecision`): the `PreToolUse` hook on `Bash` validates the message of every `git commit` the agent runs and blocks it. It uses `source/domain/commits` (`commits.go`, `extract.go`).
+- Decision to make: keep it (the agent is still checked) or remove it together with the git hook, which leaves the rule as the only guide and lets the `commits` package, the `Bash` matcher in `settings.json` and their tests go.
+
+`agents/agents.go` has no comments any more, the package one included. Its `//go:embed core docs skills rules` line is unchanged.
