@@ -4,12 +4,12 @@ package verify
 import (
 	"context"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
-	"github.com/ronz204/deltas-ai/source/domain/findings"
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/claimset"
+	"github.com/ronz204/deltas-ai/package/domain/findings"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
 type Specs interface {
@@ -20,7 +20,7 @@ type Specs interface {
 }
 
 type Tests interface {
-	TestFiles(ctx context.Context) ([]linkcheck.File, error)
+	TestFiles(ctx context.Context) ([]linking.File, error)
 	IsTest(rel string) bool
 }
 
@@ -33,7 +33,7 @@ type Runner interface {
 // Verified says the slice ends the check verified, so the files it depends on are the ones it holds against.
 type Seen struct {
 	Slice    string
-	Scope    linkcheck.Scope
+	Scope    linking.Scope
 	Violated bool
 	Verified bool
 }
@@ -119,16 +119,16 @@ func (v *Checker) Lint(ctx context.Context) ([]findings.Diagnostic, error) {
 	if err != nil {
 		return nil, err
 	}
-	slices := make([]linkcheck.Slice, len(ls))
+	slices := make([]linking.Slice, len(ls))
 	for i, l := range ls {
-		slices[i] = linkcheck.Slice{File: l.file, Spec: l.spec}
+		slices[i] = linking.Slice{File: l.file, Spec: l.spec}
 	}
-	return linkcheck.Check(slices, files), nil
+	return linking.Check(slices, files), nil
 }
 
 type Result struct {
 	Slice   string
-	ID      assertion.ID
+	ID      claimset.ID
 	Outcome judgment.Outcome
 }
 
@@ -145,7 +145,7 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	var files []linkcheck.File
+	var files []linking.File
 	if hasTestClaims(ls) {
 		if files, err = v.tests.TestFiles(ctx); err != nil {
 			return Report{}, err
@@ -174,8 +174,8 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 }
 
 // checkSlice judges the claims of one clean slice into rep, and verifies it if it is built and its test claims all hold.
-func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.File, rep *Report) (Seen, error) {
-	s := Seen{Slice: l.slice, Scope: linkcheck.NewScope(l.file)}
+func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File, rep *Report) (Seen, error) {
+	s := Seen{Slice: l.slice, Scope: linking.NewScope(l.file)}
 	var held, open int // test claims that hold, and test claims that do not
 	for _, c := range l.spec.Claims {
 		if err := ctx.Err(); err != nil {
@@ -185,7 +185,7 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.Fi
 		rep.Results = append(rep.Results, Result{Slice: l.slice, ID: c.ID, Outcome: out})
 		s.Violated = s.Violated || out.Verdict == judgment.Violated
 		switch {
-		case c.Tag.Method != assertion.Test:
+		case c.Tag.Method != claimset.Test:
 		case out.Verdict == judgment.Holds:
 			held++
 		default:
@@ -195,10 +195,10 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linkcheck.Fi
 	switch {
 	case held == 0 || open > 0:
 		return s, nil
-	case l.spec.Status == lifecycle.Verified: // it still holds against the files as they are now
+	case l.spec.Status == states.Verified: // it still holds against the files as they are now
 		s.Verified = true
 		return s, nil
-	case l.spec.Status != lifecycle.Built:
+	case l.spec.Status != states.Built:
 		return s, nil
 	}
 	if err := v.verified(ctx, l); err != nil {
@@ -217,7 +217,7 @@ func (v *Checker) verified(ctx context.Context, l loaded) error {
 	if err != nil {
 		return err
 	}
-	edited, err := specfile.SetStatus(src, lifecycle.Verified)
+	edited, err := specfile.SetStatus(src, states.Verified)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func hasTestClaims(ls []loaded) bool {
 			continue
 		}
 		for _, c := range l.spec.Claims {
-			if c.Tag.Method == assertion.Test {
+			if c.Tag.Method == claimset.Test {
 				return true
 			}
 		}
@@ -238,13 +238,13 @@ func hasTestClaims(ls []loaded) bool {
 	return false
 }
 
-func (v *Checker) judge(ctx context.Context, c assertion.Claim, files []linkcheck.File) judgment.Outcome {
-	if c.Tag.Method != assertion.Test {
+func (v *Checker) judge(ctx context.Context, c claimset.Claim, files []linking.File) judgment.Outcome {
+	if c.Tag.Method != claimset.Test {
 		return judgment.Judge(c.Tag, 0, false)
 	}
 	exit, err := v.run.Run(ctx, c.Tag.Arg)
 	if err != nil {
 		return judgment.Outcome{Verdict: judgment.Unverified, Reason: "could not run the command: " + err.Error()}
 	}
-	return judgment.Judge(c.Tag, exit, linkcheck.Cited(c.ID, c.Tag.Arg, files))
+	return judgment.Judge(c.Tag, exit, linking.Cited(c.ID, c.Tag.Arg, files))
 }

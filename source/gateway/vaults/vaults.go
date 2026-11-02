@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
 )
 
 const (
@@ -34,12 +34,12 @@ type Vault struct {
 }
 
 func New(root string) *Vault {
-	return &Vault{root: root, isTest: linkcheck.IsTestFile, skip: skipping(nil)}
+	return &Vault{root: root, isTest: linking.IsTestFile, skip: skipping(nil)}
 }
 
 // Matching is a vault that takes as test files those whose name matches one of the patterns.
 func (s *Vault) Matching(patterns []string) *Vault {
-	return &Vault{root: s.root, isTest: linkcheck.TestMatcher(patterns), skip: s.skip}
+	return &Vault{root: s.root, isTest: linking.TestMatcher(patterns), skip: s.skip}
 }
 
 // Skipping is a vault that never searches the folders with these names for test files.
@@ -230,8 +230,8 @@ func writeAtomic(path string, data []byte, perm fs.FileMode) error {
 }
 
 // shortcut: every test file is held in memory; for a very large repo read only the files under the claims' paths.
-func (s *Vault) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
-	var out []linkcheck.File
+func (s *Vault) TestFiles(ctx context.Context) ([]linking.File, error) {
+	var out []linking.File
 	err := filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -254,7 +254,7 @@ func (s *Vault) TestFiles(ctx context.Context) ([]linkcheck.File, error) {
 		if err != nil {
 			return err
 		}
-		out = append(out, linkcheck.File{Path: rel, Text: string(text)})
+		out = append(out, linking.File{Path: rel, Text: string(text)})
 		return nil
 	})
 	return out, err

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/manifest"
+	"github.com/ronz204/deltas-ai/package/domain/manifest"
 )
 
 const (

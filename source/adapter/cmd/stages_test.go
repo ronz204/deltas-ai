@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
 const draftHead = "---\nformat: 1\nslice: billing\nstatus: draft\n---\n"
@@ -30,7 +30,7 @@ func TestApproveThenBuiltThenCheckWalkTheCycle(t *testing.T) {
 func TestCheckSaysWhichSlicesItVerified(t *testing.T) {
 	m := newMemory()
 	m.specs["billing"] = strings.Replace(head, "approved", "built", 1) + claim("INV-01", "test: go test ./a")
-	m.files = []linkcheck.File{{Path: "a/a_test.go", Text: "// INV-01"}}
+	m.files = []linking.File{{Path: "a/a_test.go", Text: "// INV-01"}}
 	out, _, err := m.run("", "check")
 	if err != nil || !strings.HasSuffix(out, "billing is verified\n") || !strings.Contains(m.specs["billing"], "status: verified") {
 		t.Fatalf("out = %q, err = %v, stored %q", out, err, m.specs["billing"])

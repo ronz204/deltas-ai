@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
 )
 
 // Everything init installs in a new repository, and that delta works on it afterwards.

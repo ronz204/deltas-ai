@@ -12,17 +12,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ronz204/deltas-ai/source/domain/drift"
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/diffing"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
 // Tree fingerprints the part of the working tree a scope covers; dirty is false when it has no changes.
 // Files fingerprints every file the scope covers, one hash each, whatever HEAD says.
 type Tree interface {
-	Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dirty bool, err error)
-	Files(ctx context.Context, scope linkcheck.Scope) (map[string]string, error)
+	Tree(ctx context.Context, scope linking.Scope) (hash string, dirty bool, err error)
+	Files(ctx context.Context, scope linking.Scope) (map[string]string, error)
 }
 
 type Ledger struct {
@@ -74,7 +74,7 @@ func (l *Ledger) Record(ctx context.Context, seen []verify.Seen) error {
 
 // Drift lists the files of the scope that differ from the ones the slice was last verified against. known is
 // false when it was never verified here (a fresh clone, or a lost record): then there is nothing to compare.
-func (l *Ledger) Drift(ctx context.Context, slice string, scope linkcheck.Scope) (changed []string, known bool, err error) {
+func (l *Ledger) Drift(ctx context.Context, slice string, scope linking.Scope) (changed []string, known bool, err error) {
 	marks, _ := l.read()
 	e := marks[slice]
 	if e.Files == nil {
@@ -84,12 +84,12 @@ func (l *Ledger) Drift(ctx context.Context, slice string, scope linkcheck.Scope)
 	if err != nil {
 		return nil, true, err
 	}
-	return drift.Changed(e.Files, now), true, nil
+	return diffing.Changed(e.Files, now), true, nil
 }
 
 // Standings says what the last check of each slice proves about its part of the tree as it is now. A slice
 // whose part has no changes has nothing to prove and stands.
-func (l *Ledger) Standings(ctx context.Context, slices map[string]linkcheck.Scope) (map[string]judgment.Standing, error) {
+func (l *Ledger) Standings(ctx context.Context, slices map[string]linking.Scope) (map[string]judgment.Standing, error) {
 	marks, _ := l.read()
 	by := make(map[string]judgment.Standing, len(slices))
 	for slice, scope := range slices {

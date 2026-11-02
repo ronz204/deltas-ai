@@ -13,14 +13,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
 // Tree fingerprints the part of the working tree a scope covers: HEAD plus the content of every file in it
 // that differs from HEAD or is untracked and not ignored. dirty is false when there is nothing of the sort,
 // as right after a commit.
 // shortcut: it reads every such file, so a big binary left untracked slows it; upgrade by hashing size and mtime.
-func (g *Git) Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dirty bool, err error) {
+func (g *Git) Tree(ctx context.Context, scope linking.Scope) (hash string, dirty bool, err error) {
 	head, err := g.run(ctx, "rev-parse", "--verify", "-q", "HEAD")
 	var exit *exec.ExitError
 	changed := []string{"diff", "--name-only", "--no-renames", "-z", "HEAD"}
@@ -58,7 +58,7 @@ func (g *Git) Tree(ctx context.Context, scope linkcheck.Scope) (hash string, dir
 // untracked ones that are not ignored. Unlike Tree it does not compare with HEAD, so it tells what changed
 // since an earlier call even after a commit.
 // shortcut: it hashes every covered file on each call; upgrade by keeping size and mtime beside the hash.
-func (g *Git) Files(ctx context.Context, scope linkcheck.Scope) (map[string]string, error) {
+func (g *Git) Files(ctx context.Context, scope linking.Scope) (map[string]string, error) {
 	names, err := g.names(ctx, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err

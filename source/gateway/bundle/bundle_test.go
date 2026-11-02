@@ -7,8 +7,8 @@ import (
 	"text/template"
 
 	"github.com/ronz204/deltas-ai/agents"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
 func render(t *testing.T, name string, data any) string {
@@ -42,7 +42,7 @@ func TestSpecTemplateParses(t *testing.T) {
 	if len(ds) != 0 {
 		t.Fatalf("the template is not a valid spec: %v", ds)
 	}
-	if sp.Slice != "billing" || sp.Status != lifecycle.Draft || sp.Format != 1 || len(sp.Claims) != 0 {
+	if sp.Slice != "billing" || sp.Status != states.Draft || sp.Format != 1 || len(sp.Claims) != 0 {
 		t.Fatalf("template read as %+v", sp)
 	}
 }

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
 type fake map[string]string
@@ -46,13 +46,13 @@ func TestReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Row{
-		{Slice: "a", Status: lifecycle.Approved, Claims: 4, Test: 1, Manual: 1, None: 2},
-		{Slice: "b", Status: lifecycle.Verified},
+		{Slice: "a", Status: states.Approved, Claims: 4, Test: 1, Manual: 1, None: 2},
+		{Slice: "b", Status: states.Verified},
 		{Slice: "c", Issues: 1},
 	}
-	scopes := make([]linkcheck.Scope, len(rows))
+	scopes := make([]linking.Scope, len(rows))
 	for i := range rows {
-		scopes[i], rows[i].Scope = rows[i].Scope, linkcheck.Scope{}
+		scopes[i], rows[i].Scope = rows[i].Scope, linking.Scope{}
 	}
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
@@ -106,7 +106,7 @@ func TestReadyFailsPlainlyForAMissingSpec(t *testing.T) {
 // drifts says, per slice, which files changed since it was verified; a slice it does not list was never verified here.
 type drifts map[string][]string
 
-func (d drifts) Drift(_ context.Context, slice string, _ linkcheck.Scope) ([]string, bool, error) {
+func (d drifts) Drift(_ context.Context, slice string, _ linking.Scope) ([]string, bool, error) {
 	files, ok := d[slice]
 	return files, ok, nil
 }
@@ -156,7 +156,7 @@ func TestStaleIsOffUntilDriftIsWiredIn(t *testing.T) {
 
 type brokenDrift struct{}
 
-func (brokenDrift) Drift(context.Context, string, linkcheck.Scope) ([]string, bool, error) {
+func (brokenDrift) Drift(context.Context, string, linking.Scope) ([]string, bool, error) {
 	return nil, true, errors.New("git is gone")
 }
 
@@ -170,12 +170,12 @@ func TestStaleReportsWhyItCouldNotTell(t *testing.T) {
 func TestReportShowsWhatWentStaleAndStillWorksWhenDriftCannotBeTold(t *testing.T) {
 	specs := fake{"a": spec("a", "verified")}
 	rows, err := New(specs).WithDrift(drifts{"a": {"a/x.go"}}, specs).Report(context.Background())
-	if err != nil || rows[0].Status != lifecycle.Stale || !reflect.DeepEqual(rows[0].Changed, []string{"a/x.go"}) {
+	if err != nil || rows[0].Status != states.Stale || !reflect.DeepEqual(rows[0].Changed, []string{"a/x.go"}) {
 		t.Fatalf("rows = %+v, %v; want a stale with its changed file", rows, err)
 	}
 	specs = fake{"a": spec("a", "verified")}
 	rows, err = New(specs).WithDrift(brokenDrift{}, specs).Report(context.Background())
-	if err != nil || rows[0].Status != lifecycle.Verified {
+	if err != nil || rows[0].Status != states.Verified {
 		t.Fatalf("rows = %+v, %v; a status report must not fail because git did", rows, err)
 	}
 }

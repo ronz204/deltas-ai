@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 

@@ -9,7 +9,7 @@ import (
 	"io/fs"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
 )
 
 type Files interface {

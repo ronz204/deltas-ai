@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/findings"
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/knowledge"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/findings"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/kbpaths"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
 
@@ -40,7 +40,7 @@ type Health interface {
 // Evidence says what the last check of each slice proves about the part of the tree the slice depends on.
 // A slice whose part has no changes has nothing to prove and stands.
 type Evidence interface {
-	Standings(ctx context.Context, slices map[string]linkcheck.Scope) (map[string]judgment.Standing, error)
+	Standings(ctx context.Context, slices map[string]linking.Scope) (map[string]judgment.Standing, error)
 }
 
 // Linter cross-checks the specs against the test files.
@@ -93,7 +93,7 @@ func (g *Guard) after(ctx context.Context, e Event) (Decision, error) {
 		return Decision{}, nil
 	}
 	var lines []string
-	if !knowledge.Covers(rel) {
+	if !kbpaths.Covers(rel) {
 		drifted, err := g.slices.Stale(ctx)
 		if err != nil {
 			return Decision{}, err
@@ -157,7 +157,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 		return Decision{}, err
 	}
 	var names []string
-	scopes := map[string]linkcheck.Scope{}
+	scopes := map[string]linking.Scope{}
 	for _, r := range rows {
 		if r.Issues == 0 && (r.Test > 0 || waitsForBuilder(r.Status)) {
 			names = append(names, r.Slice)
@@ -171,7 +171,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	if err != nil {
 		return Decision{}, err
 	}
-	state := map[string]lifecycle.Status{}
+	state := map[string]states.Status{}
 	for _, r := range rows {
 		state[r.Slice] = r.Status
 	}
@@ -189,7 +189,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	}
 	var lines []string
 	for _, n := range unbuilt {
-		if state[n] == lifecycle.Stale {
+		if state[n] == states.Stale {
 			lines = append(lines, fmt.Sprintf("%s is stale and its code changed again: bring it up to date with /builder %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
 			continue
 		}
@@ -208,13 +208,13 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 }
 
 // waitsForBuilder says whether a slice is approved to be built (or rebuilt) and nobody has said it is built.
-func waitsForBuilder(s lifecycle.Status) bool { return s == lifecycle.Approved || s == lifecycle.Stale }
+func waitsForBuilder(s states.Status) bool { return s == states.Approved || s == states.Stale }
 
 func (g *Guard) before(e Event) Decision {
 	if !fileTools[e.Tool] {
 		return Decision{}
 	}
-	if rel, ok := g.relative(e.Path); ok && knowledge.Covers(rel) {
+	if rel, ok := g.relative(e.Path); ok && kbpaths.Covers(rel) {
 		return Decision{Block: true, Reason: fmt.Sprintf(
 			"%s is part of the knowledge base, which is not edited directly. Specs are written with delta spec write and tests are linked with delta link; a person can edit it by hand.", rel)}
 	}
@@ -297,13 +297,13 @@ func nextStep(r status.Row) string {
 	switch {
 	case r.Issues > 0:
 		return "its spec has problems: fix them with the drafter skill"
-	case r.Status == lifecycle.Draft:
+	case r.Status == states.Draft:
 		return "draft: ask the person in plain words whether to approve it, and on a yes run delta approve"
-	case r.Status == lifecycle.Approved:
+	case r.Status == states.Approved:
 		return "approved, not built: the builder skill builds it"
-	case r.Status == lifecycle.Stale:
+	case r.Status == states.Stale:
 		return "stale: the builder skill rebuilds it, or the drafter skill if the contract is out of date"
-	case r.Status == lifecycle.Built:
+	case r.Status == states.Built:
 		return "built, not verified: the auditor skill checks it"
 	}
 	return ""

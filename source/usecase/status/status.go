@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
-	"github.com/ronz204/deltas-ai/source/domain/budget"
-	"github.com/ronz204/deltas-ai/source/domain/docs"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/claimset"
+	"github.com/ronz204/deltas-ai/package/domain/guides"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
 type Specs interface {
@@ -23,7 +23,7 @@ type Specs interface {
 // Baselines knows what a slice was verified against. Drift lists the files of its scope that changed since;
 // known is false when it was never verified here, and then there is nothing to compare.
 type Baselines interface {
-	Drift(ctx context.Context, slice string, scope linkcheck.Scope) (changed []string, known bool, err error)
+	Drift(ctx context.Context, slice string, scope linking.Scope) (changed []string, known bool, err error)
 }
 
 // Saver writes a spec back; the reporter uses it only to mark a slice stale.
@@ -64,13 +64,13 @@ func (r *Reporter) WithDocs(f Files) *Reporter {
 // Row counts a slice's claims by tag; Issues counts the problems found, and the counts cover only clean claims.
 type Row struct {
 	Slice  string
-	Status lifecycle.Status // empty when the frontmatter could not be read
+	Status states.Status // empty when the frontmatter could not be read
 	Claims int
 	Test   int
 	Manual int
 	None   int
 	Issues int
-	Scope  linkcheck.Scope // the part of the project the slice depends on
+	Scope  linking.Scope // the part of the project the slice depends on
 
 	Changed []string // for a stale slice, the files that changed since it was verified
 }
@@ -95,12 +95,12 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linkcheck.NewScope(file), Changed: changed[name]}
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linking.NewScope(file), Changed: changed[name]}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
-			case assertion.Test:
+			case claimset.Test:
 				row.Test++
-			case assertion.Manual:
+			case claimset.Manual:
 				row.Manual++
 			default:
 				row.None++
@@ -126,9 +126,9 @@ func (r *Reporter) Ready(ctx context.Context, slice string) error {
 	switch {
 	case len(ds) > 0:
 		return &NotReady{fmt.Sprintf("the spec of %s has %d problems; run delta spec lint %s", slice, len(ds), slice)}
-	case sp.Status == lifecycle.Draft:
+	case sp.Status == states.Draft:
 		return &NotReady{fmt.Sprintf("%s is a draft; a person approves it first with delta approve %s", slice, slice)}
-	case sp.Status != lifecycle.Approved && sp.Status != lifecycle.Stale:
+	case sp.Status != states.Approved && sp.Status != states.Stale:
 		return &NotReady{fmt.Sprintf("%s is %s, not approved; run delta check %s to see where it stands", slice, sp.Status, slice)}
 	}
 	return nil
@@ -160,22 +160,22 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		if len(ds) > 0 || (sp.Status != lifecycle.Verified && sp.Status != lifecycle.Stale) {
+		if len(ds) > 0 || (sp.Status != states.Verified && sp.Status != states.Stale) {
 			continue
 		}
-		files, known, err := r.baselines.Drift(ctx, name, linkcheck.NewScope(file))
+		files, known, err := r.baselines.Drift(ctx, name, linking.NewScope(file))
 		if err != nil {
 			return out, err
 		}
-		if sp.Status == lifecycle.Stale { // marking it stale rewrote its spec, which is no news
+		if sp.Status == states.Stale { // marking it stale rewrote its spec, which is no news
 			files = slices.DeleteFunc(files, func(f string) bool { return f == file })
 		}
 		if !known || len(files) == 0 {
 			continue
 		}
 		d := Drift{Slice: name, Files: files}
-		if sp.Status == lifecycle.Verified {
-			edited, err := specfile.SetStatus(src, lifecycle.Stale)
+		if sp.Status == states.Verified {
+			edited, err := specfile.SetStatus(src, states.Stale)
 			if err != nil {
 				return out, err
 			}
@@ -193,7 +193,7 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 type DocsRow struct {
 	Total  int
 	Filled int
-	Next   string // the first doc, in the order docs.Order gives, that is not written yet; empty when all are
+	Next   string // the first doc, in the order guides.Order gives, that is not written yet; empty when all are
 }
 
 // Docs counts the templates delta installed under deltas/docs/ and how many of them were written. It reports
@@ -202,25 +202,25 @@ func (r *Reporter) Docs(ctx context.Context) (DocsRow, error) {
 	if r.files == nil {
 		return DocsRow{}, nil
 	}
-	found, err := r.files.Glob(ctx, []string{docs.Dir + "/*.md"})
+	found, err := r.files.Glob(ctx, []string{guides.Dir + "/*.md"})
 	if err != nil {
 		return DocsRow{}, err
 	}
 	var row DocsRow
 	open := map[string]bool{}
 	for _, f := range found {
-		name, ok := docs.Name(f.Path)
+		name, ok := guides.Name(f.Path)
 		if !ok {
 			continue
 		}
 		row.Total++
-		if docs.Filled(f.Text) {
+		if guides.Filled(f.Text) {
 			row.Filled++
 		} else {
 			open[name] = true
 		}
 	}
-	for _, name := range docs.Order {
+	for _, name := range guides.Order {
 		if open[name] {
 			row.Next = name
 			break

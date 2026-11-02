@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/language"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/english"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
 )
 
 var ctx = context.Background()
@@ -93,7 +93,7 @@ func TestWriteWarnsAboutASpecThatIsNotInEnglishButSavesIt(t *testing.T) {
 	m := newMemory()
 	spanish := valid[:strings.Index(valid, "- INV")] + "- INV-01 [none]\n  Cuando el usuario paga, el saldo se actualiza para que la factura quede cerrada.\n"
 	ds, err := New(m, tmpl(tpl)).Write(ctx, "billing", []byte(spanish))
-	if err != nil || len(ds) != 1 || ds[0].Code != language.Code || !ds[0].Warn || m.specs["billing"] != spanish {
+	if err != nil || len(ds) != 1 || ds[0].Code != english.Code || !ds[0].Warn || m.specs["billing"] != spanish {
 		t.Fatalf("Write = %v, %v; stored %q", ds, err, m.specs["billing"])
 	}
 }

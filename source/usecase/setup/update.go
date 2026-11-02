@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ronz204/deltas-ai/source/domain/manifest"
+	"github.com/ronz204/deltas-ai/package/domain/manifest"
 )
 
 // managed lists the files delta keeps up to date: the managed assets of the harness.

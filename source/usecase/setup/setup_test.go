@@ -3,7 +3,7 @@ package setup
 import (
 	"context"
 	"fmt"
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"io/fs"
 	"strings"
 	"testing"

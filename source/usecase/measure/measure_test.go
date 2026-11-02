@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
 )
 
 var ctx = context.Background()

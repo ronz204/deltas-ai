@@ -4,7 +4,7 @@ package measure
 import (
 	"context"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
 )
 
 type Files interface {

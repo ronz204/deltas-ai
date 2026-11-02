@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"github.com/ronz204/deltas-ai/source/adapter/cmd"
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
 	"github.com/ronz204/deltas-ai/source/gateway/bundle"
 	"github.com/ronz204/deltas-ai/source/gateway/gitcli"
 	"github.com/ronz204/deltas-ai/source/gateway/ledger"

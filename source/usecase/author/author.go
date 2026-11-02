@@ -8,11 +8,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ronz204/deltas-ai/source/domain/assertion"
-	"github.com/ronz204/deltas-ai/source/domain/findings"
-	"github.com/ronz204/deltas-ai/source/domain/language"
-	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
-	"github.com/ronz204/deltas-ai/source/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/claimset"
+	"github.com/ronz204/deltas-ai/package/domain/english"
+	"github.com/ronz204/deltas-ai/package/domain/findings"
+	"github.com/ronz204/deltas-ai/package/domain/specfile"
+	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
 // Diagnostic codes of the status rules of Write.
@@ -72,32 +72,32 @@ func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]fin
 	if err != nil || hasError(ds) {
 		return ds, err
 	}
-	if language.NotEnglish(string(content)) {
-		ds = append(ds, findings.Diagnostic{File: file, Code: language.Code, Warn: true,
+	if english.NotEnglish(string(content)) {
+		ds = append(ds, findings.Diagnostic{File: file, Code: english.Code, Warn: true,
 			Message: "the spec is not in English; the knowledge base is written in English whatever language the user speaks: translate it and write it again"})
 	}
 	return ds, a.store.Save(ctx, slice, content)
 }
 
 // settle applies the status rules of Write to content, which is a valid spec with status in its frontmatter.
-func (a *Author) settle(ctx context.Context, file, slice string, status lifecycle.Status, content []byte) ([]byte, []findings.Diagnostic, error) {
+func (a *Author) settle(ctx context.Context, file, slice string, status states.Status, content []byte) ([]byte, []findings.Diagnostic, error) {
 	prev, err := a.store.Load(ctx, slice)
 	if err != nil { // there is no stored spec, or it cannot be read: either way this one starts over
-		if status != lifecycle.Draft {
+		if status != states.Draft {
 			return nil, []findings.Diagnostic{{File: file, Line: 1, Code: CodeNewStatus,
 				Message: fmt.Sprintf("a new spec is written as a draft, not %s; delta approve moves it forward", status)}}, nil
 		}
 		return content, nil, nil
 	}
 	old, _ := specfile.ParseSlice(file, slice, prev)
-	if status != lifecycle.Draft && status != old.Status {
+	if status != states.Draft && status != old.Status {
 		return nil, []findings.Diagnostic{{File: file, Line: 1, Code: CodeSetStatus,
 			Message: fmt.Sprintf("the spec is %q and cannot be written as %q; only the delta commands change the status", old.Status, status)}}, nil
 	}
-	if old.Status == "" || old.Status == lifecycle.Draft || sameContract(prev, content) {
+	if old.Status == "" || old.Status == states.Draft || sameContract(prev, content) {
 		return content, nil, nil
 	}
-	redrafted, err := specfile.SetStatus(content, lifecycle.Draft)
+	redrafted, err := specfile.SetStatus(content, states.Draft)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,8 +107,8 @@ func (a *Author) settle(ctx context.Context, file, slice string, status lifecycl
 
 // sameContract says whether two specs differ in nothing but their status.
 func sameContract(a, b []byte) bool {
-	x, errA := specfile.SetStatus(a, lifecycle.Draft)
-	y, errB := specfile.SetStatus(b, lifecycle.Draft)
+	x, errA := specfile.SetStatus(a, states.Draft)
+	y, errB := specfile.SetStatus(b, states.Draft)
 	return errA == nil && errB == nil && bytes.Equal(x, y)
 }
 
@@ -123,16 +123,16 @@ func hasError(ds []findings.Diagnostic) bool {
 
 // Approve is the person's sign-off on a clean draft: the contract Builder builds from.
 func (a *Author) Approve(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
-	return a.move(ctx, slice, lifecycle.Approved)
+	return a.move(ctx, slice, states.Approved)
 }
 
 // Built records that Builder finished building an approved (or stale) slice.
 func (a *Author) Built(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
-	return a.move(ctx, slice, lifecycle.Built)
+	return a.move(ctx, slice, states.Built)
 }
 
 // move changes the status of a clean spec if the lifecycle allows it, and edits nothing else in the file.
-func (a *Author) move(ctx context.Context, slice string, to lifecycle.Status) ([]findings.Diagnostic, error) {
+func (a *Author) move(ctx context.Context, slice string, to states.Status) ([]findings.Diagnostic, error) {
 	src, err := a.store.Load(ctx, slice)
 	if err != nil {
 		return nil, err
@@ -141,10 +141,10 @@ func (a *Author) move(ctx context.Context, slice string, to lifecycle.Status) ([
 	if len(ds) > 0 {
 		return ds, nil
 	}
-	if !lifecycle.Can(sp.Status, to) {
+	if !states.Can(sp.Status, to) {
 		return nil, fmt.Errorf("%s is %s and cannot become %s", slice, sp.Status, to)
 	}
-	if to == lifecycle.Approved && len(sp.Claims) == 0 {
+	if to == states.Approved && len(sp.Claims) == 0 {
 		return nil, fmt.Errorf("%s has no claims, so there is nothing to approve", slice)
 	}
 	edited, err := specfile.SetStatus(src, to)
@@ -155,11 +155,11 @@ func (a *Author) move(ctx context.Context, slice string, to lifecycle.Status) ([
 }
 
 func (a *Author) Link(ctx context.Context, slice, claimID, command string) error {
-	id, err := assertion.ParseID(claimID)
+	id, err := claimset.ParseID(claimID)
 	if err != nil {
 		return err
 	}
-	tag, err := assertion.ParseTag("test: " + strings.TrimSpace(command)) // it also rejects an empty command
+	tag, err := claimset.ParseTag("test: " + strings.TrimSpace(command)) // it also rejects an empty command
 	if err != nil {
 		return err
 	}

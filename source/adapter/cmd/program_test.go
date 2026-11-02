@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
 	"github.com/ronz204/deltas-ai/source/usecase/measure"
@@ -36,7 +36,7 @@ func claim(id, tag string) string { return "- " + id + " [" + tag + "]\n  When x
 // memory stands in for every port the use cases need.
 type memory struct {
 	specs   map[string]string
-	files   []linkcheck.File
+	files   []linking.File
 	exits   map[string]int
 	project map[string][]byte // files read and written by path
 	kb      []budget.File     // what the always-loaded files are
@@ -52,7 +52,7 @@ func (m *memory) GitHook(string) ([]byte, error) { return []byte("#!/bin/sh\n"),
 
 func (m *memory) Locate(string) (string, bool) { return m.onPath, m.self }
 
-func (m *memory) IsTest(rel string) bool { return linkcheck.IsTestFile(rel) }
+func (m *memory) IsTest(rel string) bool { return linking.IsTestFile(rel) }
 
 func (m *memory) Glob(context.Context, []string) ([]budget.File, error) { return m.kb, nil }
 
@@ -101,7 +101,7 @@ func (m *memory) Save(_ context.Context, s string, c []byte) error {
 
 func (m *memory) Spec() ([]byte, error) { return []byte(specTemplate), nil }
 
-func (m *memory) TestFiles(context.Context) ([]linkcheck.File, error) { return m.files, nil }
+func (m *memory) TestFiles(context.Context) ([]linking.File, error) { return m.files, nil }
 
 func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
 
@@ -172,7 +172,7 @@ func TestSpecLintFailsOnAnErrorAndStaysQuietOtherwise(t *testing.T) {
 func TestLintWarningsDoNotFailButErrorsDo(t *testing.T) {
 	m := newMemory()
 	m.specs["billing"] = head + claim("INV-01", "test: go test ./a")
-	m.files = []linkcheck.File{{Path: "a/a_test.go", Text: "// INV-01\nt.Skip(\"later\")\n"}}
+	m.files = []linking.File{{Path: "a/a_test.go", Text: "// INV-01\nt.Skip(\"later\")\n"}}
 	_, errOut, err := m.run("", "lint")
 	if err != nil || !strings.Contains(errOut, "warning LINT-SKIP") {
 		t.Fatalf("err = %v, stderr = %q; a warning alone must not fail", err, errOut)
@@ -187,7 +187,7 @@ func TestLintWarningsDoNotFailButErrorsDo(t *testing.T) {
 func TestCheckPrintsOneRowPerClaimAndASummary(t *testing.T) {
 	m := newMemory()
 	m.specs["billing"] = head + claim("INV-01", "test: go test ./a") + claim("INV-02", "test: go test ./b") + claim("INV-03", "none")
-	m.files = []linkcheck.File{{Path: "a/a_test.go", Text: "// INV-01"}, {Path: "b/b_test.go", Text: "// INV-02"}}
+	m.files = []linking.File{{Path: "a/a_test.go", Text: "// INV-01"}, {Path: "b/b_test.go", Text: "// INV-02"}}
 	m.exits["go test ./b"] = 1
 
 	out, _, err := m.run("", "check")

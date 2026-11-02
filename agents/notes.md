@@ -197,6 +197,10 @@ The code now follows sections 1 to 6, and `go vet`, `gofmt` and `go test ./...` 
 
 Section 4 decided that a slice with only `test` claims needs no "stale" because the check runs its commands again. That is a change of behavior in `lifecycle`, `status.Stale`, `ledger` and `guard.stop`, and it needs a design pass of its own (when the re-check runs, what `verified` means for a slice with reading claims). Today a verified slice still goes stale when any code file changes, and the Stop hook still asks for `delta check` when code changed.
 
-### Phase 2
+### Phase 2: done
 
-`source/domain` becomes `package/domain` with folders and files of 6 to 8 characters and no folder with an icon in Material Icon Theme: `assertion` to `claimset`, `linkcheck` to `linking`, `lifecycle` to `states`, `knowledge` to `kbpaths`, `language` to `english`, `docs` to `guides`, `drift` to `diffing`, `conffile` to `testconf`. `commits` is already gone. `budget`, `findings`, `judgment`, `manifest` and `specfile` keep their names.
+`source/domain` is now `package/domain`, with folders and files of 6 to 8 characters and no folder with an icon in Material Icon Theme (checked against the extension's own list, version 5.40.0): `assertion` is `claimset`, `linkcheck` is `linking`, `lifecycle` is `states`, `knowledge` is `kbpaths`, `language` is `english`, `docs` is `guides` and `drift` is `diffing`. `budget`, `conffile`, `findings`, `judgment`, `manifest` and `specfile` keep their names (`conffile` was planned as `testconf`, but it reads `budget.conf` as well as `testing.conf`). `commits` went in phase 1. `docs.go`, `drift.go` and `language.go` follow their folder (`guides.go`, `diffing.go`, `english.go`).
+
+The other layers (`source/usecase`, `source/gateway`, `source/adapter`) stay where they are.
+
+`package` does have an icon in that theme (`folder-packages`), and so do `source` (`folder-src`) and `scripts`. Left as they are.

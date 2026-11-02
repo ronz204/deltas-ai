@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/findings"
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/findings"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
 
@@ -177,10 +177,10 @@ func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
 type evidence struct {
 	by    map[string]judgment.Standing
 	err   error
-	asked map[string]linkcheck.Scope
+	asked map[string]linking.Scope
 }
 
-func (e *evidence) Standings(_ context.Context, slices map[string]linkcheck.Scope) (map[string]judgment.Standing, error) {
+func (e *evidence) Standings(_ context.Context, slices map[string]linking.Scope) (map[string]judgment.Standing, error) {
 	e.asked = slices
 	return e.by, e.err
 }
@@ -279,7 +279,7 @@ type linter struct {
 	ran   bool
 }
 
-func (l *linter) IsTest(rel string) bool { return linkcheck.IsTestFile(rel) }
+func (l *linter) IsTest(rel string) bool { return linking.IsTestFile(rel) }
 
 func (l *linter) Lint(context.Context) ([]findings.Diagnostic, error) {
 	l.ran = true
@@ -353,7 +353,7 @@ func (s specs) Save(_ context.Context, slice string, content []byte) error {
 // drifting says which files changed since each slice was verified; a slice it does not list was never verified here.
 type drifting map[string][]string
 
-func (d drifting) Drift(_ context.Context, slice string, _ linkcheck.Scope) ([]string, bool, error) {
+func (d drifting) Drift(_ context.Context, slice string, _ linking.Scope) ([]string, bool, error) {
 	files, ok := d[slice]
 	return files, ok, nil
 }
@@ -427,7 +427,7 @@ func TestPostToolUseSaysWhenItCouldNotTellWhatWentStale(t *testing.T) {
 
 type brokenDrifting struct{}
 
-func (brokenDrifting) Drift(context.Context, string, linkcheck.Scope) ([]string, bool, error) {
+func (brokenDrifting) Drift(context.Context, string, linking.Scope) ([]string, bool, error) {
 	return nil, true, errors.New("git is gone")
 }
 

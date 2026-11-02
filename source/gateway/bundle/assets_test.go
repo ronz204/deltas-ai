@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
-	"github.com/ronz204/deltas-ai/source/domain/conffile"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 )
 
@@ -76,8 +76,8 @@ func TestTheConfigFilesThatAreInstalledStateTheDefaults(t *testing.T) {
 	if len(c.Problems) != 0 {
 		t.Fatalf("the config files have problems: %v", c.Problems)
 	}
-	if !reflect.DeepEqual(c.Files.Match, linkcheck.DefaultTestFiles) {
-		t.Errorf("match = %v, want %v", c.Files.Match, linkcheck.DefaultTestFiles)
+	if !reflect.DeepEqual(c.Files.Match, linking.DefaultTestFiles) {
+		t.Errorf("match = %v, want %v", c.Files.Match, linking.DefaultTestFiles)
 	}
 	if want := []string{".git", "node_modules", "vendor"}; !reflect.DeepEqual(c.Files.Skip, want) {
 		t.Errorf("skip = %v, want %v", c.Files.Skip, want)

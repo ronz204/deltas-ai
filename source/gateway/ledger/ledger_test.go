@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
@@ -23,7 +23,7 @@ type tree struct {
 	err     error
 }
 
-func (t *tree) Files(_ context.Context, scope linkcheck.Scope) (map[string]string, error) {
+func (t *tree) Files(_ context.Context, scope linking.Scope) (map[string]string, error) {
 	out := map[string]string{}
 	for name, hash := range t.all {
 		if scope.Covers(name) {
@@ -33,7 +33,7 @@ func (t *tree) Files(_ context.Context, scope linkcheck.Scope) (map[string]strin
 	return out, t.err
 }
 
-func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, error) {
+func (t *tree) Tree(_ context.Context, scope linking.Scope) (string, bool, error) {
 	var parts []string
 	for name, text := range t.changed {
 		if scope.Covers(name) {
@@ -45,8 +45,8 @@ func (t *tree) Tree(_ context.Context, scope linkcheck.Scope) (string, bool, err
 }
 
 var (
-	billing  = linkcheck.NewScope("deltas/specs/billing.spec.md")
-	payments = linkcheck.NewScope("deltas/specs/payments.spec.md")
+	billing  = linking.NewScope("deltas/specs/billing.spec.md")
+	payments = linking.NewScope("deltas/specs/payments.spec.md")
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
@@ -55,13 +55,13 @@ func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
 	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}, {Slice: "payments", Scope: payments, Violated: true}}); err != nil {
 		t.Fatal(err)
 	}
-	by, err := l.Standings(ctx, map[string]linkcheck.Scope{"billing": billing, "payments": payments})
+	by, err := l.Standings(ctx, map[string]linking.Scope{"billing": billing, "payments": payments})
 	if err != nil || by["billing"] != judgment.Passing || by["payments"] != judgment.Failing {
 		t.Fatalf("Standings = %v, %v", by, err)
 	}
 
 	tr.changed["billing/total.go"] = "v2"
-	by, _ = l.Standings(ctx, map[string]linkcheck.Scope{"billing": billing, "payments": payments})
+	by, _ = l.Standings(ctx, map[string]linking.Scope{"billing": billing, "payments": payments})
 	if by["billing"] != judgment.Unchecked || by["payments"] != judgment.Unchecked {
 		t.Fatalf("after the code changed: %v; every slice depends on every code file, so each needs a new check", by)
 	}
@@ -69,23 +69,23 @@ func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
 
 func TestAChangeToDocumentationDoesNotMatterToASlice(t *testing.T) {
 	l := New(t.TempDir(), "/repo", &tree{})
-	by, err := l.Standings(ctx, map[string]linkcheck.Scope{"billing": billing, "payments": payments})
+	by, err := l.Standings(ctx, map[string]linking.Scope{"billing": billing, "payments": payments})
 	if err != nil || by["billing"] != judgment.Passing || by["payments"] != judgment.Passing {
 		t.Fatalf("Standings = %v, %v; want both to stand", by, err)
 	}
 	tr := &tree{changed: map[string]string{"README.md": "x"}}
-	by, err = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linkcheck.Scope{"billing": billing})
+	by, err = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linking.Scope{"billing": billing})
 	if err != nil || by["billing"] != judgment.Passing {
 		t.Fatalf("a change to README.md: %v, %v; nothing it depends on changed, so there is nothing to prove", by, err)
 	}
 	tr.changed["payments/pay.go"] = "v1"
-	if by, _ = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linkcheck.Scope{"billing": billing}); by["billing"] != judgment.Unchecked {
+	if by, _ = New(t.TempDir(), "/repo", tr).Standings(ctx, map[string]linking.Scope{"billing": billing}); by["billing"] != judgment.Unchecked {
 		t.Errorf("billing = %v: code changed and it was never checked", by["billing"])
 	}
 }
 
 func TestACleanTreeHasNothingToProve(t *testing.T) {
-	by, err := New(t.TempDir(), "/repo", &tree{}).Standings(ctx, map[string]linkcheck.Scope{"billing": billing})
+	by, err := New(t.TempDir(), "/repo", &tree{}).Standings(ctx, map[string]linking.Scope{"billing": billing})
 	if err != nil || by["billing"] != judgment.Passing {
 		t.Fatalf("Standings = %v, %v; want it to stand", by, err)
 	}
@@ -100,7 +100,7 @@ func TestRecordsKeepEarlierSlicesAndAreKeptPerProject(t *testing.T) {
 	if err := one.Record(ctx, []verify.Seen{{Slice: "payments", Scope: payments}}); err != nil {
 		t.Fatal(err)
 	}
-	both := map[string]linkcheck.Scope{"billing": billing, "payments": payments}
+	both := map[string]linking.Scope{"billing": billing, "payments": payments}
 	by, _ := one.Standings(ctx, both)
 	if by["billing"] != judgment.Passing || by["payments"] != judgment.Passing {
 		t.Fatalf("a second record lost the first: %v", by)
@@ -113,7 +113,7 @@ func TestRecordsKeepEarlierSlicesAndAreKeptPerProject(t *testing.T) {
 func TestADamagedRecordIsReplacedNotFatal(t *testing.T) {
 	tr := &tree{changed: map[string]string{"billing/a.go": "x"}}
 	l := New(t.TempDir(), "/repo", tr)
-	one := map[string]linkcheck.Scope{"billing": billing}
+	one := map[string]linking.Scope{"billing": billing}
 	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestFailuresAreReportedNotHidden(t *testing.T) {
 	if err := New(t.TempDir(), "/repo", &tree{err: boom}).Record(ctx, seen); !errors.Is(err, boom) {
 		t.Errorf("Record = %v, want the tree's error", err)
 	}
-	if _, err := New(t.TempDir(), "/repo", &tree{err: boom}).Standings(ctx, map[string]linkcheck.Scope{"billing": billing}); !errors.Is(err, boom) {
+	if _, err := New(t.TempDir(), "/repo", &tree{err: boom}).Standings(ctx, map[string]linking.Scope{"billing": billing}); !errors.Is(err, boom) {
 		t.Errorf("Standings = %v, want the tree's error", err)
 	}
 	if err := New("", "/repo", &tree{}).Record(ctx, seen); err == nil {

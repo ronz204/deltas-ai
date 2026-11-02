@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/judgment"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
 var ctx = context.Background()
@@ -38,10 +38,10 @@ func (f fakeSpecs) Save(_ context.Context, s string, c []byte) error {
 	return nil
 }
 
-type fakeTests []linkcheck.File
+type fakeTests []linking.File
 
-func (f fakeTests) TestFiles(context.Context) ([]linkcheck.File, error) { return f, nil }
-func (f fakeTests) IsTest(rel string) bool                              { return linkcheck.IsTestFile(rel) }
+func (f fakeTests) TestFiles(context.Context) ([]linking.File, error) { return f, nil }
+func (f fakeTests) IsTest(rel string) bool                            { return linking.IsTestFile(rel) }
 
 type fakeRunner struct {
 	exits map[string]int
@@ -154,7 +154,7 @@ func TestLintCrossesSpecsWithTests(t *testing.T) {
 	inv02 := "- INV-02 [test: go test ./billing]\n  When x, y.\n"
 	specs := fakeSpecs{"billing": specOf("billing", passing, inv02, uncited)}
 	ds, err := newVerify(specs, &fakeRunner{}).Lint(ctx)
-	if err != nil || len(ds) != 1 || ds[0].Code != linkcheck.CodeNoCite || ds[0].Line != 10 {
+	if err != nil || len(ds) != 1 || ds[0].Code != linking.CodeNoCite || ds[0].Line != 10 {
 		t.Fatalf("Lint = %v, %v", ds, err)
 	}
 }
@@ -166,7 +166,7 @@ func TestLintReportsOnlySpecProblemsWhenThereAreAny(t *testing.T) {
 		t.Fatalf("Lint = %v, %v", ds, err)
 	}
 	for _, d := range ds {
-		if d.Code == linkcheck.CodeNoCite {
+		if d.Code == linking.CodeNoCite {
 			t.Fatalf("a broken project was crossed with its tests: %v", d)
 		}
 	}

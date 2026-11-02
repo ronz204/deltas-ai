@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/source/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/budget"
 )
 
 func budgetCmd(d Deps) *cobra.Command {

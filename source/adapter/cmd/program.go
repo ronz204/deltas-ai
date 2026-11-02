@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ronz204/deltas-ai/source/domain/findings"
+	"github.com/ronz204/deltas-ai/package/domain/findings"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
 	"github.com/ronz204/deltas-ai/source/usecase/measure"

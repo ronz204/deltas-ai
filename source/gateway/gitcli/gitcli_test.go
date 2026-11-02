@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
 var ctx = context.Background()
 
 // everything is the scope of a slice whose commands name no path: every code file.
-var everything = linkcheck.NewScope("")
+var everything = linking.NewScope("")
 
 // repo makes an empty repository that ignores the global and system git configuration, so the
 // tests do not depend on who runs them.
