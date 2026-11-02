@@ -7,3 +7,4 @@ The spec of a slice (`deltas/specs/<slice>.spec.md`) is the truth and the scope 
 - If the task cannot be decided without inventing an answer, stop and write the doubt down as an open question of the spec (through `drafter`). Do not settle it silently inside the code.
 - Never edit a spec, its status or the knowledge base by hand. The commands do it: `delta link`, `delta built`, `delta check`.
 - A claim marked `none` or `manual` is not verified. Do not describe it as if it were.
+- When you fix a bug in code a slice owns and no claim would have caught it, offer the person in one line to add that claim (`drafter`, amend path). Do not add it unasked.

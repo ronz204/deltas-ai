@@ -185,13 +185,13 @@ The agent writes each test first. A hook lints every test file as it is written,
 
 - **`/comper [slice]`**: call it when you don't know the next step. It leaves you with where the slice stands and the skill to call.
 - **`/drafter <slice>`**: call it when a feature is new, changes, or its contract looks thin. You give it your answers about intent, limits and invariants; it leaves you a `draft` contract to review and approve.
-- **`/builder <slice>`**: call it when a contract is approved or went stale. You give it an OK on its plan; it leaves you tests and code, each test linked to its claim.
+- **`/builder <slice>`**: call it when a contract is approved and was never built, or when a claim fails after a change. You give it an OK on its plan; it leaves you tests and code, each test linked to its claim.
 - **`/auditor <slice>`**: call it to know whether a contract still holds. It gives you verdicts per claim, saying whether each came from a command or from reading. It fixes nothing.
 - **`/scriber <doc>`**: call it when the project needs explaining to people. You give it the reasons the code doesn't show; it writes one doc under `deltas/docs/`.
 
 Each skill works on one slice (or one doc) per run. Drafter and Builder never approve; Auditor never edits. When the contract itself is wrong, any of them hands it back to Drafter instead of bending the code.
 
-Plain requests work too: *"is billing still right?"* goes to Auditor, and *"change how refunds round"* goes to Drafter first, because a change of behavior starts with the contract. A request not about behavior (a typo, a rename, a question about the code) is not routed at all.
+Plain requests work too: *"is billing still right?"* goes to Auditor, and *"refunds can now go up to 60 days"* goes to Drafter first, because a change of what a feature promises starts with the contract. A request that keeps every promise (a bug fix, a refactor, a tweak, a typo, a rename, a question about the code) is not routed at all: the agent just does it, and Delta asks for a check of the slices it touched when it finishes.
 
 ### Slice states
 
@@ -201,6 +201,13 @@ Plain requests work too: *"is billing still right?"* goes to Auditor, and *"chan
 - **`verified`**: every test claim held in the last check. If the code its tests cover changes afterwards, it stays `verified` and `delta status` shows it as `verified (2 files changed)`. Nothing is rewritten: `delta check` on the slice confirms it still holds and clears the note, and if a claim now fails, Builder fixes the code or Drafter revises the contract.
 - **`stale`**: only in specs written by an older Delta, which marked a slice stale on its own. `delta check` brings it back to `verified` once its test claims hold.
 
+```
+draft  →  approved  →  built  →  verified
+              └── built before, tests hold ──┘
+verified  →  built          Builder rebuilds it
+any state →  draft          the contract is rewritten
+```
+
 Rewriting an `approved`, `built` or `verified` contract sends it back to `draft` and needs a new approval; Delta says so when it happens. If the slice was built before (it has a footprint), `delta check` takes it from `approved` straight to `verified` once every test claim holds, so a small amendment needs no rebuild. A slice that was never built still needs Builder. A claim with no test never blocks `verified`: it stays on your screen as debt.
 
 ### What you will see while you work
@@ -208,11 +215,11 @@ Rewriting an `approved`, `built` or `verified` contract sends it back to `draft`
 Delta speaks through the hooks. These are the messages you will meet.
 
 - **An edit is refused** with *"X is part of the knowledge base, which is not edited directly"*. The agent tried to edit `CLAUDE.md`, `.claude/rules|skills|agents|docs`, or a file directly under `deltas/`. Nothing to do: it should go through `/drafter` or a `delta` command. You can edit by hand.
-- ***"billing was verified and is now stale: …"*** after an edit. Code under the paths of its test commands changed. Check the contract still holds, then run `/builder billing`, or `/drafter billing` if the contract is out of date.
 - ***"delta lint found problems in the test file you just wrote"***. A test cites an ID no spec defines, or the file has a skipped test. Fix the test file.
-- **The agent tries to finish and is sent back** with *"delta check has not run on the current changes for: billing"*. Code under billing's paths changed since the last check. Let it run `delta check billing`. It asks once, never in a loop.
-- ***"billing is approved but not built, and the code changed since"***. Code was written for an approved slice without finishing it. Let `/builder billing` finish, ending with `delta built`.
-- **A list of slices at session start**. Delta telling the session where each one stands. Nothing to do.
+- **The agent tries to finish and is sent back** with *"Your changes touched code of billing: run delta check billing before you finish."* This session changed code that belongs to `billing`. Let it run `delta check billing`. It asks once, never in a loop. If every claim holds, `billing` is still `verified` and nothing else happens.
+- ***"delta check found violated claims for: billing"***. A claim no longer holds after this session's changes. The agent fixes the code, or tells you that the promise itself changed and asks if you want to amend the contract.
+- **Nothing at all after editing code.** Expected: a slice that is a `draft`, `approved` or never built is backlog and never holds the agent back, and files that belong to no slice (`go.mod`, docs, images) are nobody's.
+- **A list of slices at session start**. Delta telling the session where each one stands and what comes next. Nothing to do.
 
 A broken or missing `delta` never blocks the agent. A hook only blocks when it says so.
 
@@ -333,9 +340,9 @@ A slice with no footprint depends on **the code its test commands name**:
 
 The slice's own spec always counts. Markdown and what Delta installs (`.claude/`, `deltas/`) never do. If any test command of a slice names no path, or the slice has no test claims, it depends on every code file.
 
-So name the folder in your command when you can: it keeps one feature's changes from marking every other slice stale. The cost is a blind spot: a change in a package that `billing` imports but its command doesn't name won't mark it stale.
+So name the folder in your command when you can: it keeps one feature's changes from showing up as drift in every other slice. The cost is a blind spot: a change in a package that `billing` imports but its command doesn't name won't show as drift.
 
-The record of checks lives in your user cache folder, not in the repository. On a fresh clone nothing was verified there, so nothing is stale until a check runs.
+The record of checks lives in your user cache folder, not in the repository. On a fresh clone nothing was verified there, so no drift is shown until a check runs.
 
 ## Configuration and conventions
 
@@ -440,7 +447,8 @@ delta update
 **Writing specs**
 - *"the spec is not in English"*: translate it and write it again.
 - *"a new spec is written as a draft"*: specs can't be written with another status. Only `delta approve`, `built` and `check` move it.
-- **A slice is `stale` right after you edited code**: expected, that is drift. Check the contract, then rebuild or revise.
+- **A slice shows `verified (2 files changed)`**: expected, that is drift. Run `delta check billing`; if it holds the note disappears, and if a claim fails, fix the code or revise the contract.
+- **A slice is `stale`**: its spec was written by an older Delta. Run `delta check` on it and it goes back to `verified` when its test claims hold.
 
 ### Limits worth knowing
 

@@ -15,8 +15,11 @@ The person never types `delta` commands. They either ask in plain words or call 
 |---|---|
 | No spec covers the behavior, or the contract must change | `/drafter <slice>` writes it (draft) |
 | A draft | Ask the person in plain words whether to approve it; on a yes, run `delta approve <slice>` |
-| Approved or stale | `/builder <slice>` builds it, tests first |
+| Approved, never built | `/builder <slice>` builds it, tests first |
+| Approved, built before (a small amendment) | `delta check <slice>`: if every test claim holds it is verified; if one fails, `/builder <slice>` |
 | Built | `/auditor <slice>` verifies it |
+| Verified, and code changed since | `delta check <slice>` confirms it still holds |
+| A bug fix, refactor or tweak | Not a contract change: work as usual, then `delta check` of the slices you touched |
 | The project needs explaining | `/scriber <doc>` writes a doc for people |
 
 Talk to the person in their language; write everything the project keeps in English.

@@ -54,13 +54,18 @@ Delta tackles that in three moves:
 
 1. **Write the promise down first.** Before any code, a short contract states what the feature must do. You read it and approve it, so the cheapest place to fix a misunderstanding is also the first place you look.
 2. **Tie every claim to a check.** A claim is not just a sentence. It carries a tag that says how it is verified: a command that must pass, a step a person performs, or an honest "not yet".
-3. **Notice when the promise goes stale.** When code a contract depends on changes, the contract stops saying `verified`. A document that quietly lies is worse than no document, so Delta makes the drift visible.
+3. **Notice when the promise may be stale.** When code a contract depends on changes, Delta shows it and asks for a check before anyone trusts the contract again. A document that quietly lies is worse than no document, so Delta makes the drift visible.
 
 The model does what models are good at: asking the right questions, drafting, planning and writing code. Everything that has a right answer, such as validating a contract, enforcing a state or deciding whether a command passed, is done by ordinary code that tests can cover.
 
 ## How it works
 
-You ask for a feature and Delta carries it along a fixed path. You make decisions at the two points where a mistake is most expensive: the contract and the plan.
+Delta works in two lanes, chosen by what you ask for.
+
+- **A request that changes what a feature promises** (new behavior, or a guarantee that is different) goes through the contract lane below. You make decisions at the two points where a mistake is most expensive: the contract and the plan.
+- **Anything else** (a bug fix, a refactor, a tweak, a dependency) is ordinary work: the agent just does it. When it tries to finish, Delta asks it to run `delta check` on the slices whose code it touched. If they hold, nothing else happens and no contract was touched. If a claim fails, the agent fixes the code, or tells you the promise itself changed.
+
+A small change to a promise of a slice that was already built, such as a limit going from 45 to 60 days, is an *amendment*: no interview, only the before and after of that claim, and no rebuild if its tests still hold.
 
 ```mermaid
 sequenceDiagram
@@ -86,7 +91,7 @@ sequenceDiagram
     Note over You,Builder: Decision 2: you OK the plan
     You->>Builder: approved
     Builder->>CLI: tests first, then the code
-    CLI-->>Builder: stale and lint feedback after each edit
+    CLI-->>Builder: lint feedback on each test file
     Builder->>CLI: delta built, then delta check
     CLI-->>You: every claim Holds, Violated or Unverified
 ```
@@ -104,20 +109,21 @@ stateDiagram-v2
     draft --> approved: you approve
     approved --> built: Builder finishes
     built --> verified: delta check passes
-    verified --> stale: the code changed
-    stale --> built: Builder rebuilds
-    stale --> draft: the contract is rewritten
+    approved --> verified: delta check passes (built before)
+    verified --> built: Builder rebuilds
+    verified --> draft: the contract is rewritten
 ```
 
 | State | Meaning | Moves on when |
 |---|---|---|
 | `draft` | Written, waiting for your review | You approve it |
-| `approved` | Accepted and ready to build | Builder records the build with `delta built` |
+| `approved` | Accepted and ready to build | Builder records the build with `delta built`; or `delta check` passes, if it was built before |
 | `built` | Code and tests exist | `delta check` passes |
-| `verified` | Every test claim held in the last check | The code it covers changes |
-| `stale` | The code changed, so the contract may be out of date | Builder rebuilds it, or Drafter revises the contract |
+| `verified` | Every test claim held in the last check | The contract is rewritten, or Builder rebuilds it |
 
-`stale` is the heart of the idea. It is not an error. It is a flag that says "this was true when it was last checked, and something has changed since". Rewriting an `approved` or `built` contract sends it back to `draft` and needs a new approval.
+Drift is not a state. When the code a slice depends on changes, the slice stays `verified` and `delta status` shows it as `verified (2 files changed)`: "this was true when it was last checked, and something has changed since". Nothing in the contract is rewritten. `delta check` confirms it still holds and clears the note. Specs written by an older Delta may say `stale`; a passing check brings them back to `verified`.
+
+Rewriting an `approved`, `built` or `verified` contract sends it back to `draft` and needs a new approval.
 
 ### The five skills
 
@@ -149,10 +155,10 @@ You will almost never type a `delta` command. You talk to the agent in plain wor
 
 Nothing is left to memory. Four layers, all installed by `delta init`, tell the agent what to do and when:
 
-1. **`CLAUDE.md`** is read at the start of every session. It holds a small table: no spec means `/drafter`, a draft needs your approval, approved or stale means `/builder`, built means `/auditor`.
+1. **`CLAUDE.md`** is read at the start of every session. It holds a small table: no spec means `/drafter`, a draft needs your approval, approved means `/builder`, built means `/auditor`, and a bug fix or a refactor needs no skill.
 2. **The skills** (`.claude/skills/<skill>/SKILL.md`) are the manual for each role, including the exact `delta` commands it runs and in which order.
 3. **The rules** (`.claude/rules/`) are conventions that load by themselves when they apply, such as "nothing is done until the checks ran".
-4. **The hooks** repeat the current state at session start and add the next step to every message, so the agent never has to rediscover where things stand.
+4. **The hooks** tell the agent where every slice stands at session start, add one line to every message that sets the two lanes apart, and ask for a check when it is about to finish after touching a slice's code.
 
 ## A walkthrough
 
@@ -196,7 +202,9 @@ Claude Code shows `delta approve billing` and asks you to confirm it. Approving 
 
 > 🤖 **Builder:** All three claims hold. `billing` is `verified`.
 
-**6. Weeks later, the code changes.** Someone edits `billing/refund.go`. A hook reports that `billing` is now `stale`, and when the agent tries to finish, the `Stop` hook asks it once to run `delta check billing`. Nothing broke, but the contract no longer vouches for the code, and the next step is clear.
+**6. Weeks later, a bug.** You ask the agent to fix a rounding error in `billing/refund.go`. That keeps every promise, so it just fixes it. When it tries to finish, the `Stop` hook asks it once to run `delta check billing`, because it touched code of that slice. Every claim holds, `billing` stays `verified`, and the contract was never touched.
+
+**7. A promise changes.** You ask for refunds up to 60 days, not 45. Drafter does not interview you again: it shows the before and after of `INV-02` and you approve it. The agent runs `delta check billing`; the test still holds, so `billing` is `verified` again with no rebuild.
 
 At any point, `delta status` shows every slice and its state, and `/comper` tells you which skill comes next. For the same session in more detail, see the [full example in the manual](MANUAL.md#a-full-example-session).
 
@@ -243,7 +251,7 @@ The tag in brackets says how the claim is verified:
 
 - **The model proposes, the code decides.** Rules live in the CLI and hooks, not in prompts. A prompt can be ignored; a hook that blocks an edit cannot. The model handles what is ambiguous.
 - **You decide at the expensive points.** You approve the contract and the plan. Nothing in the knowledge base changes behind your back.
-- **Drift is loud.** Changed code marks its contract stale instead of leaving a document that quietly lies.
+- **Drift is visible.** Changed code shows next to its contract and a check is asked for, instead of leaving a document that quietly lies.
 - **Ambiguity goes back to the spec.** If the code would have to contradict a claim, the agent stops and asks. The fix is a conversation about the contract, not a silent workaround.
 
 ## What Delta promises, and what it doesn't
@@ -252,7 +260,7 @@ Being clear about the limits matters more here than in most tools, because the w
 
 - ✅ **It promises a reliable system.** The CLI validates, states are respected and drift is detected. This is covered by ordinary tests with no model involved.
 - ❌ **It does not promise better code or fewer tokens.** Neither has been measured, so neither is claimed.
-- ⚠️ **Its checks detect, they don't guarantee.** `Holds` means the command exited 0 and a test cites the claim's ID. It does not mean the test is a good one. Drift follows the files a test command names, so a change in a package it only imports goes unnoticed.
+- ⚠️ **Its checks detect, they don't guarantee.** `Holds` means the command exited 0 and a test cites the claim's ID. It does not mean the test is a good one. Drift follows the files each build changed (or the paths a test command names), so a change in code a slice only imports goes unnoticed.
 
 The honest promise is "problems don't go unnoticed", not "there are no problems".
 
@@ -316,7 +324,7 @@ You rarely type these: the skills run them for you. The ones worth knowing by ha
 | `delta ready <slice>` | Gate the build (any contract that is not a draft passes) and start following it |
 | `delta built <slice>` | Record that the build is done, and the files it changed as the slice's footprint |
 | `delta link <slice> <id> "<cmd>"` | Set a claim's tag to `test: <cmd>` |
-| `delta check [slice]` | Run every test claim and record the result |
+| `delta check [slice...]` | Run every test claim and record the result |
 | `delta stale` | List verified slices whose code changed since they were verified (read-only) |
 
 **Integrate**
@@ -331,11 +339,11 @@ All five events run the same command, `delta hook`. Keeping a single entry point
 
 | Event | What Delta does |
 |---|---|
-| `SessionStart` | Reports where every slice stands and what is wrong with the setup, so a new session starts oriented |
-| `UserPromptSubmit` | Adds the next step of each slice to every message, so the agent does not have to rediscover it |
+| `SessionStart` | Reports where every slice stands, with its next step, and what is wrong with the setup, so a new session starts oriented. It also remembers the state of the project, to know later what this session changed |
+| `UserPromptSubmit` | Adds one fixed line to every message: a change to what a feature promises goes through `comper`, anything else is ordinary work |
 | `PreToolUse` on `Write`/`Edit` | Blocks edits to the knowledge base, which only the CLI may change |
-| `PostToolUse` on `Write`/`Edit` | Reports newly stale slices and lints a test file as soon as it is written |
-| `Stop` | Asks once for `delta check` if claims were not checked against the current code |
+| `PostToolUse` on `Write`/`Edit` | Lints a test file as soon as it is written |
+| `Stop` | Asks once for `delta check` of the slices whose code this session touched, and holds the agent back if a claim is violated. Slices not built yet never hold it back |
 
 A broken delta never stops the agent. If the CLI fails or the setup is incomplete, the hook reports it and lets the session carry on. Only an explicit block does.
 
