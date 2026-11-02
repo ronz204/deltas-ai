@@ -238,3 +238,9 @@ Still open from section 4: `Setup.Asset.Mode` and the `perm` of `Files.WriteFile
 The file and line references in sections 2 to 6 above are the historical record of what was pending when they were written, and use the old `source/gateway` and `source/domain` paths.
 
 Open: `package/gateway/bundle` imports `source/usecase/setup` and `package/gateway/ledger` imports `source/usecase/verify`, so the gateway depends on a layer that still lives in `source/`. It compiles, but it is the reason to move `usecase` into `package/` next, or to give the gateway its own types.
+
+## Phase 6: the gateway folders renamed
+
+The five gateway folders are 8 characters long and have no icon in Material Icon Theme: `bundle` is `embedded`, `gitcli` is `gitshell`, `ledger` is `recorder`, `runner` is `executor` and `vaults` is `diskbase`. The package names follow, so `gitcli.New` is `gitshell.New`, and the main file and its test take the package name (`embedded.go`, `gitshell.go`, `recorder.go`, `executor.go`, `diskbase.go`). The other files keep their 6 characters (`hashes`, `tokens`, `locate`, `inside`, `slices`, `suites`, `assets_test`, `claude_test`, `inside_test`).
+
+The older sections of this file use the names the packages had when they were written.

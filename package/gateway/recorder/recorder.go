@@ -1,4 +1,4 @@
-package ledger
+package recorder
 
 import (
 	"context"

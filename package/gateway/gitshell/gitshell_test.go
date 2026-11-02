@@ -1,4 +1,4 @@
-package gitcli
+package gitshell
 
 import (
 	"context"

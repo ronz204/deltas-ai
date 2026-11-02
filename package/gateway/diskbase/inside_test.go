@@ -1,4 +1,4 @@
-package vaults
+package diskbase
 
 import (
 	"errors"

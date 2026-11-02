@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/ronz204/deltas-ai/package/domain/conffile"
+	"github.com/ronz204/deltas-ai/package/gateway/diskbase"
+	"github.com/ronz204/deltas-ai/package/gateway/embedded"
+	"github.com/ronz204/deltas-ai/package/gateway/executor"
+	"github.com/ronz204/deltas-ai/package/gateway/gitshell"
+	"github.com/ronz204/deltas-ai/package/gateway/recorder"
 	"github.com/ronz204/deltas-ai/source/adapter/cmd"
-	"github.com/ronz204/deltas-ai/source/gateway/bundle"
-	"github.com/ronz204/deltas-ai/source/gateway/gitcli"
-	"github.com/ronz204/deltas-ai/source/gateway/ledger"
-	"github.com/ronz204/deltas-ai/source/gateway/runner"
-	"github.com/ronz204/deltas-ai/source/gateway/vaults"
 	"github.com/ronz204/deltas-ai/source/usecase/author"
 	"github.com/ronz204/deltas-ai/source/usecase/guard"
 	"github.com/ronz204/deltas-ai/source/usecase/measure"
@@ -30,18 +30,18 @@ const commandTimeout = 10 * time.Minute
 // run executes one command line and returns the exit status: 0 ok, 1 problems found, 2 error.
 // delta hook answers to Claude Code instead: it exits 2 only to block, and 1 when delta itself failed.
 func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer, cwd string) int {
-	root := vaults.FindRoot(cwd)
+	root := diskbase.FindRoot(cwd)
 	conf := loadConf(root)
-	vault := vaults.New(root).Matching(conf.Files.Match).Skipping(conf.Files.Skip)
-	programs := runner.New(root, commandTimeout, errOut)
-	git := gitcli.New(root)
+	vault := diskbase.New(root).Matching(conf.Files.Match).Skipping(conf.Files.Skip)
+	programs := executor.New(root, commandTimeout, errOut)
+	git := gitshell.New(root)
 	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
-	checks := ledger.New(cache, root, git)
+	checks := recorder.New(cache, root, git)
 	report := status.New(vault).WithDrift(checks, vault).WithDocs(vault)
-	installer := setup.New(vault, bundle.Bundle{}, programs, conf)
+	installer := setup.New(vault, embedded.Bundle{}, programs, conf)
 	checker := verify.New(vault, vault, programs, checks)
 	app := cmd.New(cmd.Deps{
-		Author:    author.New(vault, bundle.Bundle{}),
+		Author:    author.New(vault, embedded.Bundle{}),
 		Checker:   checker,
 		Report:    report,
 		Guard:     guard.New(root, report, installer, checks, checker),
@@ -70,7 +70,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 // loadConf reads budget.conf and testing.conf; one that is missing leaves its defaults, and one that cannot be
 // read leaves them too and says so.
 func loadConf(root string) conffile.Conf {
-	vault := vaults.New(root)
+	vault := diskbase.New(root)
 	var problems []string
 	read := func(name string) string {
 		text, err := vault.ReadFile(context.Background(), name)
