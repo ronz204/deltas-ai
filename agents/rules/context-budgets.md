@@ -27,7 +27,7 @@ This governs how much context each knowledge-base artifact may cost, and what to
 ## What is never split mechanically
 
 - A skill or subagent description: it is always loaded and it is what triggers the skill, so shortening it risks the skill not firing. Tighten it by hand, keep the trigger phrasings that matter, and confirm with the user.
-- A spec: one that is over its ceiling usually spans more than one capability, which is a scoping question for the `quill` skill, not a file-splitting one. A slice is never split by layer.
+- A spec: one that is over its ceiling usually spans more than one capability, which is a scoping question for the `drafter` skill, not a file-splitting one. A slice is never split by layer.
 
 ## Measuring
 

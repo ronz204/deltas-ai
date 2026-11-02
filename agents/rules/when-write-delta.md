@@ -2,7 +2,7 @@
 paths:
   - "deltas/**"
   - "**/deltas/**"
-  - ".claude/skills/quill/**"
+  - ".claude/skills/drafter/**"
 ---
 
 # Delta Scope Conventions

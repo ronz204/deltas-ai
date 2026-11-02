@@ -6,14 +6,15 @@
 
 ## How to work
 
-The person talks plainly and never types delta commands or skill names. For any request that adds, changes, removes, checks or documents behavior, use the `helm` skill first: it reads `delta status` and hands the work to the right skill.
+The person never types `delta` commands. They either ask in plain words or call a skill by name. For any plain request that adds, changes, removes, checks or documents behavior, use the `starship` skill first: it reads `delta status` and hands the work to the right skill. `/starship` alone says which skill comes next.
 
 | The state is | The next step is |
 |---|---|
-| No spec covers the behavior, or the contract must change | `quill` writes it (draft) |
+| No spec covers the behavior, or the contract must change | `/drafter <slice>` writes it (draft) |
 | A draft | Ask the person in plain words whether to approve it; on a yes, run `delta approve <slice>` |
-| Approved or stale | `forge` builds it, tests first |
-| Built | `seal` verifies it |
+| Approved or stale | `/builder <slice>` builds it, tests first |
+| Built | `/auditor <slice>` verifies it |
+| The project needs explaining | `/scribe <doc>` writes a doc for people |
 
 Talk to the person in their language; write everything the project keeps in English.
 

@@ -1,15 +1,15 @@
 ---
-name: quill
+name: drafter
 description: >-
-  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. helm hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /quill <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
+  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. starship hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /drafter <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
 argument-hint: <slice>
 ---
 
-# Quill
+# Drafter
 
-Code shows what a slice currently does. It doesn't show why the slice exists, what is deliberately out of scope, what must never break, or what is intentionally left undecided. Those only come from asking. This skill produces that missing half and writes it down as a contract: claims with stable IDs, each with a way to verify it. Its reason to change is "did we ask the right questions and find the right conflicts", never "does the code satisfy the contract" (that is `forge`'s) or "is the contract still true" (that is `seal`'s).
+Code shows what a slice currently does. It doesn't show why the slice exists, what is deliberately out of scope, what must never break, or what is intentionally left undecided. Those only come from asking. This skill produces that missing half and writes it down as a contract: claims with stable IDs, each with a way to verify it. Its reason to change is "did we ask the right questions and find the right conflicts", never "does the code satisfy the contract" (that is `builder`'s) or "is the contract still true" (that is `auditor`'s).
 
-Quill owns the span of the cycle up to `draft`. A person owns the next step: `delta approve`. Nothing below assumes a specific stack.
+Drafter owns the span of the cycle up to `draft`. A person owns the next step: `delta approve`. Nothing below assumes a specific stack.
 
 The slice is `$ARGUMENTS`; if it is empty, ask which slice. Interview the user in their language, but write the spec in English.
 
@@ -56,9 +56,9 @@ The knowledge base is not edited directly: a hook blocks `Write` and `Edit` on `
 3. Each claim is a header line `- INV-01 [tag]` or `- ACC-01 [tag]`, and under it, indented, its one sentence. IDs are stable: never renumber an existing claim, and don't reuse the ID of one you removed.
 4. If it prints diagnostics, nothing was written. Fix what they say (they carry file, line and code) and write again. When it succeeds, run `delta spec lint <slice>`.
 
-Then stop. Tell the user the slice is a `draft`, summarize the claims and which are `none` or `manual`, and ask them to review it. **Don't run `delta approve`**: the sign-off is the person's, and Claude Code will ask them anyway. The next steps are `delta approve <slice>` and then `/forge <slice>`.
+Then stop. Tell the user the slice is a `draft`, summarize the claims and which are `none` or `manual`, and ask them to review it. **Don't run `delta approve`**: the sign-off is the person's, and Claude Code will ask them anyway. The next steps are `delta approve <slice>` and then `/builder <slice>`.
 
-If the resulting spec implies real implementation work, that is `forge`'s job, not a deliverable of this skill.
+If the resulting spec implies real implementation work, that is `builder`'s job, not a deliverable of this skill.
 
 ---
 

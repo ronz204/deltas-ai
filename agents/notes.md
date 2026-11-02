@@ -43,3 +43,38 @@ The rules were renamed to a similar length as `kb-deltas-routing`, `when-write-d
 - `source/domain/budget/measure.go:19` and `:75`, `source/domain/knowledge/kbpaths.go:6`: they match `.claude/rules/*.md` by pattern, not by name.
 - Tests that use `.claude/rules/a.md`, `one.md` or `always.md` as fixtures.
 - README.md line 100: it only describes `.claude/rules/<topic>.md`.
+
+## 3. Skills: names and how the developer uses them
+
+### What each skill is for
+
+The flow: a request becomes a contract (`drafter`), a person approves it, the contract becomes code and tests (`builder`), the code is checked against the contract (`auditor`). `starship` decides which one the state asks for. `scribe` writes the docs for people and sits outside that loop.
+
+### Names: done
+
+| Before | Now | What the developer reads in it |
+|---|---|---|
+| `helm` | `starship` | knows where the project is and which skill comes next (8 characters, outside the 6 to 7 range on purpose) |
+| `quill` | `drafter` | drafts the contract (the `draft` state) |
+| `forge` | `builder` | builds what the approved contract asks |
+| `seal` | `auditor` | audits the code against the contract |
+| `atlas` | `scribe` | writes the docs for people |
+
+Slash forms: `/starship [slice]`, `/drafter <slice>`, `/builder <slice>`, `/auditor <slice>`, `/scribe <doc>`.
+
+### Usage model: decided
+
+`starship` works both ways. A plain request is routed and carried through, as before. `/starship` with no request only reports the state of the slice and names the skill that comes next; it runs it if the person says so. The developer may speak plainly or call the skills by name, and never types `delta` commands. `CLAUDE.md` shows the flow as a table of state to skill.
+
+### Where the code and the harness are affected
+
+**Harness: done** (folders renamed with `git mv`, text updated): the five `SKILL.md`, `agents/core/templates/CLAUDE.md` (usage paragraph and table, plus a `/scribe` row), and the mentions in `claims-fidelity`, `kb-deltas-routing`, `context-budgets` and the `paths:` of `when-write-delta` (now `.claude/skills/drafter/**`).
+
+**Code: pending the go-ahead.** Where it still says the old names:
+
+- `source/usecase/guard/guard.go:105`, `:195`, `:198`: messages that say `/forge <slice>` and `/quill`.
+- `source/usecase/guard/guard.go:303`: the context line "use the helm skill before touching any file; the person speaks plainly and never types delta commands". Reword it for the two entrances of `starship`.
+- `source/usecase/guard/guard.go:316-324`: "the quill skill", "the forge skill", "the seal skill".
+- `source/adapter/cmd/status.go:64`: `next: /atlas <doc>`.
+- Tests with the names: `guard_test.go` (`:47`, `:143`, `:153-154`, `:265-266`, `:397`, `:460`), `stop_test.go` (`:168-169`, `:176`), `init_test.go` (`:25`, `:131`, `:140`), `update_test.go` (`:17`, `:26`, `:35`, `:38`, `:46`), `install_test.go:84`, `assets_test.go:34`, `budget_test.go:14,25`, `measure_test.go` (`:54-55`, `:68`, `:79`, `:82`), `kbpaths_test.go:8`, `project_test.go` (`:77-78`, `:90`).
+- Projects already installed: update has to remove the old skill folders (same retire logic as the rule renames).

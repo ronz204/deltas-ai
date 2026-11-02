@@ -19,9 +19,9 @@ These paths are the durable knowledge base this project's delta methodology main
 ## Route through the matching skill, don't hand-edit
 
 - A hook blocks the agent's `Write` and `Edit` on these paths. A person can edit `CLAUDE.md`, docs, rules, agents and skills by hand; the agent proposes the change and the person makes it.
-- A new or substantially-revised `<slice>.spec.md` goes through `quill`, because intent and invariants have to come from investigation and user Q&A, not be invented while editing the file. `quill` writes it with `delta spec write`, which validates before it saves; the result is a `draft` that a person approves with `delta approve`.
+- A new or substantially-revised `<slice>.spec.md` goes through `drafter`, because intent and invariants have to come from investigation and user Q&A, not be invented while editing the file. `drafter` writes it with `delta spec write`, which validates before it saves; the result is a `draft` that a person approves with `delta approve`.
 - Linking a test to a claim is `delta link`, which only changes that claim's tag. Moving a slice along its states is `delta approve`, `delta built` and `delta check`.
-- Checking whether a slice still matches the real implementation goes through `seal`, which reports drift — it never edits the file itself; a correction it surfaces goes back through `quill`.
+- Checking whether a slice still matches the real implementation goes through `auditor`, which reports drift — it never edits the file itself; a correction it surfaces goes back through `drafter`.
 
 ## Trivial edits are exempt
 
