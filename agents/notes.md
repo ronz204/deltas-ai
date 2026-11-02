@@ -230,3 +230,11 @@ Behavior is the same, and the existing tests pass unchanged. Without comments, t
 - `vaults`: the 260-line file is four: `vaults.go` (the type and its construction), `catalog.go` (the specs: `Path`, `List`, `Load`, `Create`, `Save`), `project.go` (project files: `ReadFile`, `WriteFile`, `RemoveFile`, `Glob`, `writeAtomic`) and `suites.go` (the test files).
 
 Still open from section 4: `Setup.Asset.Mode` and the `perm` of `Files.WriteFile` are always `0644` now, so they can go when the use-case layer is reviewed. `ledger.Drift`, `Standings` and `gitcli.Tree/Files` stay until the decision on "stale only for claims verified by reading" is made.
+
+## Phase 5: the gateway moved
+
+`source/gateway` is now `package/gateway`, with every file name at 6 characters: `gitcli/hashing.go` is `hashes.go`, `runner/command.go` is `tokens.go`, `vaults/catalog.go` is `slices.go`, `vaults/project.go` is `inside.go`, and the tests follow (`inside_test.go`, `claude_test.go`). Only imports and paths changed.
+
+The file and line references in sections 2 to 6 above are the historical record of what was pending when they were written, and use the old `source/gateway` and `source/domain` paths.
+
+Open: `package/gateway/bundle` imports `source/usecase/setup` and `package/gateway/ledger` imports `source/usecase/verify`, so the gateway depends on a layer that still lives in `source/`. It compiles, but it is the reason to move `usecase` into `package/` next, or to give the gateway its own types.
