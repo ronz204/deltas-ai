@@ -116,7 +116,7 @@ For `install.sh`, `DELTA_BASE_URL` takes a `file://` URL. To check the safety ne
 | Question | Decision |
 |---|---|
 | Is the repository public? | Yes. The installers download without a token, which only works for a public repository |
-| License | MIT, in `LICENSE` |
+| License | MIT, in `LICENSE`. The rules and skills are Delta's own work, with no third-party code to credit |
 | macOS | Built and published, but not promoted as a main target |
 | Code signing | Not for now. An unsigned binary may show a Windows SmartScreen or macOS Gatekeeper warning when downloaded with a browser; the installers do not trigger it. Signing needs paid certificates, and the manual mentions it |
 | Where the installers are served from | The `main` branch. A user always gets the newest script, which picks the release itself |
@@ -139,7 +139,6 @@ For `install.sh`, `DELTA_BASE_URL` takes a `file://` URL. To check the safety ne
 
 ## 6. Pending and ideas
 
-- **Credit to ponytail.** `agents/rules/code-change-scope.md` says its ladder is adapted from ponytail (MIT). MIT asks that the original copyright notice travels with substantial copied portions, and the README acknowledgment that used to carry it was removed. Decide whether to restore a credit, for example a `NOTICE` file or a line in the rule.
 - **Test `install.sh` on Linux.** A container or a VM is enough, with the one-line command and no `DELTA_VERSION`.
 - **Package managers.** A Scoop bucket for Windows and a Homebrew tap for Linux and macOS can be added to `.goreleaser.yaml` once people use the tool. Each needs a separate repository for its manifest.
 - **Code signing**, if the warnings turn out to put people off.

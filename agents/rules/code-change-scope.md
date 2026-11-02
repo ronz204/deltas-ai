@@ -5,7 +5,7 @@ paths:
 
 # Code Change Scope
 
-The ladder is adapted from ponytail (MIT license) with contract rungs. It decides how much code a change adds, not how it is written.
+The ladder decides how much code a change adds, not how it is written.
 
 Take the first rung that fully solves the task:
 
