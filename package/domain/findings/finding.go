@@ -1,15 +1,13 @@
-// Package findings holds the finding every validator reports.
 package findings
 
 import "fmt"
 
-// Diagnostic is a problem found in a file. Hooks and CI key on Code, never on Message.
 type Diagnostic struct {
 	File    string
-	Line    int // 1-based; 0 when the finding is about the file as a whole
+	Line    int
 	Code    string
 	Message string
-	Warn    bool // reported, but it does not fail a run
+	Warn    bool
 }
 
 func (d Diagnostic) String() string {

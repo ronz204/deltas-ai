@@ -1,94 +1,89 @@
 package budget
 
 import (
+	"cmp"
 	"fmt"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ronz204/deltas-ai/package/domain/findings"
 )
 
-// Diagnostic codes. Hooks and CI depend on these, so they do not change once released.
 const (
 	CodeItem  = "BUDGET-ITEM"
 	CodeTotal = "BUDGET-TOTAL"
 )
 
-// Patterns are the files that can be loaded on every turn; Measure keeps the ones that are.
-var Patterns = []string{"CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/*.md", ".claude/skills/*/SKILL.md", ".claude/agents/*.md"}
+const (
+	rulesGlob  = ".claude/rules/*.md"
+	skillsGlob = ".claude/skills/*/SKILL.md"
+	agentsGlob = ".claude/agents/*.md"
+)
 
-// File is a knowledge-base file: its path relative to the project root, with forward slashes, and its text.
+var Patterns = []string{"CLAUDE.md", ".claude/CLAUDE.md", rulesGlob, skillsGlob, agentsGlob}
+
 type File struct{ Path, Text string }
 
-// Item is one thing loaded on every turn.
 type Item struct {
 	Path   string
-	Kind   string // router, rule, skill or agent
-	Unit   string // lines or chars
+	Kind   string
+	Unit   string
 	Size   int
-	Limit  int // 0 when there is no ceiling
+	Limit  int
 	Tokens int
 }
 
 type Report struct {
-	Items []Item // the heaviest first
-	Total int    // tokens
-	Limit int    // 0 when there is no ceiling
+	Items []Item
+	Total int
+	Limit int
 }
 
-// tokens estimates at 3.3 characters per token, the ratio the ceilings were calibrated with against
-// Claude Code's own /context report. It is integer arithmetic so it matches the budget script exactly.
 func tokens(chars int) int { return chars * 10 / 33 }
 
-// Measure weighs what the files load on every turn: the router, the rules without paths:, and the
-// descriptions of skills and agents. The rest of a skill or a scoped rule costs nothing until used.
 func Measure(files []File, c Ceilings) Report {
 	var items []Item
+	total := 0
 	for _, f := range files {
 		if item, ok := weigh(f, c); ok {
 			items = append(items, item)
+			total += item.Tokens
 		}
 	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].Tokens != items[j].Tokens {
-			return items[i].Tokens > items[j].Tokens
-		}
-		return items[i].Path < items[j].Path
+	slices.SortFunc(items, func(a, b Item) int {
+		return cmp.Or(cmp.Compare(b.Tokens, a.Tokens), strings.Compare(a.Path, b.Path))
 	})
-	total := 0
-	for _, it := range items {
-		total += it.Tokens
-	}
 	return Report{Items: items, Total: total, Limit: c.Total}
+}
+
+func matches(pattern, file string) bool {
+	ok, _ := path.Match(pattern, file)
+	return ok
 }
 
 func weigh(f File, c Ceilings) (Item, bool) {
 	lines := strings.Split(strings.ReplaceAll(f.Text, "\r", ""), "\n")
-	if lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
+	if last := len(lines) - 1; lines[last] == "" {
+		lines = lines[:last]
 	}
 	m := readMatter(lines)
-	body := len(lines) - m.end
-	whole := tokens(len(f.Text))
-
-	rule, _ := path.Match(".claude/rules/*.md", f.Path)
-	skill, _ := path.Match(".claude/skills/*/SKILL.md", f.Path)
-	agent, _ := path.Match(".claude/agents/*.md", f.Path)
+	item := func(kind, unit string, size, limit, cost int) (Item, bool) {
+		return Item{Path: f.Path, Kind: kind, Unit: unit, Size: size, Limit: limit, Tokens: cost}, true
+	}
 	switch {
 	case f.Path == "CLAUDE.md" || f.Path == ".claude/CLAUDE.md":
-		return Item{f.Path, "router", "lines", body, c.Router, whole}, true
-	case rule && !m.paths:
-		return Item{f.Path, "rule", "lines", body, c.Rule, whole}, true
-	case skill:
-		return Item{f.Path, "skill", "chars", m.desc, c.Skill, tokens(m.desc)}, true
-	case agent:
-		return Item{f.Path, "agent", "chars", m.desc, c.Agent, tokens(m.desc)}, true
+		return item("router", "lines", len(lines)-m.end, c.Router, tokens(len(f.Text)))
+	case matches(rulesGlob, f.Path) && !m.paths:
+		return item("rule", "lines", len(lines)-m.end, c.Rule, tokens(len(f.Text)))
+	case matches(skillsGlob, f.Path):
+		return item("skill", "chars", m.desc, c.Skill, tokens(m.desc))
+	case matches(agentsGlob, f.Path):
+		return item("agent", "chars", m.desc, c.Agent, tokens(m.desc))
 	}
 	return Item{}, false
 }
 
-// Findings lists every ceiling the report is over: each item's own, then the total.
 func (r Report) Findings() []findings.Diagnostic {
 	var out []findings.Diagnostic
 	for _, it := range r.Items {

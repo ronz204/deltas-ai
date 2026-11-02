@@ -9,7 +9,6 @@ import (
 
 var scenario = regexp.MustCompile(`(?i)^(?:given|dad[oa](?: que)?)\s+(.+?),\s*(?:when|cuando)\s+(.+?),\s*(?:then|entonces)\s+(.+)$`)
 
-// CheckStatement checks the shape of a sentence: EARS for invariants, Given/When/Then for acceptance.
 func CheckStatement(k Kind, text string) error {
 	text = strings.TrimSpace(text)
 	switch k {

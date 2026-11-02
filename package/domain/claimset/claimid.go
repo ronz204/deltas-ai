@@ -1,4 +1,3 @@
-// Package claimset is one statement of a contract, with a stable ID and a way to verify it.
 package claimset
 
 import (

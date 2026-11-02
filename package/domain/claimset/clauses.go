@@ -7,8 +7,6 @@ import (
 	"unicode"
 )
 
-// leaders open an EARS clause; true means the clause needs "then" after the comma.
-// shortcut: a sentence's language is not detected, so English and Spanish keywords may be mixed.
 var leaders = map[string]bool{
 	"when": false, "cuando": false,
 	"while": false, "mientras": false,

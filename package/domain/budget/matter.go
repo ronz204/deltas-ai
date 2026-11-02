@@ -6,18 +6,14 @@ import (
 	"unicode/utf8"
 )
 
-// folded is a description whose text starts on the next lines: description: >-
 var folded = regexp.MustCompile(`^[>|][-+]?$`)
 
-// matter is what the weigher needs from a file's frontmatter.
 type matter struct {
-	end   int  // line number of the closing ---, 0 when there is no frontmatter
-	paths bool // it has a paths: key, so it loads only when a matching file is read
-	desc  int  // characters of its description
+	end   int
+	paths bool
+	desc  int
 }
 
-// readMatter reads the frontmatter the way the budget script does: the description may be on one
-// line or folded over indented lines, and each continuation line counts one extra character.
 func readMatter(lines []string) matter {
 	var m matter
 	inside, inDesc := false, false

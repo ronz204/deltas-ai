@@ -1,4 +1,3 @@
-// Package specfile reads a slice's spec file: a frontmatter block, then claims.
 package specfile
 
 import (
@@ -6,7 +5,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
-// supportedFormat is the only format this version reads; bumping it is how old specs get migrated.
 const supportedFormat = 1
 
 type Spec struct {
@@ -16,7 +14,6 @@ type Spec struct {
 	Claims []claimset.Claim
 }
 
-// Diagnostic codes. Hooks and CI depend on these, so they do not change once released.
 const (
 	CodeFrontmatter = "SPEC-FRONTMATTER"
 	CodeKey         = "SPEC-KEY"

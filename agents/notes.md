@@ -204,3 +204,17 @@ Section 4 decided that a slice with only `test` claims needs no "stale" because 
 The other layers (`source/usecase`, `source/gateway`, `source/adapter`) stay where they are.
 
 `package` does have an icon in that theme (`folder-packages`), and so do `source` (`folder-src`) and `scripts`. Left as they are.
+
+## Phase 3: the domain reviewed
+
+`package/domain` has no comments (package docs included), and the code is simpler where it was repeating itself:
+
+- `budget`: the budget keys live in one place (`Ceilings.fields`), `Measure` sorts with `slices.SortFunc` and adds the total as it goes, and `weigh` builds its items through one helper.
+- `english`: lowercases the text once.
+- `kbpaths`: the folder test is one `slices.ContainsFunc`.
+- `judgment`: the two manual cases are one.
+- `specfile`: `SetStatus` and `SetTag` share `replaceLine`, and `frontmatterEnd` is the one place that finds the closing `---`.
+- `conffile`: the readers are `readBudget`, `readTesting` and `readMatch`, and a problem takes a format.
+- `linking`: the test-file matcher moved to `matcher.go`; `citing.go` keeps the citation search (`inScope` is now `underAny`).
+
+Behavior is the same, and the existing tests pass unchanged. Without comments, the reasons behind some choices (why a Spanish word list, why hashes ignore CRLF, why `Cited` only counts files under the command's paths) live in the tests and in the git history of this branch, not in the code.

@@ -12,10 +12,9 @@ var (
 	headerLine = regexp.MustCompile(`^- ([A-Za-z]+-[0-9]+)\s+\[(.*)\]\s*$`)
 )
 
-// claims skips fenced code and HTML comments, so a spec can show an example claim without declaring it.
 func (p *parser) claims(lines []string, from int) []claimset.Claim {
 	var out []claimset.Claim
-	seen := map[claimset.ID]int{} // each ID with the line that defined it
+	seen := map[claimset.ID]int{}
 	var skip skipper
 	for i := from; i < len(lines); i++ {
 		if skip.skips(lines[i]) || !headerLike.MatchString(lines[i]) {
@@ -30,7 +29,6 @@ func (p *parser) claims(lines []string, from int) []claimset.Claim {
 	return out
 }
 
-// claim checks one header and its sentence. ok is false when anything about it was reported.
 func (p *parser) claim(line int, header, text string, seen map[claimset.ID]int) (c claimset.Claim, ok bool) {
 	m := headerLine.FindStringSubmatch(header)
 	if m == nil {
@@ -61,7 +59,6 @@ func (p *parser) claim(line int, header, text string, seen map[claimset.ID]int) 
 	return claimset.Claim{ID: id, Tag: tag, Text: text, Line: line}, len(p.diags) == before
 }
 
-// continuation joins the indented lines under a header; last is the index of the final line used.
 func continuation(lines []string, from int) (text string, last int) {
 	var parts []string
 	last = from - 1

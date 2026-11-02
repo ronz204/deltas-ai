@@ -7,7 +7,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/claimset"
 )
 
-// FuzzParse must never panic, and what Parse returns must be consistent whatever the input.
 func FuzzParse(f *testing.F) {
 	f.Add([]byte(validSpec))
 	f.Add([]byte(head))

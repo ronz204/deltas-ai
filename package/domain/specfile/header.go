@@ -17,19 +17,12 @@ type entry struct {
 	line  int
 }
 
-// frontmatter reads the top block into sp; ok is false when there is none, and then nothing else is read.
 func (p *parser) frontmatter(lines []string, sp *Spec) (body int, ok bool) {
 	if strings.TrimSpace(lines[0]) != "---" {
 		p.add(1, CodeFrontmatter, "a spec starts with a --- frontmatter block")
 		return 0, false
 	}
-	end := -1
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			end = i
-			break
-		}
-	}
+	end := frontmatterEnd(lines)
 	if end < 0 {
 		p.add(1, CodeFrontmatter, "the frontmatter is never closed with ---")
 		return 0, false
@@ -38,7 +31,6 @@ func (p *parser) frontmatter(lines []string, sp *Spec) (body int, ok bool) {
 	return end + 1, true
 }
 
-// keys reads "key: value" lines. firstLine is the line number of block[0].
 func (p *parser) keys(block []string, firstLine int) map[string]entry {
 	kv := map[string]entry{}
 	for i, l := range block {
@@ -65,7 +57,6 @@ func (p *parser) keys(block []string, firstLine int) map[string]entry {
 	return kv
 }
 
-// fill checks each key and sets the field; a bad value leaves the field empty.
 func (p *parser) fill(kv map[string]entry, sp *Spec) {
 	if e, ok := p.need(kv, "format"); ok {
 		sp.Format = p.format(e)

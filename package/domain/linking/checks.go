@@ -10,7 +10,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/specfile"
 )
 
-// Diagnostic codes. Hooks and CI depend on these, so they do not change once released.
 const (
 	CodeNoCite    = "LINT-NO-CITE"
 	CodeUnknownID = "LINT-UNKNOWN-ID"
@@ -24,11 +23,10 @@ type Slice struct {
 
 var (
 	looseID  = regexp.MustCompile(`(?i)(?:INV|ACC)[-_]?[0-9]+`)
-	strictID = regexp.MustCompile(`(INV|ACC)[-_]?([0-9]+)`) // upper case only: `inv1` is usually a variable
+	strictID = regexp.MustCompile(`(INV|ACC)[-_]?([0-9]+)`)
 	skipped  = regexp.MustCompile(`\bt\.Skip(?:f|Now)?\(|\.(?:skip|only)\(|\bx(?:it|describe|test)\(|pytest\.mark\.skip|pytest\.skip\(|unittest\.skip`)
 )
 
-// Check needs specs that parsed cleanly: a dropped claim would show up as an unknown ID.
 func Check(slices []Slice, files []File) []findings.Diagnostic {
 	var out []findings.Diagnostic
 	defined := map[string]bool{}
@@ -68,7 +66,6 @@ func unknownIDs(file string, lines []string, defined map[string]bool) []findings
 	return out
 }
 
-// shortcut: skipped tests are found by pattern and flagged per file; it is a warning, not a verdict.
 func skippedTests(file string, lines []string) []findings.Diagnostic {
 	for i, text := range lines {
 		if found := skipped.FindString(text); found != "" {

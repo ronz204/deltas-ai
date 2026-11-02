@@ -118,8 +118,8 @@ func TestCheck(t *testing.T) {
 		have = append(have, short{d.File, d.Code, d.Line, d.Warn})
 	}
 	want := []short{
-		{"deltas/specs/billing.spec.md", CodeNoCite, 9, false},  // INV-02: no test cites it
-		{"deltas/specs/payments.spec.md", CodeNoCite, 7, false}, // INV-01 is cited only under ./billing
+		{"deltas/specs/billing.spec.md", CodeNoCite, 9, false},
+		{"deltas/specs/payments.spec.md", CodeNoCite, 7, false},
 		{"billing/total_test.go", CodeUnknownID, 3, true},
 		{"billing/total_test.go", CodeSkip, 4, true},
 		{"web/cart.test.ts", CodeUnknownID, 1, true},

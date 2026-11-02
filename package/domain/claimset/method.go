@@ -15,7 +15,7 @@ const (
 
 type Tag struct {
 	Method Method
-	Arg    string // the command for Test, the optional step for Manual, empty for None
+	Arg    string
 }
 
 func (t Tag) String() string {

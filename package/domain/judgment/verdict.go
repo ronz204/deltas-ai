@@ -1,4 +1,3 @@
-// Package judgment turns what a verification run observed into a verdict on a claim.
 package judgment
 
 import (
@@ -12,7 +11,7 @@ type Verdict int
 const (
 	Holds Verdict = iota + 1
 	Violated
-	// Unverified means there is no evidence either way. It never passes for Holds.
+
 	Unverified
 )
 
@@ -30,16 +29,17 @@ func (v Verdict) String() string {
 
 type Outcome struct {
 	Verdict Verdict
-	Reason  string // empty for Holds
+	Reason  string
 }
 
-// Judge decides a claim; exit and cited only matter for a Test tag.
 func Judge(tag claimset.Tag, exit int, cited bool) Outcome {
 	switch {
-	case tag.Method == claimset.Manual && tag.Arg != "":
-		return Outcome{Unverified, "checked by hand: " + tag.Arg}
 	case tag.Method == claimset.Manual:
-		return Outcome{Unverified, "checked by hand"}
+		reason := "checked by hand"
+		if tag.Arg != "" {
+			reason += ": " + tag.Arg
+		}
+		return Outcome{Unverified, reason}
 	case tag.Method != claimset.Test:
 		return Outcome{Unverified, "nothing verifies this claim yet"}
 	case exit != 0:

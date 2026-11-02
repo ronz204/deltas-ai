@@ -37,7 +37,7 @@ func TestTestMatcher(t *testing.T) {
 	for file, want := range map[string]bool{
 		"spec/models/user_spec.rb": true,
 		"src/UserTest.java":        true,
-		"a_test.go":                false, // the patterns replace the defaults
+		"a_test.go":                false,
 		"docs/user_spec.rb.md":     false,
 		"src/User.java":            false,
 	} {

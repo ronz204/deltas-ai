@@ -111,8 +111,8 @@ func TestParseDiagnostics(t *testing.T) {
 		name  string
 		src   string
 		codes []string
-		line  int // line of the first diagnostic
-		kept  int // claims that still parse cleanly beside the problem
+		line  int
+		kept  int
 	}{
 		{"empty file", "", []string{CodeFrontmatter}, 1, 0},
 		{"no frontmatter", "# Title\n", []string{CodeFrontmatter}, 1, 0},
