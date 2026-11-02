@@ -105,3 +105,23 @@ func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 		t.Fatalf("stale = %d %q %q", code, out, errOut)
 	}
 }
+
+// What delta installs is not code: running update, or editing deltas.config, must not make a slice stale.
+func TestChangingDeltasOwnFilesDoesNotMakeASliceStale(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	p.write("main.go", "package main\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") {
+		t.Fatalf("check = %d %q", code, out)
+	}
+	if code, _, errOut := p.delta("", "init"); code != 0 {
+		t.Fatalf("init = %d %q", code, errOut)
+	}
+	p.write("deltas/deltas.config", "command_timeout=5m\n")
+	p.write(".claude/settings.json", "{}\n")
+	if code, out, errOut := p.delta("", "stale"); code != 0 || out != "" {
+		t.Fatalf("stale = %d %q %q; delta's own files are not the slice's code", code, out, errOut)
+	}
+}

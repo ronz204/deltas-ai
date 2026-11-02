@@ -13,6 +13,12 @@ func TestScopeIsEveryCodeFileUnlessPathsAreDeclared(t *testing.T) {
 		"README.md":                     false,
 		"docs/guide.md":                 false,
 		"deltas/specs/payments.spec.md": false,
+		"deltas/deltas.config":          false,
+		"deltas/deltas.manifest":        false,
+		".claude/settings.json":         false,
+		".githooks/commit-msg":          false,
+		"go.mod":                        true,
+		"src/deltas/x.go":               true,
 	}
 	for file, want := range cases {
 		if got := s.Covers(file); got != want {
