@@ -137,3 +137,50 @@ func TestCheckAcceptsACleanProject(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", got)
 	}
 }
+
+func TestIgnoreMatcherKnowsTheLockfilesButNotTheManifests(t *testing.T) {
+	ignored := IgnoreMatcher(nil)
+	for file, want := range map[string]bool{
+		"go.sum":                  true,
+		"web/package-lock.json":   true,
+		"api/Cargo.lock":          true,
+		"yarn.lock":               true,
+		"go.mod":                  false,
+		"package.json":            false,
+		"pyproject.toml":          false,
+		"src/billing/total.go":    false,
+		"docs/go.sum.example.txt": false,
+	} {
+		if got := ignored(file); got != want {
+			t.Errorf("IgnoreMatcher(nil)(%q) = %v, want %v", file, got, want)
+		}
+	}
+}
+
+func TestIgnorePatternsMatchANameAPathOrAFolder(t *testing.T) {
+	ignored := IgnoreMatcher([]string{"*.snap", "web/static/*.svg", "assets/**"})
+	for file, want := range map[string]bool{
+		"a.snap":                true,
+		"src/__snaps__/a.snap":  true,
+		"web/static/logo.svg":   true,
+		"other/static/logo.svg": false,
+		"web/static/deep/a.svg": false,
+		"assets/a.svg":          true,
+		"assets/x/y.css":        true,
+		"src/assets.go":         false,
+		"src/assets/a.go":       false,
+		"go.sum":                false,
+	} {
+		if got := ignored(file); got != want {
+			t.Errorf("Ignore(%q) = %v, want %v", file, got, want)
+		}
+	}
+}
+
+func TestValidIgnore(t *testing.T) {
+	for pattern, want := range map[string]bool{"go.sum": true, "*.snap": true, "assets/**": true, "web/static/*.svg": true, "[": false, "a/[/**": false} {
+		if got := ValidIgnore(pattern); got != want {
+			t.Errorf("ValidIgnore(%q) = %v, want %v", pattern, got, want)
+		}
+	}
+}

@@ -33,7 +33,9 @@ func (g *Git) Since(ctx context.Context, b diffing.Baseline) ([]string, error) {
 		return nil, err
 	}
 	for name := range b.Dirty {
-		names = append(names, name)
+		if g.counts(name) {
+			names = append(names, name)
+		}
 	}
 	slices.Sort(names)
 	names = slices.Compact(names)

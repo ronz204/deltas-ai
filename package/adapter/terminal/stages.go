@@ -71,6 +71,9 @@ func printFootprint(cmd *cobra.Command, d Deps, slice string) {
 		for _, f := range files {
 			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", f)
 		}
+		if len(files) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "A person can remove what is not %s's from deltas/specs/%s.files.\n", slice, slice)
+		}
 	}
 }
 

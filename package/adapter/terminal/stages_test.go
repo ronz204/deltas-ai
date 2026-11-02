@@ -91,7 +91,7 @@ func TestReadyThenBuiltRecordsTheFootprintOfTheBuild(t *testing.T) {
 	}
 	m.changed, m.gone = []string{"src/new.go", "testing/new_test.go"}, []string{"src/gone.go"}
 	out, errOut, err := m.run("", "built", "billing")
-	want := "billing is built\nbilling footprint: 3 files\n  src/new.go\n  src/old.go\n  testing/new_test.go\n"
+	want := "billing is built\nbilling footprint: 3 files\n  src/new.go\n  src/old.go\n  testing/new_test.go\nA person can remove what is not billing's from deltas/specs/billing.files.\n"
 	if err != nil || out != want || errOut != "" {
 		t.Fatalf("built = %q %q, %v; want %q", out, errOut, err, want)
 	}

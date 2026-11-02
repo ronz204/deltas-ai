@@ -35,6 +35,24 @@ func TestTestingConfSaysWhatATestIsAndWhereNotToLook(t *testing.T) {
 	}
 }
 
+func TestIgnoreSaysWhatNeverCountsAsCode(t *testing.T) {
+	c := Parse("", "ignore=go.sum, *.snap,assets/**,web/static/*.svg\n")
+	if want := []string{"go.sum", "*.snap", "assets/**", "web/static/*.svg"}; !reflect.DeepEqual(c.Files.Ignore, want) || len(c.Problems) != 0 {
+		t.Fatalf("ignore = %v, problems = %v; want %v", c.Files.Ignore, c.Problems, want)
+	}
+	if c := Parse("", "match=*_test.go\n"); len(c.Files.Ignore) != 0 {
+		t.Fatalf("ignore = %v, want none when the key is left out", c.Files.Ignore)
+	}
+}
+
+func TestAnIgnorePatternThatCannotBeUsedIsToldWithItsLine(t *testing.T) {
+	c := Parse("", "skip=dist\nignore=go.sum,[\n")
+	want := []string{`deltas/testing.conf:2: ignore: "[" is not a valid pattern`}
+	if !reflect.DeepEqual(c.Problems, want) || len(c.Files.Ignore) != 0 {
+		t.Fatalf("problems = %v, ignore = %v; want %v", c.Problems, c.Files.Ignore, want)
+	}
+}
+
 func TestALineThatCannotBeUsedIsLeftOutAndTold(t *testing.T) {
 	c := Parse("colour=blue\nalways_tokens\n", "match=[\nsize=3\nskip\n")
 	want := []string{

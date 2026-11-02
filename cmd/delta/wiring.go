@@ -40,7 +40,7 @@ func newApp(root string, errOut io.Writer) *cobra.Command {
 	vault := diskbase.New(root).Matching(conf.Files.Match).Skipping(conf.Files.Skip)
 	programs := executor.New(root, commandTimeout, errOut)
 	cache, _ := os.UserCacheDir()
-	checks := recorder.New(cache, root, gitshell.New(root))
+	checks := recorder.New(cache, root, gitshell.New(root).Ignoring(conf.Files.Ignore))
 	report := tracking.New(vault).WithDrift(checks).WithFootprints(vault).WithDocs(vault)
 	installer := deployer.New(vault, embedded.Bundle{}, programs, conf)
 	checker := verifier.New(vault, vault, programs, checks).WithFootprints(vault)

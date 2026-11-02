@@ -78,7 +78,7 @@ func (g *Git) names(ctx context.Context, args ...string) ([]string, error) {
 	}
 	var names []string
 	for _, n := range strings.Split(out, "\x00") {
-		if n != "" {
+		if n != "" && g.counts(n) {
 			names = append(names, n)
 		}
 	}

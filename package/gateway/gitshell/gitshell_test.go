@@ -2,6 +2,7 @@ package gitshell
 
 import (
 	"context"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -282,5 +283,113 @@ func TestSinceInARepositoryWithoutCommits(t *testing.T) {
 	put(t, dir, "b.go", "x")
 	if got := touched(t, g, b); !slices.Equal(got, []string{"b.go"}) {
 		t.Fatalf("a first new file: %v", got)
+	}
+}
+
+func filesOf(t *testing.T, g *Git) []string {
+	t.Helper()
+	files, err := g.Files(ctx, everything)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return slices.Sorted(maps.Keys(files))
+}
+
+func TestFilesLeaveOutLockfilesAndBinariesButKeepManifestsAndTextAssets(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "go.mod", "module x")
+	put(t, dir, "go.sum", "h1:abc")
+	put(t, dir, "package.json", "{}")
+	put(t, dir, "logo.png", "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+	put(t, dir, "logo.svg", "<svg></svg>")
+	put(t, dir, "main.go", "package main")
+	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	put(t, dir, "web/package-lock.json", "{}")
+	commit(t, dir)
+
+	got := filesOf(t, New(dir))
+	if want := []string{"go.mod", "logo.svg", "main.go", "package.json"}; !slices.Equal(got, want) {
+		t.Fatalf("Files = %v, want %v", got, want)
+	}
+}
+
+func TestChangingOnlyLockfilesAndBinariesLeavesTheTreeClean(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "main.go", "one")
+	put(t, dir, "go.sum", "one")
+	put(t, dir, "logo.png", "\x00one")
+	commit(t, dir)
+	g := New(dir)
+
+	put(t, dir, "go.sum", "two")
+	put(t, dir, "logo.png", "\x00two")
+	put(t, dir, "new.png", "\x00new")
+	if hash, dirty, err := g.Tree(ctx, everything); err != nil || dirty || hash != "" {
+		t.Fatalf("Tree = %q, %v, %v; lockfiles and binaries are not code", hash, dirty, err)
+	}
+	put(t, dir, "go.mod", "module x")
+	if _, dirty, _ := g.Tree(ctx, everything); !dirty {
+		t.Fatal("a new manifest left the tree clean")
+	}
+}
+
+func TestIgnoringReplacesTheDefaultPatterns(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "go.sum", "x")
+	if err := os.MkdirAll(filepath.Join(dir, "gen"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	put(t, dir, "gen/code.go", "x")
+	put(t, dir, "main.go", "x")
+	commit(t, dir)
+
+	if got := filesOf(t, New(dir).Ignoring([]string{"gen/**"})); !slices.Equal(got, []string{"go.sum", "main.go"}) {
+		t.Fatalf("Files = %v; the project's patterns replace the lockfile defaults", got)
+	}
+}
+
+func TestSinceDoesNotSeeLockfilesOrBinaries(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	commit(t, dir)
+	put(t, dir, "go.sum", "already there")
+	g := New(dir)
+	b, err := g.Baseline(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, kept := b.Dirty["go.sum"]; kept {
+		t.Fatalf("the baseline kept a lockfile: %v", b.Dirty)
+	}
+
+	b.Dirty["go.sum"] = "a baseline from before lockfiles were ignored"
+	put(t, dir, "go.sum", "changed")
+	put(t, dir, "logo.png", "\x00png")
+	put(t, dir, "b.go", "x")
+	if got := touched(t, g, b); !slices.Equal(got, []string{"b.go"}) {
+		t.Fatalf("Since = %v, want only b.go", got)
+	}
+}
+
+func TestADeletedBinaryDoesNotBreakAnything(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "logo.png", "\x00png")
+	put(t, dir, "a.go", "one")
+	commit(t, dir)
+	g := New(dir)
+	b, err := g.Baseline(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "logo.png")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.Since(ctx, b); err != nil {
+		t.Fatalf("Since failed on a deleted binary: %v", err)
+	}
+	if _, _, err := g.Tree(ctx, everything); err != nil {
+		t.Fatalf("Tree failed on a deleted binary: %v", err)
 	}
 }

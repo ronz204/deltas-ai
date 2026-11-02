@@ -279,7 +279,7 @@ CLAUDE.md                         router: orients a session and says how to work
 deltas/specs/<slice>.spec.md      one contract per feature
 deltas/docs/<doc>.md              four docs for people
 deltas/budget.conf                ceilings for always-loaded context
-deltas/testing.conf               what counts as a test file
+deltas/testing.conf               what counts as a test file, and what never counts as code
 deltas/deltas.manifest            what delta installed, for `delta update`
 ```
 

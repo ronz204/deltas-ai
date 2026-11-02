@@ -68,6 +68,9 @@ func TestTheConfigFilesThatAreInstalledStateTheDefaults(t *testing.T) {
 	if want := []string{".git", "node_modules", "vendor"}; !reflect.DeepEqual(c.Files.Skip, want) {
 		t.Errorf("skip = %v, want %v", c.Files.Skip, want)
 	}
+	if !reflect.DeepEqual(c.Files.Ignore, linking.DefaultIgnored) {
+		t.Errorf("ignore = %v, want %v", c.Files.Ignore, linking.DefaultIgnored)
+	}
 	if c.Budget != budget.Defaults() {
 		t.Errorf("budget = %+v, want %+v", c.Budget, budget.Defaults())
 	}

@@ -304,3 +304,75 @@ func TestFootprintFilesAreNotEditedByTheAgent(t *testing.T) {
 		t.Fatalf("a write to the footprint = %d %q, want a block", code, errOut)
 	}
 }
+
+func TestABuildRecordsManifestsButNotLockfilesOrBinaries(t *testing.T) {
+	p := gitProject(t)
+	p.write("go.mod", "module jobs\n")
+	p.write("go.sum", "h1:one\n")
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	commitAll(t, p, "chore(repo): add the billing slice")
+
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+		t.Fatalf("ready = %d %q", code, errOut)
+	}
+	p.write("src/billing/total.go", "package billing\n")
+	p.write("go.mod", "module jobs\n\nrequire example.com/money v1.0.0\n")
+	p.write("go.sum", "h1:two\n")
+	p.write("docs/diagram.png", "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+	p.write("docs/diagram.svg", "<svg></svg>")
+	code, out, errOut := p.delta("", "built", "billing")
+	if code != 0 || errOut != "" || !strings.Contains(out, "billing footprint: 3 files") || !strings.Contains(out, "A person can remove what is not billing's from deltas/specs/billing.files.") {
+		t.Fatalf("built = %d %q %q", code, out, errOut)
+	}
+	if got := p.read("deltas/specs/billing.files"); got != "docs/diagram.svg\ngo.mod\nsrc/billing/total.go\n" {
+		t.Fatalf("footprint = %q; want the manifest and the text asset, and no lockfile or binary", got)
+	}
+}
+
+func TestStopIgnoresLockfilesAndBinariesButNotManifests(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	p.write("go.mod", "module jobs\n")
+	p.write("go.sum", "h1:one\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") {
+		t.Fatalf("check = %d %q", code, out)
+	}
+	commitAll(t, p, "chore(repo): verify billing")
+	startSession(t, p)
+
+	p.write("go.sum", "h1:two\n")
+	p.write("assets/logo.png", "\x89PNG\x00\x00")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("a lockfile and an image: Stop = %d %q, want it allowed", code, errOut)
+	}
+	if code, out, _ := p.delta("", "stale"); code != 0 || out != "" {
+		t.Fatalf("stale = %d %q; a lockfile and an image are not drift", code, out)
+	}
+	p.write("go.mod", "module jobs\n\nrequire example.com/money v1.0.0\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "delta check billing") {
+		t.Fatalf("a manifest: Stop = %d %q, want a block that asks for the check", code, errOut)
+	}
+}
+
+func TestTestingConfSaysWhatNeverCountsAsCode(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/testing.conf", "ignore=gen/**\n")
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "none")))
+	p.write("go.sum", "h1:one\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+		t.Fatalf("ready = %d %q", code, errOut)
+	}
+	p.write("gen/code.go", "package gen\n")
+	p.write("go.sum", "h1:two\n")
+	p.write("src/billing/total.go", "package billing\n")
+	if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
+		t.Fatalf("built = %d %q", code, errOut)
+	}
+	if got := p.read("deltas/specs/billing.files"); got != "go.sum\nsrc/billing/total.go\n" {
+		t.Fatalf("footprint = %q; the project's own patterns replace the lockfile defaults", got)
+	}
+}

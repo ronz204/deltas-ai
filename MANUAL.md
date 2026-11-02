@@ -306,7 +306,7 @@ src/billing/total.ts
 testing/unit/billing.test.ts
 ```
 
-That works whether tests sit beside the code, in a folder of their own, or in a tree shaped differently from the source. The file is committed with the spec, so a teammate's clone sees the same footprint. The agent cannot edit it; a person can, to take out something that does not belong. A later build adds its files to the footprint and drops the ones it deleted.
+That works whether tests sit beside the code, in a folder of their own, or in a tree shaped differently from the source. Lockfiles, binary files and whatever `ignore` lists in `deltas/testing.conf` are never recorded. The file is committed with the spec, so a teammate's clone sees the same footprint. The agent cannot edit it; a person can, to take out something that does not belong. A later build adds its files to the footprint and drops the ones it deleted.
 
 Once a slice has a footprint, only those files (and the folders its test commands name, if every command names one) count as its code. Changing `go.mod`, an image or another slice's code does not touch it. A slice built before this existed has no footprint and keeps the rule below.
 
@@ -338,12 +338,14 @@ Two optional files in `deltas/`, both plain `key=value` lines with `#` comments.
 ```
 match=*_test.go,test_*.py,*_test.py,*.test.*,*.spec.*
 skip=.git,node_modules,vendor
+ignore=go.sum,package-lock.json,yarn.lock,pnpm-lock.yaml,Cargo.lock,poetry.lock,composer.lock,Gemfile.lock
 ```
 
 - `match`: patterns on a file's name that make it a test file. Setting it **replaces** the defaults, so list every pattern you use. Markdown is never a test.
 - `skip`: folders never searched for tests. It also replaces the default. The `deltas/` folder is never searched.
+- `ignore`: files that never count as a slice's code, so changing them never asks for a check or shows as drift. A pattern with no `/` is matched against the file name (`go.sum`, `*.snap`); one with a `/` against the whole path (`web/static/*.svg`); one that ends in `/**` is a folder and everything under it (`assets/**`). Setting it **replaces** the default, which is the usual lockfiles (`go.sum`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `poetry.lock`, `composer.lock`, `Gemfile.lock` and friends). Binary files (images, PDFs, fonts) never count, whatever you put here. Manifests such as `go.mod` or `package.json` do count: a new version can break a promise.
 
-For a Ruby project: `match=*_spec.rb`.
+For a Ruby project: `match=*_spec.rb`. For a project with snapshots and generated assets: `ignore=go.sum,*.snap,assets/**`.
 
 **`deltas/budget.conf`**
 

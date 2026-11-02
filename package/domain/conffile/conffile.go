@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
 const (
@@ -20,8 +21,9 @@ type Conf struct {
 }
 
 type Files struct {
-	Match []string
-	Skip  []string
+	Match  []string
+	Skip   []string
+	Ignore []string
 }
 
 type line struct {
@@ -63,6 +65,8 @@ func (c *Conf) readTesting(text string) {
 			c.readMatch(l, value)
 		case key == "skip":
 			c.Files.Skip = words(value)
+		case key == "ignore":
+			c.readIgnore(l, value)
 		default:
 			c.problem(TestingName, l, "unknown key %q", key)
 		}
@@ -78,6 +82,17 @@ func (c *Conf) readMatch(l line, value string) {
 		}
 	}
 	c.Files.Match = patterns
+}
+
+func (c *Conf) readIgnore(l line, value string) {
+	patterns := words(value)
+	for _, p := range patterns {
+		if !linking.ValidIgnore(p) {
+			c.problem(TestingName, l, "ignore: %q is not a valid pattern", p)
+			return
+		}
+	}
+	c.Files.Ignore = patterns
 }
 
 func lines(text string) []line {

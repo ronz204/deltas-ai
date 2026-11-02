@@ -62,7 +62,7 @@ For each task:
 
 ## Step 5 — Report
 
-Keep it short: what was built (the footprint, and anything in it that is not the slice's, which a person can remove from `deltas/specs/<slice>.files`), which claims are now verified by execution and which remain unverified and why, the status the slice ended in, and any spec problem found. Don't commit; the project's own conventions decide that.
+Keep it short: what was built (the footprint, and anything in it that is not the slice's, such as a generated file, a config or an asset that slipped in while you worked, which a person can remove from `deltas/specs/<slice>.files`), which claims are now verified by execution and which remain unverified and why, the status the slice ended in, and any spec problem found. Don't commit; the project's own conventions decide that.
 
 ---
 
