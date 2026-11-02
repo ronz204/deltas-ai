@@ -35,7 +35,6 @@ func TestSpecIsTheSpecTemplate(t *testing.T) {
 	}
 }
 
-// The spec template is what delta spec new will start from, so it must already be a valid spec.
 func TestSpecTemplateParses(t *testing.T) {
 	src := render(t, "specify.md", struct{ Slice string }{"billing"})
 	sp, ds := specfile.Parse("billing.spec.md", []byte(src))
@@ -47,7 +46,6 @@ func TestSpecTemplateParses(t *testing.T) {
 	}
 }
 
-// CLAUDE.md is always loaded, so the template stays inside the budget's line ceiling.
 func TestClaudeTemplateFitsTheBudget(t *testing.T) {
 	src := render(t, "CLAUDE.md", struct{ Project string }{"Acme"})
 	if !strings.HasPrefix(src, "# Acme\n") {

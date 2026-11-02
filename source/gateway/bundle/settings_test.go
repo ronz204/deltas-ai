@@ -18,7 +18,6 @@ type settings struct {
 	} `json:"hooks"`
 }
 
-// The shape follows Claude Code's documentation: event, then matcher groups, then handlers.
 func TestSettingsHooksAllCallDeltaHook(t *testing.T) {
 	raw, err := agents.FS.ReadFile("core/configs/settings.json")
 	if err != nil {

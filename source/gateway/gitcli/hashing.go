@@ -16,18 +16,9 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
-// Tree fingerprints the part of the working tree a scope covers: HEAD plus the content of every file in it
-// that differs from HEAD or is untracked and not ignored. dirty is false when there is nothing of the sort,
-// as right after a commit.
-// shortcut: it reads every such file, so a big binary left untracked slows it; upgrade by hashing size and mtime.
 func (g *Git) Tree(ctx context.Context, scope linking.Scope) (hash string, dirty bool, err error) {
-	head, err := g.run(ctx, "rev-parse", "--verify", "-q", "HEAD")
-	var exit *exec.ExitError
-	changed := []string{"diff", "--name-only", "--no-renames", "-z", "HEAD"}
-	switch {
-	case errors.As(err, &exit) && exit.ExitCode() == 1: // a repository with no commit yet
-		head, changed = "", []string{"ls-files", "-z", "--cached"}
-	case err != nil:
+	head, changed, err := g.head(ctx)
+	if err != nil {
 		return "", false, err
 	}
 	names, err := g.names(ctx, changed...)
@@ -47,17 +38,13 @@ func (g *Git) Tree(ctx context.Context, scope linking.Scope) (hash string, dirty
 	}
 
 	sum := sha256.New()
-	fmt.Fprintf(sum, "%s\n", strings.TrimSpace(head))
+	fmt.Fprintf(sum, "%s\n", head)
 	for _, name := range names {
 		fmt.Fprintf(sum, "%s\x00%s\n", name, g.contentHash(name))
 	}
 	return hex.EncodeToString(sum.Sum(nil)), true, nil
 }
 
-// Files fingerprints, file by file, every file of the project a scope covers: the tracked ones and the
-// untracked ones that are not ignored. Unlike Tree it does not compare with HEAD, so it tells what changed
-// since an earlier call even after a commit.
-// shortcut: it hashes every covered file on each call; upgrade by keeping size and mtime beside the hash.
 func (g *Git) Files(ctx context.Context, scope linking.Scope) (map[string]string, error) {
 	names, err := g.names(ctx, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
@@ -70,6 +57,18 @@ func (g *Git) Files(ctx context.Context, scope linking.Scope) (map[string]string
 		}
 	}
 	return files, nil
+}
+
+func (g *Git) head(ctx context.Context) (head string, changed []string, err error) {
+	out, err := g.run(ctx, "rev-parse", "--verify", "-q", "HEAD")
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return strings.TrimSpace(out), []string{"diff", "--name-only", "--no-renames", "-z", "HEAD"}, nil
+	case errors.As(err, &exit) && exit.ExitCode() == 1:
+		return "", []string{"ls-files", "-z", "--cached"}, nil
+	}
+	return "", nil, err
 }
 
 func (g *Git) names(ctx context.Context, args ...string) ([]string, error) {

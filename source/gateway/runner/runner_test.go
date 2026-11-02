@@ -39,7 +39,6 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-// TestHelperProcess is the command the other tests run: the test binary itself, switched by an environment variable.
 func TestHelperProcess(t *testing.T) {
 	switch os.Getenv("DELTA_HELPER") {
 	case "":
@@ -88,7 +87,7 @@ func TestRunUsesTheDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, _, _ := strings.Cut(out.String(), "\n")
-	got, gotErr := filepath.EvalSymlinks(strings.TrimSpace(first)) // macOS temp dirs sit behind a symlink
+	got, gotErr := filepath.EvalSymlinks(strings.TrimSpace(first))
 	want, wantErr := filepath.EvalSymlinks(dir)
 	if gotErr != nil || wantErr != nil || got != want {
 		t.Fatalf("ran in %q, want %q (%v, %v)", got, want, gotErr, wantErr)

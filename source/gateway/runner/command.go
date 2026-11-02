@@ -5,28 +5,28 @@ import (
 	"strings"
 )
 
-// split cuts a command into arguments; quotes group words and the backslash is not special (Windows paths).
 func split(command string) ([]string, error) {
 	var args []string
 	var cur strings.Builder
 	var quote rune
-	started := false // true once an argument began, so "" still counts as one
+	started := false
+	flush := func() {
+		if started {
+			args = append(args, cur.String())
+			cur.Reset()
+			started = false
+		}
+	}
 	for _, r := range command {
 		switch {
+		case quote != 0 && r == quote:
+			quote = 0
 		case quote != 0:
-			if r == quote {
-				quote = 0
-			} else {
-				cur.WriteRune(r)
-			}
+			cur.WriteRune(r)
 		case r == '\'' || r == '"':
 			quote, started = r, true
 		case r == ' ' || r == '\t' || r == '\n' || r == '\r':
-			if started {
-				args = append(args, cur.String())
-				cur.Reset()
-				started = false
-			}
+			flush()
 		default:
 			cur.WriteRune(r)
 			started = true
@@ -35,9 +35,7 @@ func split(command string) ([]string, error) {
 	if quote != 0 {
 		return nil, errors.New("the command has an unclosed quote")
 	}
-	if started {
-		args = append(args, cur.String())
-	}
+	flush()
 	if len(args) == 0 {
 		return nil, errors.New("the command is empty")
 	}

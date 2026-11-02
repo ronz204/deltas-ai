@@ -49,18 +49,6 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	}
 }
 
-func TestScriptsAreExecutableAndTheRestIsNot(t *testing.T) {
-	for path, a := range assetsOf(t) {
-		want := 0o644
-		if strings.HasSuffix(path, ".sh") {
-			want = 0o755
-		}
-		if int(a.Mode) != want {
-			t.Errorf("%s has mode %o, want %o", path, a.Mode, want)
-		}
-	}
-}
-
 func TestClaudeMdNamesTheProject(t *testing.T) {
 	text := string(assetsOf(t)["CLAUDE.md"].Content)
 	if !strings.HasPrefix(text, "# acme\n") || strings.Contains(text, "{{") {
@@ -68,8 +56,6 @@ func TestClaudeMdNamesTheProject(t *testing.T) {
 	}
 }
 
-// The config files that init installs state delta's defaults, so a project starts with what delta would do
-// without them, and they have to be files delta accepts.
 func TestTheConfigFilesThatAreInstalledStateTheDefaults(t *testing.T) {
 	by := assetsOf(t)
 	c := conffile.Parse(string(by["deltas/budget.conf"].Content), string(by["deltas/testing.conf"].Content))
@@ -94,7 +80,6 @@ func TestSettingsAreTheFragmentWithTheHooks(t *testing.T) {
 	}
 }
 
-// The doc templates are the project's once installed: they name the project and delta update leaves them alone.
 func TestDocTemplatesNameTheProjectAndBelongToIt(t *testing.T) {
 	var found int
 	for path, a := range assetsOf(t) {

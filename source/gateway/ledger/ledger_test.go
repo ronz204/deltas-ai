@@ -16,10 +16,9 @@ import (
 
 var ctx = context.Background()
 
-// tree is a working tree with some changed files: its fingerprint covers the changed files a scope covers.
 type tree struct {
 	changed map[string]string
-	all     map[string]string // every file of the project, with its hash
+	all     map[string]string
 	err     error
 }
 

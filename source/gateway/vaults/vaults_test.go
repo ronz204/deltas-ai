@@ -155,7 +155,7 @@ func TestFindRoot(t *testing.T) {
 }
 
 func TestFindRootFallsBackToStart(t *testing.T) {
-	// a fresh temp dir sits under no repository on a normal machine
+
 	dir := t.TempDir()
 	if got := FindRoot(dir); got != dir {
 		if _, err := os.Stat(filepath.Join(got, ".git")); err != nil {
@@ -171,7 +171,7 @@ func TestListGivesTheSlicesSortedAndNothingWithoutASpecifiesFolder(t *testing.T)
 	}
 	write(t, root, "deltas/specs/payments.spec.md", "x")
 	write(t, root, "deltas/specs/billing.spec.md", "x")
-	write(t, root, "billing/deltas/specs/stray.spec.md", "x") // a deltas/ folder elsewhere is not read
+	write(t, root, "billing/deltas/specs/stray.spec.md", "x")
 	names, err := New(root).List(ctx)
 	if want := []string{"billing", "payments"}; err != nil || !reflect.DeepEqual(names, want) {
 		t.Fatalf("List = %v, %v; want %v", names, err, want)

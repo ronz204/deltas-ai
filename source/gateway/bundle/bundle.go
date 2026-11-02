@@ -1,4 +1,3 @@
-// Package bundle hands out the files embedded in the harness, and says where each goes in a project.
 package bundle
 
 import (
@@ -12,15 +11,14 @@ import (
 	"github.com/ronz204/deltas-ai/source/usecase/setup"
 )
 
+const fileMode fs.FileMode = 0o644
+
 type Bundle struct{}
 
 func (Bundle) Spec() ([]byte, error) { return agents.FS.ReadFile("core/samples/specify.md") }
 
-// Settings is the part of .claude/settings.json that delta needs: its hooks and permissions.
 func (Bundle) Settings() ([]byte, error) { return agents.FS.ReadFile("core/configs/settings.json") }
 
-// Assets lists what init copies into a project, in a fixed order: the skills and the rules under .claude/,
-// the config files under deltas/, the doc templates under deltas/docs/, and a CLAUDE.md that names the project.
 func (Bundle) Assets(project string) ([]setup.Asset, error) {
 	var out []setup.Asset
 	err := fs.WalkDir(agents.FS, ".", func(p string, d fs.DirEntry, err error) error {
@@ -40,17 +38,14 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 				return err
 			}
 		}
-		out = append(out, setup.Asset{Path: dest, Content: content, Mode: mode(dest), Managed: managed(p)})
+		out = append(out, setup.Asset{Path: dest, Content: content, Mode: fileMode, Managed: managed(p)})
 		return nil
 	})
 	return out, err
 }
 
-// managed says whether delta keeps a harness file up to date once it is installed: the skills and the rules.
-// The CLAUDE.md, config files and doc templates it starts a project with are the project's from then on.
 func managed(p string) bool { return strings.HasPrefix(p, "skills/") || strings.HasPrefix(p, "rules/") }
 
-// destination maps a path in the harness to its place in a project; not every file is copied.
 func destination(p string) (string, bool) {
 	switch {
 	case strings.HasPrefix(p, "skills/"), strings.HasPrefix(p, "rules/"):
@@ -63,13 +58,6 @@ func destination(p string) (string, bool) {
 		return "deltas/" + p, true
 	}
 	return "", false
-}
-
-func mode(dest string) fs.FileMode {
-	if strings.HasSuffix(dest, ".sh") {
-		return 0o755
-	}
-	return 0o644
 }
 
 func fill(name string, text []byte, project string) ([]byte, error) {

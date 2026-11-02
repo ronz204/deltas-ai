@@ -1,4 +1,3 @@
-// Package gitcli talks to the git binary.
 package gitcli
 
 import (
@@ -9,7 +8,6 @@ import (
 	"strings"
 )
 
-// Git runs git inside one directory.
 type Git struct{ dir string }
 
 func New(dir string) *Git { return &Git{dir: dir} }

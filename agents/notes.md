@@ -218,3 +218,15 @@ The other layers (`source/usecase`, `source/gateway`, `source/adapter`) stay whe
 - `linking`: the test-file matcher moved to `matcher.go`; `citing.go` keeps the citation search (`inScope` is now `underAny`).
 
 Behavior is the same, and the existing tests pass unchanged. Without comments, the reasons behind some choices (why a Spanish word list, why hashes ignore CRLF, why `Cited` only counts files under the command's paths) live in the tests and in the git history of this branch, not in the code.
+
+## Phase 4: the gateway reviewed
+
+`source/gateway` has no comments and its files are 6 to 8 characters (the folders `bundle`, `gitcli`, `ledger`, `runner` and `vaults` already were, with no icon).
+
+- `bundle`: the executable-script rule (`mode`, `.sh`) is gone, since no asset is a script; every asset is `0644`.
+- `gitcli`: `tree.go` is `hashing.go`, and `Tree` reads HEAD through its own `head` helper.
+- `ledger`: `read` returns a map and never an error (a missing or damaged record is an empty one), so `Record`, `Drift` and `Standings` lose their ignored errors.
+- `runner`: `split.go` is `command.go`, and the whitespace case and the end of the command share one `flush`.
+- `vaults`: the 260-line file is four: `vaults.go` (the type and its construction), `catalog.go` (the specs: `Path`, `List`, `Load`, `Create`, `Save`), `project.go` (project files: `ReadFile`, `WriteFile`, `RemoveFile`, `Glob`, `writeAtomic`) and `suites.go` (the test files).
+
+Still open from section 4: `Setup.Asset.Mode` and the `perm` of `Files.WriteFile` are always `0644` now, so they can go when the use-case layer is reviewed. `ledger.Drift`, `Standings` and `gitcli.Tree/Files` stay until the decision on "stale only for claims verified by reading" is made.

@@ -12,11 +12,8 @@ import (
 
 var ctx = context.Background()
 
-// everything is the scope of a slice whose commands name no path: every code file.
 var everything = linking.NewScope("")
 
-// repo makes an empty repository that ignores the global and system git configuration, so the
-// tests do not depend on who runs them.
 func repo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -171,7 +168,7 @@ func TestFilesFingerprintsEveryCoveredFileEvenRightAfterACommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := files["a.go"]; !ok || files["b.go"] == "" || len(files) != 3 { // a.go, b.go and .gitignore; not notes.md nor ignored.go
+	if _, ok := files["a.go"]; !ok || files["b.go"] == "" || len(files) != 3 {
 		t.Fatalf("Files = %v, want a.go, b.go and .gitignore", files)
 	}
 }
