@@ -3,9 +3,7 @@ paths:
   - "**/*.{ts,tsx,js,jsx,py,go,rs,java,kt,cs,rb,php}"
 ---
 
-# Base preset: reliability
-
-Part of the `base` preset; delete this file or set `base=off` in `deltas/deltas.config` to turn it off.
+# Code Reliability
 
 Brevity never cuts these. A shorter diff that drops one is a regression:
 
