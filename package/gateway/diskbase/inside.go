@@ -28,12 +28,12 @@ func (s *Vault) ReadFile(_ context.Context, rel string) ([]byte, error) {
 	return os.ReadFile(p)
 }
 
-func (s *Vault) WriteFile(_ context.Context, rel string, content []byte, perm fs.FileMode) error {
+func (s *Vault) WriteFile(_ context.Context, rel string, content []byte) error {
 	p, err := s.inside(rel)
 	if err != nil {
 		return err
 	}
-	return writeAtomic(p, content, perm)
+	return writeAtomic(p, content)
 }
 
 func (s *Vault) RemoveFile(_ context.Context, rel string) error {
@@ -74,7 +74,7 @@ func (s *Vault) Glob(_ context.Context, patterns []string) ([]budget.File, error
 	return out, nil
 }
 
-func writeAtomic(path string, data []byte, perm fs.FileMode) error {
+func writeAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -86,7 +86,7 @@ func writeAtomic(path string, data []byte, perm fs.FileMode) error {
 	defer os.Remove(tmp.Name())
 
 	_, werr := tmp.Write(data)
-	if err := errors.Join(werr, tmp.Close(), os.Chmod(tmp.Name(), perm)); err != nil {
+	if err := errors.Join(werr, tmp.Close(), os.Chmod(tmp.Name(), 0o644)); err != nil {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)

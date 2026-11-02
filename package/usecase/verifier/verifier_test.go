@@ -1,4 +1,4 @@
-package verify
+package verifier
 
 import (
 	"context"
@@ -18,7 +18,7 @@ type fakeSpecs map[string]string
 func (f fakeSpecs) Path(s string) string { return "deltas/specs/" + s + ".spec.md" }
 func (f fakeSpecs) List(context.Context) ([]string, error) {
 	var names []string
-	for _, n := range []string{"billing", "broken", "payments", "svc/auth/sessions"} { // fixed order, like a sorted listing
+	for _, n := range []string{"billing", "broken", "payments", "svc/auth/sessions"} {
 		if _, ok := f[n]; ok {
 			names = append(names, n)
 		}

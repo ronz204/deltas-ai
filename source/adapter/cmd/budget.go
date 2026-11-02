@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
-
 	"github.com/ronz204/deltas-ai/package/domain/budget"
+	"github.com/spf13/cobra"
 )
 
 func budgetCmd(d Deps) *cobra.Command {

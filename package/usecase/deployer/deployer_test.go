@@ -1,29 +1,28 @@
-package setup
+package deployer
 
 import (
 	"context"
 	"fmt"
-	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"io/fs"
 	"strings"
 	"testing"
+
+	"github.com/ronz204/deltas-ai/package/domain/conffile"
 )
 
 var ctx = context.Background()
 
-// world stands in for the project's files and the programs on its PATH.
 type world struct {
 	files  map[string][]byte
-	perms  map[string]fs.FileMode
 	writes int
 	onPath string
 	self   bool
-	tools  map[string]bool // other programs on the PATH
-	assets []Asset         // what the harness ships; the default two when nil
+	tools  map[string]bool
+	assets []Asset
 }
 
 func newWorld() *world {
-	return &world{files: map[string][]byte{}, perms: map[string]fs.FileMode{}}
+	return &world{files: map[string][]byte{}}
 }
 
 func (w *world) ReadFile(_ context.Context, rel string) ([]byte, error) {
@@ -33,15 +32,14 @@ func (w *world) ReadFile(_ context.Context, rel string) ([]byte, error) {
 	return nil, fmt.Errorf("read %s: %w", rel, fs.ErrNotExist)
 }
 
-func (w *world) WriteFile(_ context.Context, rel string, content []byte, perm fs.FileMode) error {
-	w.files[rel], w.perms[rel] = content, perm
+func (w *world) WriteFile(_ context.Context, rel string, content []byte) error {
+	w.files[rel] = content
 	w.writes++
 	return nil
 }
 
 func (w *world) RemoveFile(_ context.Context, rel string) error {
 	delete(w.files, rel)
-	delete(w.perms, rel)
 	w.writes++
 	return nil
 }
@@ -77,9 +75,6 @@ func TestAFreshProjectGetsTheFilesOfTheHarness(t *testing.T) {
 	}
 	if string(w.files[".claude/rules/one.md"]) != "# acme\n" {
 		t.Errorf("rule = %q, want the project's name in it", w.files[".claude/rules/one.md"])
-	}
-	if w.perms[".claude/skills/x/run.sh"] != 0o755 {
-		t.Errorf("a script lost its execute bit: %v", w.perms[".claude/skills/x/run.sh"])
 	}
 	if _, ok := w.files["deltas/specs/.gitkeep"]; !ok {
 		t.Error("the folder for the contracts was not created")
@@ -178,8 +173,8 @@ func (w *world) Assets(project string) ([]Asset, error) {
 		return w.assets, nil
 	}
 	return []Asset{
-		{Path: ".claude/rules/one.md", Content: []byte("# " + project + "\n"), Mode: 0o644, Managed: true},
-		{Path: ".claude/skills/x/run.sh", Content: []byte("#!/bin/sh\n"), Mode: 0o755, Managed: true},
+		{Path: ".claude/rules/one.md", Content: []byte("# " + project + "\n"), Managed: true},
+		{Path: ".claude/skills/x/run.sh", Content: []byte("#!/bin/sh\n"), Managed: true},
 	}, nil
 }
 

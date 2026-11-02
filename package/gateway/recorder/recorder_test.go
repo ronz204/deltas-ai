@@ -11,7 +11,7 @@ import (
 
 	"github.com/ronz204/deltas-ai/package/domain/judgment"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 )
 
 var ctx = context.Background()
@@ -51,7 +51,7 @@ var (
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {
 	tr := &tree{changed: map[string]string{"billing/total.go": "v1", "payments/pay.go": "v1"}}
 	l := New(t.TempDir(), "/repo", tr)
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}, {Slice: "payments", Scope: payments, Violated: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}, {Slice: "payments", Scope: payments, Violated: true}}); err != nil {
 		t.Fatal(err)
 	}
 	by, err := l.Standings(ctx, map[string]linking.Scope{"billing": billing, "payments": payments})
@@ -93,10 +93,10 @@ func TestACleanTreeHasNothingToProve(t *testing.T) {
 func TestRecordsKeepEarlierSlicesAndAreKeptPerProject(t *testing.T) {
 	cache, tr := t.TempDir(), &tree{changed: map[string]string{"billing/a.go": "x", "payments/b.go": "x"}}
 	one, other := New(cache, "/one", tr), New(cache, "/other", tr)
-	if err := one.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+	if err := one.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := one.Record(ctx, []verify.Seen{{Slice: "payments", Scope: payments}}); err != nil {
+	if err := one.Record(ctx, []verifier.Seen{{Slice: "payments", Scope: payments}}); err != nil {
 		t.Fatal(err)
 	}
 	both := map[string]linking.Scope{"billing": billing, "payments": payments}
@@ -113,7 +113,7 @@ func TestADamagedRecordIsReplacedNotFatal(t *testing.T) {
 	tr := &tree{changed: map[string]string{"billing/a.go": "x"}}
 	l := New(t.TempDir(), "/repo", tr)
 	one := map[string]linking.Scope{"billing": billing}
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(l.file, []byte("{not json"), 0o644); err != nil {
@@ -122,7 +122,7 @@ func TestADamagedRecordIsReplacedNotFatal(t *testing.T) {
 	if by, err := l.Standings(ctx, one); err != nil || by["billing"] != judgment.Unchecked {
 		t.Fatalf("damaged: %v, %v; want Unchecked and no error", by, err)
 	}
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 		t.Fatalf("recording over a damaged file: %v", err)
 	}
 	if by, _ := l.Standings(ctx, one); by["billing"] != judgment.Passing {
@@ -134,7 +134,7 @@ func TestNothingIsLeftBesideTheRecord(t *testing.T) {
 	cache := t.TempDir()
 	l := New(cache, "/repo", &tree{changed: map[string]string{"billing/a.go": "x"}})
 	for i := 0; i < 2; i++ {
-		if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+		if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -146,7 +146,7 @@ func TestNothingIsLeftBesideTheRecord(t *testing.T) {
 
 func TestFailuresAreReportedNotHidden(t *testing.T) {
 	boom := errors.New("git is gone")
-	seen := []verify.Seen{{Slice: "billing", Scope: billing}}
+	seen := []verifier.Seen{{Slice: "billing", Scope: billing}}
 	if err := New(t.TempDir(), "/repo", &tree{err: boom}).Record(ctx, seen); !errors.Is(err, boom) {
 		t.Errorf("Record = %v, want the tree's error", err)
 	}
@@ -161,7 +161,7 @@ func TestFailuresAreReportedNotHidden(t *testing.T) {
 func TestASliceThatWasNeverVerifiedHereHasNoDriftToTell(t *testing.T) {
 	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
 	l := New(t.TempDir(), "/repo", tr)
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing}}); err != nil {
 		t.Fatal(err)
 	}
 	if changed, known, err := l.Drift(ctx, "billing", billing); err != nil || known || changed != nil {
@@ -172,7 +172,7 @@ func TestASliceThatWasNeverVerifiedHereHasNoDriftToTell(t *testing.T) {
 func TestDriftListsTheFilesThatChangedSinceTheSliceWasVerified(t *testing.T) {
 	tr := &tree{all: map[string]string{"billing/total.go": "v1", "billing/tax.go": "v1", "payments/pay.go": "v1"}}
 	l := New(t.TempDir(), "/repo", tr)
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
 		t.Fatal(err)
 	}
 	if changed, known, err := l.Drift(ctx, "billing", billing); err != nil || !known || len(changed) != 0 {
@@ -191,17 +191,17 @@ func TestDriftListsTheFilesThatChangedSinceTheSliceWasVerified(t *testing.T) {
 func TestDriftIsKeptAcrossACheckThatDoesNotVerify(t *testing.T) {
 	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
 	l := New(t.TempDir(), "/repo", tr)
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
 		t.Fatal(err)
 	}
 	tr.all["billing/total.go"] = "v2"
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Violated: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing, Violated: true}}); err != nil {
 		t.Fatal(err)
 	}
 	if changed, known, _ := l.Drift(ctx, "billing", billing); !known || len(changed) != 1 {
 		t.Fatalf("Drift = %v, %v; a failing check must not become the new baseline", changed, known)
 	}
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
 		t.Fatal(err)
 	}
 	if changed, _, _ := l.Drift(ctx, "billing", billing); len(changed) != 0 {
@@ -213,7 +213,7 @@ func TestDriftFailureIsReported(t *testing.T) {
 	boom := errors.New("boom")
 	tr := &tree{all: map[string]string{"billing/total.go": "v1"}}
 	l := New(t.TempDir(), "/repo", tr)
-	if err := l.Record(ctx, []verify.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
+	if err := l.Record(ctx, []verifier.Seen{{Slice: "billing", Scope: billing, Verified: true}}); err != nil {
 		t.Fatal(err)
 	}
 	tr.err = boom

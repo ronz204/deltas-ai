@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ronz204/deltas-ai/source/usecase/guard"
-	"github.com/ronz204/deltas-ai/source/usecase/status"
+	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 )
 
 type specs map[string]string
@@ -33,7 +33,7 @@ func run(t *testing.T, s specs, input string) (code int, out, errOut string) {
 	root := t.TempDir()
 	input = strings.ReplaceAll(input, "{root}", strings.ReplaceAll(filepath.ToSlash(root), `\`, `\\`))
 	var o, e bytes.Buffer
-	code = Run(context.Background(), guard.New(root, status.New(s), nil, nil, nil), strings.NewReader(input), &o, &e)
+	code = Run(context.Background(), sentinel.New(root, tracking.New(s), nil, nil, nil), strings.NewReader(input), &o, &e)
 	return code, o.String(), e.String()
 }
 
@@ -80,7 +80,7 @@ func TestBrokenInputIsExitOneNotTwo(t *testing.T) {
 func TestAFailingSliceReportIsExitOneNotTwo(t *testing.T) {
 	broken := failingSpecs{}
 	var o, e bytes.Buffer
-	code := Run(context.Background(), guard.New(t.TempDir(), status.New(broken), nil, nil, nil), strings.NewReader(`{"hook_event_name":"SessionStart"}`), &o, &e)
+	code := Run(context.Background(), sentinel.New(t.TempDir(), tracking.New(broken), nil, nil, nil), strings.NewReader(`{"hook_event_name":"SessionStart"}`), &o, &e)
 	if code != 1 || !strings.Contains(e.String(), "disk on fire") {
 		t.Fatalf("code = %d, stderr = %q", code, e.String())
 	}

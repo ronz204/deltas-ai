@@ -5,10 +5,9 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
-
 	"github.com/ronz204/deltas-ai/package/domain/judgment"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
+	"github.com/spf13/cobra"
 )
 
 func checkCmd(d Deps) *cobra.Command {
@@ -34,7 +33,7 @@ func checkCmd(d Deps) *cobra.Command {
 	}
 }
 
-func printResults(w io.Writer, results []verify.Result) map[judgment.Verdict]int {
+func printResults(w io.Writer, results []verifier.Result) map[judgment.Verdict]int {
 	count := map[judgment.Verdict]int{}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	for _, r := range results {

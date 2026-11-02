@@ -6,21 +6,20 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
 func TestWriteFileThenReadFile(t *testing.T) {
 	root := t.TempDir()
 	v := New(root)
-	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("#!/bin/sh\n")); err != nil {
 		t.Fatal(err)
 	}
 	got, err := v.ReadFile(ctx, ".claude/rules/x.md")
 	if err != nil || string(got) != "#!/bin/sh\n" {
 		t.Fatalf("ReadFile = %q, %v", got, err)
 	}
-	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("new"), 0o755); err != nil {
+	if err := v.WriteFile(ctx, ".claude/rules/x.md", []byte("new")); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := v.ReadFile(ctx, ".claude/rules/x.md"); string(got) != "new" {
@@ -29,20 +28,6 @@ func TestWriteFileThenReadFile(t *testing.T) {
 	entries, _ := os.ReadDir(filepath.Join(root, ".claude/rules"))
 	if len(entries) != 1 {
 		t.Fatalf(".claude/rules holds %d entries, want only the rule (no temporary file)", len(entries))
-	}
-}
-
-func TestWriteFileKeepsTheRequestedMode(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows has no execute bit")
-	}
-	root := t.TempDir()
-	if err := New(root).WriteFile(ctx, "hook", []byte("x"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(filepath.Join(root, "hook"))
-	if err != nil || info.Mode().Perm() != 0o755 {
-		t.Fatalf("mode = %v, %v; want 0755", info.Mode().Perm(), err)
 	}
 }
 
@@ -56,7 +41,7 @@ func TestProjectFilesCannotLeaveTheProject(t *testing.T) {
 	root := t.TempDir()
 	v := New(root)
 	for _, bad := range []string{"", ".", "..", "../evil", "a/../../evil", "/abs", `a\b`, `..\evil`} {
-		if err := v.WriteFile(ctx, bad, []byte("x"), 0o644); err == nil {
+		if err := v.WriteFile(ctx, bad, []byte("x")); err == nil {
 			t.Errorf("WriteFile accepted %q", bad)
 		}
 		if _, err := v.ReadFile(ctx, bad); err == nil || errors.Is(err, fs.ErrNotExist) {

@@ -139,7 +139,7 @@ Then:
 |---|---|
 | `agents/` | What `delta init` installs, embedded in the binary: the skills Comper (it routes plain requests, and `/comper` says which skill is next), Drafter, Builder, Auditor and Scriber, the rules, the hook settings and the config files |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
-| `scripts/`, `package/`, `source/` | The Go CLI: `scripts/delta` wires it, `package/domain` holds the domain, `package/gateway` the gateways, and `source/` the use cases and adapters |
+| `scripts/`, `package/`, `source/` | The Go CLI: `scripts/delta` wires it, `package/` holds the domain, the use cases and the gateways, and `source/adapter` the command line and the hook |
 
 ## Non-goals
 

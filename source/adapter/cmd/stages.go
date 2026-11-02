@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
 	"github.com/ronz204/deltas-ai/package/domain/findings"
-	"github.com/ronz204/deltas-ai/source/usecase/status"
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
+	"github.com/spf13/cobra"
 )
 
 func approveCmd(d Deps) *cobra.Command {
@@ -40,7 +39,7 @@ func readyCmd(d Deps) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := d.Report.Ready(cmd.Context(), args[0])
-			var notReady *status.NotReady
+			var notReady *tracking.NotReady
 			if errors.As(err, &notReady) {
 				fmt.Fprintln(cmd.ErrOrStderr(), notReady.Reason)
 				return ErrFound

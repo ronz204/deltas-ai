@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/spf13/cobra"
-
 	"github.com/ronz204/deltas-ai/package/domain/findings"
-	"github.com/ronz204/deltas-ai/source/usecase/author"
-	"github.com/ronz204/deltas-ai/source/usecase/guard"
-	"github.com/ronz204/deltas-ai/source/usecase/measure"
-	"github.com/ronz204/deltas-ai/source/usecase/setup"
-	"github.com/ronz204/deltas-ai/source/usecase/status"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
+	"github.com/ronz204/deltas-ai/package/usecase/drafting"
+	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
+	"github.com/ronz204/deltas-ai/package/usecase/weighing"
+	"github.com/spf13/cobra"
 )
 
 // ErrFound means a command ran fine and found problems, already printed: exit 1 with nothing more.
@@ -26,12 +25,12 @@ type ExitError struct{ Code int }
 func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
 
 type Deps struct {
-	Author    *author.Author
-	Checker   *verify.Checker
-	Report    *status.Reporter
-	Guard     *guard.Guard
-	Installer *setup.Installer
-	Meter     *measure.Meter
+	Author    *drafting.Author
+	Checker   *verifier.Checker
+	Report    *tracking.Reporter
+	Guard     *sentinel.Guard
+	Installer *deployer.Installer
+	Meter     *weighing.Meter
 	Version   string
 }
 

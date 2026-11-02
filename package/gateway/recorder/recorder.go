@@ -13,7 +13,7 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/diffing"
 	"github.com/ronz204/deltas-ai/package/domain/judgment"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
 )
 
 type Tree interface {
@@ -41,7 +41,7 @@ func New(cache, root string, tree Tree) *Ledger {
 	return l
 }
 
-func (l *Ledger) Record(ctx context.Context, seen []verify.Seen) error {
+func (l *Ledger) Record(ctx context.Context, seen []verifier.Seen) error {
 	if l.file == "" {
 		return errors.New("there is no cache directory to keep the record in")
 	}

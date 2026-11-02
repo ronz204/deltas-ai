@@ -8,16 +8,16 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/budget"
 	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
-	"github.com/ronz204/deltas-ai/source/usecase/setup"
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 )
 
-func assetsOf(t *testing.T) map[string]setup.Asset {
+func assetsOf(t *testing.T) map[string]deployer.Asset {
 	t.Helper()
 	list, err := Bundle{}.Assets("acme")
 	if err != nil {
 		t.Fatal(err)
 	}
-	by := map[string]setup.Asset{}
+	by := map[string]deployer.Asset{}
 	for _, a := range list {
 		if _, twice := by[a.Path]; twice {
 			t.Errorf("%s is installed twice", a.Path)

@@ -1,4 +1,4 @@
-package measure
+package weighing
 
 import (
 	"context"

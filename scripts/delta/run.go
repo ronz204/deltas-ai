@@ -15,13 +15,13 @@ import (
 	"github.com/ronz204/deltas-ai/package/gateway/executor"
 	"github.com/ronz204/deltas-ai/package/gateway/gitshell"
 	"github.com/ronz204/deltas-ai/package/gateway/recorder"
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
+	"github.com/ronz204/deltas-ai/package/usecase/drafting"
+	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
+	"github.com/ronz204/deltas-ai/package/usecase/weighing"
 	"github.com/ronz204/deltas-ai/source/adapter/cmd"
-	"github.com/ronz204/deltas-ai/source/usecase/author"
-	"github.com/ronz204/deltas-ai/source/usecase/guard"
-	"github.com/ronz204/deltas-ai/source/usecase/measure"
-	"github.com/ronz204/deltas-ai/source/usecase/setup"
-	"github.com/ronz204/deltas-ai/source/usecase/status"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
 )
 
 // commandTimeout bounds each claim's command, so one that hangs cannot hang a check.
@@ -37,16 +37,16 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	git := gitshell.New(root)
 	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
 	checks := recorder.New(cache, root, git)
-	report := status.New(vault).WithDrift(checks, vault).WithDocs(vault)
-	installer := setup.New(vault, embedded.Bundle{}, programs, conf)
-	checker := verify.New(vault, vault, programs, checks)
+	report := tracking.New(vault).WithDrift(checks, vault).WithDocs(vault)
+	installer := deployer.New(vault, embedded.Bundle{}, programs, conf)
+	checker := verifier.New(vault, vault, programs, checks)
 	app := cmd.New(cmd.Deps{
-		Author:    author.New(vault, embedded.Bundle{}),
+		Author:    drafting.New(vault, embedded.Bundle{}),
 		Checker:   checker,
 		Report:    report,
-		Guard:     guard.New(root, report, installer, checks, checker),
+		Guard:     sentinel.New(root, report, installer, checks, checker),
 		Installer: installer,
-		Meter:     measure.New(vault, conf.Budget),
+		Meter:     weighing.New(vault, conf.Budget),
 		Version:   version,
 	})
 	app.SetArgs(args)

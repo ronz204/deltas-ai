@@ -8,10 +8,8 @@ import (
 	"text/template"
 
 	"github.com/ronz204/deltas-ai/agents"
-	"github.com/ronz204/deltas-ai/source/usecase/setup"
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
 )
-
-const fileMode fs.FileMode = 0o644
 
 type Bundle struct{}
 
@@ -19,8 +17,8 @@ func (Bundle) Spec() ([]byte, error) { return agents.FS.ReadFile("core/samples/s
 
 func (Bundle) Settings() ([]byte, error) { return agents.FS.ReadFile("core/configs/settings.json") }
 
-func (Bundle) Assets(project string) ([]setup.Asset, error) {
-	var out []setup.Asset
+func (Bundle) Assets(project string) ([]deployer.Asset, error) {
+	var out []deployer.Asset
 	err := fs.WalkDir(agents.FS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -38,7 +36,7 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 				return err
 			}
 		}
-		out = append(out, setup.Asset{Path: dest, Content: content, Mode: fileMode, Managed: managed(p)})
+		out = append(out, deployer.Asset{Path: dest, Content: content, Managed: managed(p)})
 		return nil
 	})
 	return out, err

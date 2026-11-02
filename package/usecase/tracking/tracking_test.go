@@ -1,4 +1,4 @@
-package status
+package tracking
 
 import (
 	"context"
@@ -103,7 +103,6 @@ func TestReadyFailsPlainlyForAMissingSpec(t *testing.T) {
 	}
 }
 
-// drifts says, per slice, which files changed since it was verified; a slice it does not list was never verified here.
 type drifts map[string][]string
 
 func (d drifts) Drift(_ context.Context, slice string, _ linking.Scope) ([]string, bool, error) {

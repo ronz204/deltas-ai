@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ronz204/deltas-ai/source/usecase/guard"
+	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
 )
 
 type event struct {
@@ -22,13 +22,13 @@ type event struct {
 // Run answers one event. It returns 0 to let the action happen, 2 to block it with the reason on
 // errOut, and 1 when delta itself failed: Claude Code does not block on 1, so a broken delta
 // never stops the agent.
-func Run(ctx context.Context, g *guard.Guard, in io.Reader, out, errOut io.Writer) int {
+func Run(ctx context.Context, g *sentinel.Guard, in io.Reader, out, errOut io.Writer) int {
 	var e event
 	if err := json.NewDecoder(in).Decode(&e); err != nil {
 		fmt.Fprintln(errOut, "delta hook: cannot read the event:", err)
 		return 1
 	}
-	d, err := g.Decide(ctx, guard.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, StopActive: e.StopActive})
+	d, err := g.Decide(ctx, sentinel.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, StopActive: e.StopActive})
 	switch {
 	case err != nil:
 		fmt.Fprintln(errOut, "delta hook:", err)

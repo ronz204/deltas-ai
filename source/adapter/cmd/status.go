@@ -5,9 +5,8 @@ import (
 	"io"
 	"text/tabwriter"
 
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 	"github.com/spf13/cobra"
-
-	"github.com/ronz204/deltas-ai/source/usecase/status"
 )
 
 func statusCmd(d Deps) *cobra.Command {
@@ -34,7 +33,7 @@ func statusCmd(d Deps) *cobra.Command {
 	}
 }
 
-func printRows(out io.Writer, rows []status.Row) error {
+func printRows(out io.Writer, rows []tracking.Row) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(out, "no specs yet; start with: delta spec new <slice>")
 		return nil
@@ -55,7 +54,7 @@ func printRows(out io.Writer, rows []status.Row) error {
 }
 
 // printDocs says how far the docs for people are; a project with none says nothing.
-func printDocs(out io.Writer, row status.DocsRow) {
+func printDocs(out io.Writer, row tracking.DocsRow) {
 	switch {
 	case row.Total == 0:
 	case row.Next == "":

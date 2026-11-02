@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/ronz204/deltas-ai/source/adapter/hook"
+	"github.com/spf13/cobra"
 )
 
 // guardsCmd is what Claude Code runs for every hook event: the event arrives as JSON on stdin.

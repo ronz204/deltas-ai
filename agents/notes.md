@@ -244,3 +244,13 @@ Open: `package/gateway/bundle` imports `source/usecase/setup` and `package/gatew
 The five gateway folders are 8 characters long and have no icon in Material Icon Theme: `bundle` is `embedded`, `gitcli` is `gitshell`, `ledger` is `recorder`, `runner` is `executor` and `vaults` is `diskbase`. The package names follow, so `gitcli.New` is `gitshell.New`, and the main file and its test take the package name (`embedded.go`, `gitshell.go`, `recorder.go`, `executor.go`, `diskbase.go`). The other files keep their 6 characters (`hashes`, `tokens`, `locate`, `inside`, `slices`, `suites`, `assets_test`, `claude_test`, `inside_test`).
 
 The older sections of this file use the names the packages had when they were written.
+
+## Phase 7: the use cases moved and reviewed
+
+`source/usecase` is now `package/usecase`, with folders of 8 characters and no icon in Material Icon Theme: `author` is `drafting`, `guard` is `sentinel`, `measure` is `weighing`, `setup` is `deployer`, `status` is `tracking` and `verify` is `verifier`. The package names follow, so `guard.New` is `sentinel.New`. The gateway no longer depends on a layer outside `package/`.
+
+- No comments, and the big files are split into files of 6 to 8 characters: `tracking` (`gating`, `drifts`, `guides`), `verifier` (`checks`), `sentinel` (`events`, `session`, `finish`, `edited`) and `deployer` (`hooks`, `permits`, `records`). Imports are in two blocks, the standard library and the rest.
+- The file mode is gone: `Asset.Mode`, the `perm` of `Files.WriteFile` and the gateway's `WriteFile` took only `0644` since no asset is a script, so every file is written `0644`.
+- `deployer` hashes each asset once in its plan, `drafting.hasError` is one `slices.ContainsFunc`, and the next doc to write in `tracking` is the first open one of the usual order followed by the others sorted.
+
+Still open: `source/adapter` (the command line and the hook) keeps its comments and its names, and "stale only for claims verified by reading" is not decided.

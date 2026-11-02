@@ -1,4 +1,4 @@
-package setup
+package deployer
 
 import (
 	"strings"
@@ -12,7 +12,6 @@ const (
 	skill = ".claude/skills/x/run.sh"
 )
 
-// installed is a project that ran init once.
 func installed(t *testing.T) *world {
 	t.Helper()
 	w := newWorld()
@@ -22,7 +21,6 @@ func installed(t *testing.T) *world {
 	return w
 }
 
-// ship changes what the harness carries for a path, as a new version of delta would.
 func ship(w *world, path, content string) {
 	assets, _ := w.Assets("p")
 	next := make([]Asset, len(assets))
@@ -87,8 +85,8 @@ func TestUpdateReplacesAFileTheProjectDidNotTouch(t *testing.T) {
 	if out := steps(t, w); !strings.Contains(out, "updated 1 file") || !strings.Contains(out, rule) {
 		t.Fatalf("out = %q", out)
 	}
-	if string(w.files[rule]) != "# new\n" || w.perms[rule] != 0o644 {
-		t.Fatalf("file = %q (%v)", w.files[rule], w.perms[rule])
+	if string(w.files[rule]) != "# new\n" {
+		t.Fatalf("file = %q", w.files[rule])
 	}
 	if manifest.Parse(string(w.files[manifest.Name])).Files[rule] != manifest.Hash([]byte("# new\n")) {
 		t.Fatal("the manifest does not have the new hash")
@@ -112,7 +110,7 @@ func TestUpdateKeepsWhatTheProjectChanged(t *testing.T) {
 }
 
 func TestUpdateKeepsAFileDeltaDoesNotKnowItInstalled(t *testing.T) {
-	w := newWorld() // a project from before the manifest: the rule differs and nothing says who wrote it
+	w := newWorld()
 	w.files[rule] = []byte("old\n")
 	out := steps(t, w)
 	if string(w.files[rule]) != "old\n" || !strings.Contains(out, rule) {
@@ -123,14 +121,14 @@ func TestUpdateKeepsAFileDeltaDoesNotKnowItInstalled(t *testing.T) {
 func TestUpdateInstallsWhatIsMissing(t *testing.T) {
 	w := installed(t)
 	delete(w.files, skill)
-	if out := steps(t, w); !strings.Contains(out, "installed 1 new file") || string(w.files[skill]) != "#!/bin/sh\n" || w.perms[skill] != 0o755 {
-		t.Fatalf("out = %q, file = %q (%v)", out, w.files[skill], w.perms[skill])
+	if out := steps(t, w); !strings.Contains(out, "installed 1 new file") || string(w.files[skill]) != "#!/bin/sh\n" {
+		t.Fatalf("out = %q, file = %q", out, w.files[skill])
 	}
 }
 
 func TestUpdateRemovesWhatTheHarnessNoLongerShipsUnlessTheProjectChangedIt(t *testing.T) {
 	w := installed(t)
-	w.assets = []Asset{{Path: rule, Content: []byte("# p\n"), Mode: 0o644, Managed: true}} // the skill is gone
+	w.assets = []Asset{{Path: rule, Content: []byte("# p\n"), Managed: true}}
 	out := steps(t, w)
 	if _, there := w.files[skill]; there || !strings.Contains(out, "removed 1 file") {
 		t.Fatalf("out = %q; the untouched file should be removed", out)
@@ -141,7 +139,7 @@ func TestUpdateRemovesWhatTheHarnessNoLongerShipsUnlessTheProjectChangedIt(t *te
 
 	w = installed(t)
 	w.files[skill] = []byte("#!/bin/sh\necho mine\n")
-	w.assets = []Asset{{Path: rule, Content: []byte("# p\n"), Mode: 0o644, Managed: true}}
+	w.assets = []Asset{{Path: rule, Content: []byte("# p\n"), Managed: true}}
 	out = steps(t, w)
 	if string(w.files[skill]) != "#!/bin/sh\necho mine\n" || !strings.Contains(out, "no longer in the harness, but the project changed them") {
 		t.Fatalf("out = %q; an edited file must stay", out)
@@ -153,7 +151,7 @@ func TestUpdateRemovesWhatTheHarnessNoLongerShipsUnlessTheProjectChangedIt(t *te
 
 func TestUpdateNeverTouchesWhatIsInstalledOnce(t *testing.T) {
 	w := installed(t)
-	w.assets = append(w.assets, Asset{Path: "deltas/budget.conf", Content: []byte("a=1\n"), Mode: 0o644})
+	w.assets = append(w.assets, Asset{Path: "deltas/budget.conf", Content: []byte("a=1\n")})
 	w.files["deltas/budget.conf"] = []byte("doc_lines=250\n")
 	steps(t, w)
 	if string(w.files["deltas/budget.conf"]) != "doc_lines=250\n" {
@@ -170,14 +168,14 @@ func TestCheckSaysWhenTheHarnessIsOutOfDate(t *testing.T) {
 	if p := installer(w).Check(ctx); !hasOutOfDate(p) {
 		t.Fatalf("Check = %v, want the out-of-date warning", p)
 	}
-	w.files[rule] = []byte("mine\n") // a project that changed it has nothing to update
+	w.files[rule] = []byte("mine\n")
 	if p := installer(w).Check(ctx); hasOutOfDate(p) {
 		t.Fatalf("an edited file was flagged: %v", p)
 	}
 }
 
 func TestCheckStaysQuietInAProjectWithNoManifest(t *testing.T) {
-	w := newWorld() // delta was never installed here: init is what Check asks for, not update
+	w := newWorld()
 	if p := installer(w).Check(ctx); hasOutOfDate(p) {
 		t.Fatalf("Check = %v", p)
 	}

@@ -1,10 +1,10 @@
-// Package author is the only write path of the knowledge base: everything is validated first.
-package author
+package drafting
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -15,7 +15,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/states"
 )
 
-// Diagnostic codes of the status rules of Write.
 const (
 	CodeNewStatus  = "AUTHOR-NEW-STATUS"
 	CodeSetStatus  = "AUTHOR-SET-STATUS"
@@ -59,9 +58,6 @@ func (a *Author) Create(ctx context.Context, slice string) (string, error) {
 	return a.store.Path(slice), nil
 }
 
-// Write saves content only if it is a valid spec; otherwise nothing is written and the problems come back.
-// Only the status commands move a slice forward, so content may not claim a status the stored spec does not
-// have, and a change to an approved contract sends the slice back to draft (the diagnostic says so, as a warning).
 func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]findings.Diagnostic, error) {
 	file := a.store.Path(slice)
 	sp, ds := specfile.ParseSlice(file, slice, content)
@@ -79,10 +75,9 @@ func (a *Author) Write(ctx context.Context, slice string, content []byte) ([]fin
 	return ds, a.store.Save(ctx, slice, content)
 }
 
-// settle applies the status rules of Write to content, which is a valid spec with status in its frontmatter.
 func (a *Author) settle(ctx context.Context, file, slice string, status states.Status, content []byte) ([]byte, []findings.Diagnostic, error) {
 	prev, err := a.store.Load(ctx, slice)
-	if err != nil { // there is no stored spec, or it cannot be read: either way this one starts over
+	if err != nil {
 		if status != states.Draft {
 			return nil, []findings.Diagnostic{{File: file, Line: 1, Code: CodeNewStatus,
 				Message: fmt.Sprintf("a new spec is written as a draft, not %s; delta approve moves it forward", status)}}, nil
@@ -105,7 +100,6 @@ func (a *Author) settle(ctx context.Context, file, slice string, status states.S
 		Message: fmt.Sprintf("the contract changed, so %s is a draft again; run delta approve %s once it is right", slice, slice)}}, nil
 }
 
-// sameContract says whether two specs differ in nothing but their status.
 func sameContract(a, b []byte) bool {
 	x, errA := specfile.SetStatus(a, states.Draft)
 	y, errB := specfile.SetStatus(b, states.Draft)
@@ -113,25 +107,17 @@ func sameContract(a, b []byte) bool {
 }
 
 func hasError(ds []findings.Diagnostic) bool {
-	for _, d := range ds {
-		if !d.Warn {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(ds, func(d findings.Diagnostic) bool { return !d.Warn })
 }
 
-// Approve is the person's sign-off on a clean draft: the contract Builder builds from.
 func (a *Author) Approve(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
 	return a.move(ctx, slice, states.Approved)
 }
 
-// Built records that Builder finished building an approved (or stale) slice.
 func (a *Author) Built(ctx context.Context, slice string) ([]findings.Diagnostic, error) {
 	return a.move(ctx, slice, states.Built)
 }
 
-// move changes the status of a clean spec if the lifecycle allows it, and edits nothing else in the file.
 func (a *Author) move(ctx context.Context, slice string, to states.Status) ([]findings.Diagnostic, error) {
 	src, err := a.store.Load(ctx, slice)
 	if err != nil {
@@ -159,7 +145,7 @@ func (a *Author) Link(ctx context.Context, slice, claimID, command string) error
 	if err != nil {
 		return err
 	}
-	tag, err := claimset.ParseTag("test: " + strings.TrimSpace(command)) // it also rejects an empty command
+	tag, err := claimset.ParseTag("test: " + strings.TrimSpace(command))
 	if err != nil {
 		return err
 	}

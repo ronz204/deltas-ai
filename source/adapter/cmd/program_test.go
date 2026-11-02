@@ -16,12 +16,12 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/budget"
 	"github.com/ronz204/deltas-ai/package/domain/conffile"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
-	"github.com/ronz204/deltas-ai/source/usecase/author"
-	"github.com/ronz204/deltas-ai/source/usecase/guard"
-	"github.com/ronz204/deltas-ai/source/usecase/measure"
-	"github.com/ronz204/deltas-ai/source/usecase/setup"
-	"github.com/ronz204/deltas-ai/source/usecase/status"
-	"github.com/ronz204/deltas-ai/source/usecase/verify"
+	"github.com/ronz204/deltas-ai/package/usecase/deployer"
+	"github.com/ronz204/deltas-ai/package/usecase/drafting"
+	"github.com/ronz204/deltas-ai/package/usecase/sentinel"
+	"github.com/ronz204/deltas-ai/package/usecase/tracking"
+	"github.com/ronz204/deltas-ai/package/usecase/verifier"
+	"github.com/ronz204/deltas-ai/package/usecase/weighing"
 )
 
 // root is the project directory the guard reasons about; nothing is read from it.
@@ -63,7 +63,7 @@ func (m *memory) ReadFile(_ context.Context, rel string) ([]byte, error) {
 	return nil, fs.ErrNotExist
 }
 
-func (m *memory) WriteFile(_ context.Context, rel string, c []byte, _ fs.FileMode) error {
+func (m *memory) WriteFile(_ context.Context, rel string, c []byte) error {
 	m.project[rel] = c
 	return nil
 }
@@ -106,14 +106,14 @@ func (m *memory) TestFiles(context.Context) ([]linking.File, error) { return m.f
 func (m *memory) Run(_ context.Context, command string) (int, error) { return m.exits[command], nil }
 
 func (m *memory) run(stdin string, args ...string) (out, errOut string, err error) {
-	installer := setup.New(m, m, m, conffile.Conf{})
+	installer := deployer.New(m, m, m, conffile.Conf{})
 	cmd := New(Deps{
-		Author:    author.New(m, m),
-		Checker:   verify.New(m, m, m, nil),
-		Report:    status.New(m).WithDocs(m),
-		Guard:     guard.New(root, status.New(m), installer, nil, nil),
+		Author:    drafting.New(m, m),
+		Checker:   verifier.New(m, m, m, nil),
+		Report:    tracking.New(m).WithDocs(m),
+		Guard:     sentinel.New(root, tracking.New(m), installer, nil, nil),
 		Installer: installer,
-		Meter:     measure.New(m, budget.Defaults()),
+		Meter:     weighing.New(m, budget.Defaults()),
 		Version:   "test",
 	})
 	var o, e bytes.Buffer
@@ -270,6 +270,6 @@ func TestHelpListsTheCommandsAndNoCompletion(t *testing.T) {
 	}
 }
 
-func (m *memory) Name() string                         { return "acme" }
-func (m *memory) Assets(string) ([]setup.Asset, error) { return nil, nil }
-func (m *memory) Settings() ([]byte, error)            { return []byte(`{}`), nil }
+func (m *memory) Name() string                            { return "acme" }
+func (m *memory) Assets(string) ([]deployer.Asset, error) { return nil, nil }
+func (m *memory) Settings() ([]byte, error)               { return []byte(`{}`), nil }

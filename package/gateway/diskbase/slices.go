@@ -59,7 +59,7 @@ func (s *Vault) Create(_ context.Context, slice string, content []byte) error {
 	if _, err := os.Stat(p); err == nil {
 		return fmt.Errorf("%s already exists", s.Path(slice))
 	}
-	return writeAtomic(p, content, 0o644)
+	return writeAtomic(p, content)
 }
 
 func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
@@ -67,5 +67,5 @@ func (s *Vault) Save(_ context.Context, slice string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(p, content, 0o644)
+	return writeAtomic(p, content)
 }
