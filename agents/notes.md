@@ -281,3 +281,9 @@ The Go code is now `scripts/delta` (the wiring) and `package/{domain,usecase,gat
 - Checked by hand: the binary built from `./delta` runs `delta version`, `delta init` (22 files installed in a new repository) and `delta status`.
 
 The Go code is now `delta/` (the entrypoint) and `package/{domain,usecase,gateway,adapter}`; the sections above keep the paths they had when they were written.
+
+## Phase 10: the entrypoint folder is `deltas/`
+
+`delta/` is now `deltas/`; only the folder changes. `go install ./deltas` would name the binary `deltas`, so it is built with `go build -o dist/delta ./deltas` and the binary keeps being `delta` (the hooks, the permissions, `Locate("delta")` and the `delta (deltas-ai) <version>` line depend on that name). The README says so.
+
+One thing to remember if delta is ever used on this repository itself: in a delta project every path whose parent folder is `deltas` belongs to the knowledge base (`kbpaths.Covers`), is not code for a slice's scope and is skipped when searching tests, so `deltas/*.go` would be blocked for the agent and ignored by the checks.
