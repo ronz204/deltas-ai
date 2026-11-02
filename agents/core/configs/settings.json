@@ -2,59 +2,51 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "WebSearch",
-      "Skill(update-config)",
-      "Bash(curl *)",
+      "Bash(delta status)",
+      "Bash(delta stale)",
+      "Bash(delta ready *)",
+      "Bash(delta check *)",
+      "Bash(delta lint *)",
+      "Bash(delta spec *)",
+      "Bash(delta link *)",
+      "Bash(delta built *)",
+      "Bash(delta budget)",
+      "Bash(git status *)",
       "Bash(git log *)",
-      "Bash(git status)",
       "Bash(git diff *)",
-      "Bash(git show *)",
-      "Bash(powershell *)",
-      "Bash(docker exec *)",
-      "Bash(docker compose *)"
+      "Bash(git show *)"
     ],
     "ask": [
-      "Bash(delta approve *)"
+      "Bash(delta approve *)",
+      "Bash(delta init)",
+      "Bash(delta update)"
     ],
     "deny": [
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
       "Bash(git push *)",
       "Bash(git pull *)"
     ]
   },
   "hooks": {
     "SessionStart": [
-      {
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      }
+      { "hooks": [{ "type": "command", "command": "delta hook" }] }
     ],
     "UserPromptSubmit": [
-      {
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      }
+      { "hooks": [{ "type": "command", "command": "delta hook" }] }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      }
+      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "delta hook" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "delta hook" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "delta hook" }] }
     ],
     "Stop": [
-      {
-        "hooks": [{ "type": "command", "command": "delta hook", "timeout": 20 }]
-      }
+      { "hooks": [{ "type": "command", "command": "delta hook" }] }
     ]
   }
 }

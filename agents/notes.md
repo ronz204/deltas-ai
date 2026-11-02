@@ -78,3 +78,69 @@ Slash forms: `/comper [slice]`, `/drafter <slice>`, `/builder <slice>`, `/audito
 - `source/adapter/cmd/status.go:64`: `next: /atlas <doc>`.
 - Tests with the names: `guard_test.go` (`:47`, `:143`, `:153-154`, `:265-266`, `:397`, `:460`), `stop_test.go` (`:168-169`, `:176`), `init_test.go` (`:25`, `:131`, `:140`), `update_test.go` (`:17`, `:26`, `:35`, `:38`, `:46`), `install_test.go:84`, `assets_test.go:34`, `budget_test.go:14,25`, `measure_test.go` (`:54-55`, `:68`, `:79`, `:82`), `kbpaths_test.go:8`, `project_test.go` (`:77-78`, `:90`).
 - Projects already installed: update has to remove the old skill folders (same retire logic as the rule renames).
+
+## 4. Configs: `deltas.config` split into `budget.conf` and `testing.conf`
+
+### Done in the harness
+
+- `core/configs/deltas.config` is gone.
+- `core/configs/budget.conf` holds the context budget, with the same keys as before.
+- `core/configs/testing.conf` holds what a test is, grouped in sections:
+
+```
+[files]
+match=*_test.go,test_*.py,*_test.py,*.test.*,*.spec.*
+skip=.git,node_modules,vendor
+```
+
+Dropped for good: `test_files` as a flat key, `command_timeout`, `required_tools`, `base` and `scope.<slice>`. The `run` options (timeout, required tools) are not worth a section: a test suite almost always belongs to one library, so how it runs is the suite's own business.
+
+### Decisions behind it
+
+- Sections, not one key per action: the format is INI-like (`[files]`, then `key=value`), so a new topic is a new section and not a new prefix.
+- No `scope`. A claim of type `test` is judged by running its command again, so it needs no list of what the slice depends on. A slice goes stale only for claims verified by reading (`manual`, `none`). Still to check in the code: how `verify.Check` treats a slice with only test claims when the code changes, and when the re-check runs (`delta check` on demand or at the Stop hook).
+- The timeout stays as the constant in `scripts/delta/run.go:29`; no required tools.
+
+### What each removed key did in the code
+
+- `test_files`: which file names are tests. Used by `Vault.TestFiles` and `IsTest` (`vaults.go`), by `linkcheck.Cited`, by the lints `LINT-NO-CITE`, `LINT-UNKNOWN-ID`, `LINT-SKIP`, and by the guard hook (`guard.go:122`).
+- `command_timeout`: `run.go:37`, `runner.go:31`.
+- `required_tools`: `setup.go:72`, reported by `delta init` and the install check.
+- `scope.<slice>`: `Scopes` in `conffile.go`, `status.New`, `verify.New` (`run.go:45,47`), `linkcheck.NewScope` and `Scope.Covers` (`scope.go`), and through them `ledger.Drift`, `ledger.Standings`, `gitcli.Tree`/`Files` and the guard (`guard.go:162-172`). This is the largest piece to remove or rework.
+- `base`: gone with the preset (see section 2).
+
+### Code that changes (pending the go-ahead)
+
+- `source/domain/conffile/conffile.go`: one parser for `budget.conf` (flat keys) and one for `testing.conf` (sections). Drop `TestFiles` as `test_files`, `Timeout`, `Tools`, `Scopes` and `NoBase`; add `files.match` and `files.skip`. `conffile_test.go` follows.
+- `source/domain/budget`: `ParseCeilings` and `IsKey` read `budget.conf` only.
+- `source/gateway/bundle/bundle.go:64`: it copies `core/configs/deltas.config` to `deltas/deltas.config`; it has to copy the two new files to `deltas/budget.conf` and `deltas/testing.conf` (the destination is not decided yet).
+- `source/gateway/vaults/vaults.go:26`: `skipDirs` becomes the default of `skip`.
+- `scripts/delta/run.go:28-47`: reads the conf; no timeout or scopes to pass.
+- `source/usecase/setup/setup.go:72`: `conf.Tools` goes.
+- Scope removal: the files listed above under `scope.<slice>`, plus `linkcheck/scope_test.go`.
+- Tests: `conf_test.go`, `update_test.go:157-159`, `assets_test.go:78-79`, `project_test.go:108-116`, `init_test.go`, `budget_test.go`.
+- Projects already installed keep `deltas/deltas.config`; `update` has to leave it alone and create the new files if missing.
+
+## 5. `core/configs/settings.json`
+
+### Done in the harness
+
+- The `timeout: 20` of every hook is gone; Claude Code applies its own default.
+- Events are in the order they happen in a session (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`) and each group fits on one line, so the five hooks read as a table. The shape is the one Claude Code defines (event, matcher groups, handlers), so it cannot be flattened further.
+- All five events call the same command, `delta hook`; `source/adapter/hook/hook.go:14` tells them apart by the `hook_event_name` in the payload.
+
+### Code that changes (pending the go-ahead)
+
+- `source/gateway/bundle/settings_test.go:34`: asserts `h.Timeout != 20`. It has to stop checking the timeout and its message.
+- `source/usecase/setup/settings.go:123` (`covers`) compares the matcher and the commands only, never the timeout, so a project that already has the hooks with `timeout: 20` is left as it is by `init` and `update`, and a project without them gets them without a timeout. Nothing to change there, but the old timeout stays in installed projects.
+- If the two `PreToolUse` groups (`Write|Edit` and `Bash`) were ever merged into one `Write|Edit|Bash`, `covers` would not recognize the old two as covering it and installed projects would run `delta hook` twice. They are kept apart on purpose.
+
+### Open: the permissions
+
+`allow` ships things that have nothing to do with delta (`WebSearch`, `Skill(update-config)`, `Bash(curl *)`, `Bash(powershell *)`), and `Bash(powershell *)` and `Bash(curl *)` allow almost any command. What the skills run, `delta status`, `delta check`, `delta ready`, `delta link`, is not in the list. To decide: keep only what delta needs (`Bash(delta *)` except `delta approve`, which the person must confirm) and leave the rest to each project.
+
+### Permissions: done
+
+`allow` is now only what delta needs (`delta status`, `stale`, `ready`, `check`, `lint`, `spec`, `link`, `built`, `budget`, and read-only git). `delta approve`, `init` and `update` are in `ask`, so the person confirms them. `WebSearch`, `curl` and `Skill(update-config)` are gone, and `deny` adds `*.pem` and `*.key`. `git push` and `git pull` stay denied.
+
+Installed projects keep what they have: the merge only adds. The `ask` rules and the precedence (deny, ask, allow) come from Claude Code's documentation and are not tried here.
