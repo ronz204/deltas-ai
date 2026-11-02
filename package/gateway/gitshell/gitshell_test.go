@@ -5,8 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/ronz204/deltas-ai/package/domain/diffing"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
 )
 
@@ -190,5 +192,95 @@ func TestFilesChangeWithTheContentOfAFileOnly(t *testing.T) {
 	}
 	if gone, _ := g.Files(ctx, everything); gone["b.go"] == after["b.go"] {
 		t.Fatal("a deleted file must not keep the hash it had")
+	}
+}
+
+func touched(t *testing.T, g *Git, b diffing.Baseline) []string {
+	t.Helper()
+	names, err := g.Since(ctx, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return names
+}
+
+func TestSinceSeesOnlyWhatChangedAfterTheBaseline(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	put(t, dir, "b.go", "one")
+	put(t, dir, "dirty.go", "one")
+	commit(t, dir)
+	put(t, dir, "dirty.go", "already edited")
+	put(t, dir, "wip.go", "already new")
+	g := New(dir)
+	b, err := g.Baseline(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := touched(t, g, b); len(got) != 0 {
+		t.Fatalf("right after the baseline: %v, want nothing", got)
+	}
+
+	put(t, dir, "a.go", "two")
+	put(t, dir, "fresh.go", "x")
+	if got := touched(t, g, b); !slices.Equal(got, []string{"a.go", "fresh.go"}) {
+		t.Fatalf("clean file edited and a new one: %v", got)
+	}
+
+	put(t, dir, "dirty.go", "edited again")
+	put(t, dir, "wip.go", "changed")
+	if got := touched(t, g, b); !slices.Equal(got, []string{"a.go", "dirty.go", "fresh.go", "wip.go"}) {
+		t.Fatalf("files that were already dirty and changed again: %v", got)
+	}
+
+	put(t, dir, "a.go", "one")
+	if got := touched(t, g, b); slices.Contains(got, "a.go") {
+		t.Fatalf("an edit that was reverted still counts: %v", got)
+	}
+}
+
+func TestSinceSeesWhatWasCommittedAfterTheBaseline(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	commit(t, dir)
+	g := New(dir)
+	b, _ := g.Baseline(ctx)
+
+	put(t, dir, "a.go", "two")
+	put(t, dir, "b.go", "x")
+	commit(t, dir)
+	if got := touched(t, g, b); !slices.Equal(got, []string{"a.go", "b.go"}) {
+		t.Fatalf("committed after the baseline: %v", got)
+	}
+}
+
+func TestSinceSeesDeletedFiles(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	commit(t, dir)
+	g := New(dir)
+	b, _ := g.Baseline(ctx)
+	if err := os.Remove(filepath.Join(dir, "a.go")); err != nil {
+		t.Fatal(err)
+	}
+	if got := touched(t, g, b); !slices.Equal(got, []string{"a.go"}) {
+		t.Fatalf("a deleted file: %v", got)
+	}
+}
+
+func TestSinceInARepositoryWithoutCommits(t *testing.T) {
+	dir := repo(t)
+	put(t, dir, "a.go", "one")
+	g := New(dir)
+	b, err := g.Baseline(ctx)
+	if err != nil || b.Head != "" {
+		t.Fatalf("Baseline = %+v, %v", b, err)
+	}
+	if got := touched(t, g, b); len(got) != 0 {
+		t.Fatalf("right after the baseline: %v", got)
+	}
+	put(t, dir, "b.go", "x")
+	if got := touched(t, g, b); !slices.Equal(got, []string{"b.go"}) {
+		t.Fatalf("a first new file: %v", got)
 	}
 }

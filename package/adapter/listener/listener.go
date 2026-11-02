@@ -11,6 +11,7 @@ import (
 
 type event struct {
 	Name       string `json:"hook_event_name"`
+	Session    string `json:"session_id"`
 	StopActive bool   `json:"stop_hook_active"`
 	Tool       string `json:"tool_name"`
 	ToolInput  struct {
@@ -24,7 +25,7 @@ func Run(ctx context.Context, g *sentinel.Guard, in io.Reader, out, errOut io.Wr
 		fmt.Fprintln(errOut, "delta hook: cannot read the event:", err)
 		return 1
 	}
-	d, err := g.Decide(ctx, sentinel.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, StopActive: e.StopActive})
+	d, err := g.Decide(ctx, sentinel.Event{Name: e.Name, Tool: e.Tool, Path: e.ToolInput.Path, Session: e.Session, StopActive: e.StopActive})
 	switch {
 	case err != nil:
 		fmt.Fprintln(errOut, "delta hook:", err)

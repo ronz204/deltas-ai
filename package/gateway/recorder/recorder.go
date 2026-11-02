@@ -19,6 +19,8 @@ import (
 type Tree interface {
 	Tree(ctx context.Context, scope linking.Scope) (hash string, dirty bool, err error)
 	Files(ctx context.Context, scope linking.Scope) (map[string]string, error)
+	Baseline(ctx context.Context) (diffing.Baseline, error)
+	Since(ctx context.Context, b diffing.Baseline) ([]string, error)
 }
 
 type Ledger struct {
@@ -105,11 +107,15 @@ func (l *Ledger) read() map[string]entry {
 }
 
 func (l *Ledger) write(marks map[string]entry) error {
-	raw, err := json.MarshalIndent(marks, "", "  ")
+	return save(l.file, marks)
+}
+
+func save(file string, v any) error {
+	raw, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
 	}
-	dir := filepath.Dir(l.file)
+	dir := filepath.Dir(file)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -122,7 +128,7 @@ func (l *Ledger) write(marks map[string]entry) error {
 	if err := errors.Join(werr, tmp.Close()); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp.Name(), l.file); err != nil {
+	if err := os.Rename(tmp.Name(), file); err != nil {
 		return fmt.Errorf("save the record: %w", err)
 	}
 	return nil

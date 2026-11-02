@@ -8,7 +8,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ronz204/deltas-ai/package/domain/diffing"
 	"github.com/ronz204/deltas-ai/package/domain/judgment"
 	"github.com/ronz204/deltas-ai/package/domain/linking"
 	"github.com/ronz204/deltas-ai/package/usecase/verifier"
@@ -20,6 +22,20 @@ type tree struct {
 	changed map[string]string
 	all     map[string]string
 	err     error
+	since   []string
+	began   int
+}
+
+func (t *tree) Baseline(context.Context) (diffing.Baseline, error) {
+	t.began++
+	return diffing.Baseline{Head: "h", Dirty: map[string]string{"a.go": "1"}}, t.err
+}
+
+func (t *tree) Since(_ context.Context, b diffing.Baseline) ([]string, error) {
+	if b.Head != "h" || b.Dirty["a.go"] != "1" {
+		return nil, errors.New("the baseline was not kept as it was taken")
+	}
+	return t.since, t.err
 }
 
 func (t *tree) Files(_ context.Context, scope linking.Scope) (map[string]string, error) {
@@ -219,5 +235,67 @@ func TestDriftFailureIsReported(t *testing.T) {
 	tr.err = boom
 	if _, _, err := l.Drift(ctx, "billing", billing); !errors.Is(err, boom) {
 		t.Fatalf("Drift error = %v, want %v", err, boom)
+	}
+}
+
+func TestASessionKeepsTheBaselineItStartedWith(t *testing.T) {
+	tr := &tree{since: []string{"billing/total.go"}}
+	l := New(t.TempDir(), "/repo", tr)
+	if _, known, err := l.Touched(ctx, "s1"); err != nil || known {
+		t.Fatalf("before Begin: known = %v, %v", known, err)
+	}
+	if err := l.Begin(ctx, "s1"); err != nil {
+		t.Fatal(err)
+	}
+	files, known, err := l.Touched(ctx, "s1")
+	if err != nil || !known || !slices.Equal(files, []string{"billing/total.go"}) {
+		t.Fatalf("Touched = %v, %v, %v", files, known, err)
+	}
+	if _, known, _ := l.Touched(ctx, "other"); known {
+		t.Fatal("another session read the baseline of s1")
+	}
+}
+
+func TestBeginAgainDoesNotReplaceTheBaseline(t *testing.T) {
+	tr := &tree{}
+	l := New(t.TempDir(), "/repo", tr)
+	for range 3 {
+		if err := l.Begin(ctx, "s1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if tr.began != 1 {
+		t.Fatalf("the baseline was taken %d times; a resumed session must keep the first one", tr.began)
+	}
+}
+
+func TestBeginDropsTheBaselinesOfOldSessions(t *testing.T) {
+	l := New(t.TempDir(), "/repo", &tree{})
+	if err := l.Begin(ctx, "old"); err != nil {
+		t.Fatal(err)
+	}
+	old := l.sessionFile("old")
+	then := time.Now().Add(-2 * sessionTTL)
+	if err := os.Chtimes(old, then, then); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Begin(ctx, "new"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the old baseline is still there: %v", err)
+	}
+	if _, err := os.Stat(l.sessionFile("new")); err != nil {
+		t.Fatalf("the new baseline is gone: %v", err)
+	}
+}
+
+func TestASessionWithoutACacheIsUnknown(t *testing.T) {
+	l := New("", "/repo", &tree{})
+	if l.Begin(ctx, "s1") == nil {
+		t.Fatal("Begin without a cache directory must say so")
+	}
+	if _, known, err := l.Touched(ctx, "s1"); known || err != nil {
+		t.Fatalf("known = %v, %v", known, err)
 	}
 }

@@ -7,13 +7,25 @@ import (
 	"testing"
 )
 
-func stopEvent(t *testing.T, active bool) string {
+func sessionEvent(t *testing.T, name string, active bool) string {
 	t.Helper()
-	raw, err := json.Marshal(map[string]any{"hook_event_name": "Stop", "stop_hook_active": active})
+	raw, err := json.Marshal(map[string]any{"hook_event_name": name, "session_id": "s1", "stop_hook_active": active})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(raw)
+}
+
+func stopEvent(t *testing.T, active bool) string {
+	t.Helper()
+	return sessionEvent(t, "Stop", active)
+}
+
+func startSession(t *testing.T, p *project) {
+	t.Helper()
+	if code, _, errOut := p.delta(sessionEvent(t, "SessionStart", false), "hook"); code != 0 {
+		t.Fatalf("SessionStart = %d %q", code, errOut)
+	}
 }
 
 func TestStopWaitsForACheckOfTheCurrentTree(t *testing.T) {
@@ -27,13 +39,14 @@ func TestStopWaitsForACheckOfTheCurrentTree(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 
+	startSession(t, p)
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
-		t.Fatalf("a clean tree: Stop = %d %q, want it allowed", code, errOut)
+		t.Fatalf("nothing changed: Stop = %d %q, want it allowed", code, errOut)
 	}
 
 	p.write("main.go", "package main\n")
 	code, _, errOut := p.delta(stopEvent(t, false), "hook")
-	if code != 2 || !strings.Contains(errOut, "billing") || !strings.Contains(errOut, "delta check") {
+	if code != 2 || !strings.Contains(errOut, "delta check billing") {
 		t.Fatalf("an unchecked change: Stop = %d %q, want a block that asks for delta check", code, errOut)
 	}
 	if code, _, errOut := p.delta(stopEvent(t, true), "hook"); code != 0 {
@@ -57,6 +70,8 @@ func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git no-such-subcommand")))
 	p.write("billing_test.go", "// INV-01\n")
+	startSession(t, p)
+	p.write("main.go", "package main\n")
 	if code, out, _ := p.delta("", "check"); code != 1 || verdict(out, "billing", "INV-01") != "Violated" {
 		t.Fatalf("check = %d %q, want the claim violated", code, out)
 	}
@@ -85,6 +100,7 @@ func billingProject(t *testing.T) *project {
 
 func TestStopAsksForACheckOnlyWhenTheCodeOfTheSliceChanges(t *testing.T) {
 	p := billingProject(t)
+	startSession(t, p)
 
 	p.write("README.md", "# a new readme\n")
 	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
@@ -109,6 +125,7 @@ func TestStopAsksForACheckWhateverCodeChangesWhenTheCommandNamesNoPath(t *testin
 	p.write("billing_test.go", "// INV-01\n")
 	p.write("shared/money.go", "package shared\n")
 	commitAll(t, p, "chore(repo): add the billing slice")
+	startSession(t, p)
 	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
 		t.Fatalf("a command with no path: Stop = %d %q, want a block for any code", code, errOut)
@@ -140,31 +157,59 @@ func TestPostToolUseLintsTheTestFileJustWritten(t *testing.T) {
 	}
 }
 
-func TestStopPointsAtForgeUntilTheSliceIsBuilt(t *testing.T) {
+func TestStopLeavesApprovedSlicesAloneWhateverIsEdited(t *testing.T) {
 	p := gitProject(t)
-	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
-	p.write("billing_test.go", "// INV-01\n")
-	if out, err := git(t, p.root, "add", "-A"); err != nil {
-		t.Fatalf("%v\n%s", err, out)
+	for _, slice := range []string{"job-claiming", "job-lifecycle", "retry-policy", "worker-runtime"} {
+		p.write("deltas/specs/"+slice+".spec.md", spec(slice, claimOf("INV-01", "none")))
 	}
-	if out, err := git(t, p.root, "commit", "-q", "-m", "chore(repo): add the billing slice"); err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
+	commitAll(t, p, "chore(repo): add the slices")
+	startSession(t, p)
+
+	p.write("go.mod", "module jobs\n")
+	p.write("image.png", "not really a png")
+	p.write("internal/worker/runtime.go", "package worker\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
-		t.Fatalf("nothing changed: Stop = %d %q, want it allowed", code, errOut)
+		t.Fatalf("approved slices and edits: Stop = %d %q, want it allowed: an approved slice is backlog", code, errOut)
 	}
+}
 
+func TestStopOnlyLooksAtWhatThisSessionChanged(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
 	p.write("main.go", "package main\n")
-	code, _, errOut := p.delta(stopEvent(t, false), "hook")
-	if code != 2 || !strings.Contains(errOut, "/builder billing") {
-		t.Fatalf("code for an approved slice: Stop = %d %q, want a block that points at /builder", code, errOut)
-	}
+	commitAll(t, p, "chore(repo): add the billing slice")
+	p.write("main.go", "package main\n\nfunc main() {}\n")
 
-	if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
-		t.Fatalf("built = %d %q", code, errOut)
+	startSession(t, p)
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("code that was already edited when the session began: Stop = %d %q, want it allowed", code, errOut)
 	}
-	code, _, errOut = p.delta(stopEvent(t, false), "hook")
-	if code != 2 || !strings.Contains(errOut, "delta check") || strings.Contains(errOut, "/builder") {
-		t.Fatalf("a built slice: Stop = %d %q, want a block that asks for delta check", code, errOut)
+	p.write("main.go", "package main\n\nfunc main() { println() }\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "delta check billing") {
+		t.Fatalf("the same file edited again: Stop = %d %q, want a block", code, errOut)
+	}
+}
+
+func TestStopWithoutASessionStartLetsClaudeFinish(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	p.write("main.go", "package main\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 || errOut != "" {
+		t.Fatalf("no baseline: Stop = %d %q, want it allowed", code, errOut)
+	}
+}
+
+func TestCheckTakesSeveralSlices(t *testing.T) {
+	p := gitProject(t)
+	for _, slice := range []string{"billing", "payments", "refunds"} {
+		p.write("deltas/specs/"+slice+".spec.md", built(slice, claimOf("INV-01", "test: git --version")))
+		p.write(slice+"_test.go", "// INV-01\n")
+	}
+	code, out, errOut := p.delta("", "check", "billing", "payments")
+	if code != 0 || verdict(out, "billing", "INV-01") != "Holds" || verdict(out, "payments", "INV-01") != "Holds" || verdict(out, "refunds", "INV-01") != "" {
+		t.Fatalf("check billing payments = %d %q %q; want those two and not refunds", code, out, errOut)
 	}
 }

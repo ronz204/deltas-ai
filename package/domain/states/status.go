@@ -20,9 +20,9 @@ var statuses = []Status{Draft, Approved, Built, Verified, Stale}
 var moves = map[Status][]Status{
 	Draft:    {Approved},
 	Approved: {Built},
-	Built:    {Verified},
-	Verified: {Stale},
-	Stale:    {Built},
+	Built:    {Built, Verified},
+	Verified: {Built},
+	Stale:    {Built, Verified},
 }
 
 func ParseStatus(s string) (Status, error) {

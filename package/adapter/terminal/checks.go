@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -12,11 +13,11 @@ import (
 
 func checkCmd(d Deps) *cobra.Command {
 	return &cobra.Command{
-		Use:   "check [slice]",
+		Use:   "check [slice...]",
 		Short: "Run the command of every test claim and say whether it holds",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rep, err := d.Checker.Check(cmd.Context(), optional(args))
+			rep, err := checkAll(cmd.Context(), d.Checker, args)
 			if err != nil {
 				return err
 			}
@@ -31,6 +32,23 @@ func checkCmd(d Deps) *cobra.Command {
 			return foundIn(rep.Diags)
 		},
 	}
+}
+
+func checkAll(ctx context.Context, c *verifier.Checker, slices []string) (verifier.Report, error) {
+	if len(slices) == 0 {
+		return c.Check(ctx, "")
+	}
+	var all verifier.Report
+	for _, slice := range slices {
+		rep, err := c.Check(ctx, slice)
+		if err != nil {
+			return all, err
+		}
+		all.Diags = append(all.Diags, rep.Diags...)
+		all.Results = append(all.Results, rep.Results...)
+		all.Verified = append(all.Verified, rep.Verified...)
+	}
+	return all, nil
 }
 
 func printResults(w io.Writer, results []verifier.Result) map[judgment.Verdict]int {

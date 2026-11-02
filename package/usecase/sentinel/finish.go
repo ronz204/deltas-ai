@@ -3,6 +3,7 @@ package sentinel
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ronz204/deltas-ai/package/domain/judgment"
@@ -11,7 +12,15 @@ import (
 )
 
 func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
-	if e.StopActive || g.evidence == nil {
+	if e.StopActive || g.evidence == nil || e.Session == "" {
+		return Decision{}, nil
+	}
+	touched, known, err := g.evidence.Touched(ctx, e.Session)
+	if err != nil {
+		return Decision{}, err
+	}
+	touched = slices.DeleteFunc(touched, func(file string) bool { return !linking.Code(file) })
+	if !known || len(touched) == 0 {
 		return Decision{}, nil
 	}
 	rows, err := g.slices.Report(ctx)
@@ -21,7 +30,7 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	var names []string
 	scopes := map[string]linking.Scope{}
 	for _, r := range rows {
-		if r.Issues == 0 && (r.Test > 0 || waitsForBuilder(r.Status)) {
+		if r.Issues == 0 && r.Test > 0 && wasBuilt(r.Status) && slices.ContainsFunc(touched, r.Scope.Covers) {
 			names = append(names, r.Slice)
 			scopes[r.Slice] = r.Scope
 		}
@@ -33,35 +42,21 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	if err != nil {
 		return Decision{}, err
 	}
-	state := map[string]states.Status{}
-	for _, r := range rows {
-		state[r.Slice] = r.Status
-	}
-	var unchecked, failing, unbuilt []string
+	var unchecked, failing []string
 	for _, n := range names {
-		switch {
-		case by[n] == judgment.Passing:
-		case waitsForBuilder(state[n]):
-			unbuilt = append(unbuilt, n)
-		case by[n] == judgment.Unchecked:
+		switch by[n] {
+		case judgment.Unchecked:
 			unchecked = append(unchecked, n)
-		case by[n] == judgment.Failing:
+		case judgment.Failing:
 			failing = append(failing, n)
 		}
 	}
 	var lines []string
-	for _, n := range unbuilt {
-		if state[n] == states.Stale {
-			lines = append(lines, fmt.Sprintf("%s is stale and its code changed again: bring it up to date with /builder %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("%s is approved but not built, and the code changed since: finish it with /builder %s, which ends with delta built %s, or tell the user what is left.", n, n, n))
-	}
 	if len(unchecked) > 0 {
-		lines = append(lines, "delta check has not run on the current changes for: "+strings.Join(unchecked, ", ")+". Run it before you finish.")
+		lines = append(lines, fmt.Sprintf("Your changes touched code of %s: run delta check %s before you finish.", strings.Join(unchecked, ", "), strings.Join(unchecked, " ")))
 	}
 	if len(failing) > 0 {
-		lines = append(lines, "delta check found violated claims for: "+strings.Join(failing, ", ")+". Fix them, or tell the user what is left.")
+		lines = append(lines, "delta check found violated claims for: "+strings.Join(failing, ", ")+". Fix the code; if the promise itself changed, tell the person, who decides it with /drafter.")
 	}
 	if len(lines) == 0 {
 		return Decision{}, nil
@@ -69,4 +64,6 @@ func (g *Guard) stop(ctx context.Context, e Event) (Decision, error) {
 	return Decision{Block: true, Reason: strings.Join(lines, "\n")}, nil
 }
 
-func waitsForBuilder(s states.Status) bool { return s == states.Approved || s == states.Stale }
+func wasBuilt(s states.Status) bool {
+	return s == states.Built || s == states.Verified || s == states.Stale
+}

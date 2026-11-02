@@ -85,7 +85,7 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File
 	case l.spec.Status == states.Verified:
 		s.Verified = true
 		return s, nil
-	case l.spec.Status != states.Built:
+	case l.spec.Status != states.Built && l.spec.Status != states.Stale:
 		return s, nil
 	}
 	if err := v.verified(ctx, l); err != nil {

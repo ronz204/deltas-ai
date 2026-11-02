@@ -188,10 +188,10 @@ Plain requests work too: *"is billing still right?"* goes to Auditor, and *"chan
 - **`draft`**: the contract is written and waits for review. Drafter writes it; **you** approve it.
 - **`approved`**: the contract is accepted. Builder runs `delta built` once the code is done.
 - **`built`**: code and tests exist. `delta check` makes it `verified` when every test claim holds.
-- **`verified`**: every test claim held in the last check. A change to the code its tests cover makes it `stale`.
-- **`stale`**: the code changed after verification, so the contract may be out of date. Builder rebuilds it, or Drafter revises the contract.
+- **`verified`**: every test claim held in the last check. If the code its tests cover changes afterwards, it stays `verified` and `delta status` shows it as `verified (2 files changed)`. Nothing is rewritten: `delta check` on the slice confirms it still holds and clears the note, and if a claim now fails, Builder fixes the code or Drafter revises the contract.
+- **`stale`**: only in specs written by an older Delta, which marked a slice stale on its own. `delta check` brings it back to `verified` once its test claims hold.
 
-Rewriting an `approved` or `built` contract sends it back to `draft` and needs a new approval; Delta says so when it happens. A claim with no test never blocks `verified`: it stays on your screen as debt.
+Rewriting an `approved`, `built` or `verified` contract sends it back to `draft` and needs a new approval; Delta says so when it happens. A claim with no test never blocks `verified`: it stays on your screen as debt.
 
 ### What you will see while you work
 
@@ -214,7 +214,7 @@ You rarely need them, because the skills run them. The useful ones:
 - `delta check [slice]`: run the test claims. Exits `1` if one is violated.
 - `delta lint`: check every spec and cross it with your tests. Exits `1` on errors; warnings don't fail.
 - `delta spec lint [slice]`: check only the structure of a spec.
-- `delta stale`: mark verified slices stale when their code changed, and list them.
+- `delta stale`: list the verified slices whose code changed since they were verified. It changes nothing; exits `1` if there is any.
 - `delta approve <slice>`: approve a clean draft. **Only you run this.**
 - `delta budget`: see how much context the project loads on every turn against its ceilings.
 - `delta update [--check]`: bring Delta's installed files up to date.
@@ -299,7 +299,7 @@ A citation only counts under the paths the command names. A command that names n
 
 ### How drift is decided
 
-When `delta check` verifies a slice, Delta remembers a fingerprint of the files the slice depends on. If any of them changes later, the slice becomes `stale`.
+When `delta check` verifies a slice, Delta remembers a fingerprint of the files the slice depends on. If any of them changes later, `delta status` and `delta stale` list the slice with the files that changed, and the session start tells the agent to run `delta check` on it. The spec itself is never rewritten for this: drift is read from the files, not stored in the contract.
 
 A slice depends on **the code its test commands name**:
 

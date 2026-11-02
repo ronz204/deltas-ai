@@ -10,13 +10,12 @@ import (
 )
 
 type Drift struct {
-	Slice  string
-	Files  []string
-	Marked bool
+	Slice string
+	Files []string
 }
 
-func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
-	if r.baselines == nil || r.saver == nil {
+func (r *Reporter) Drifts(ctx context.Context) ([]Drift, error) {
+	if r.baselines == nil {
 		return nil, nil
 	}
 	names, err := r.specs.List(ctx)
@@ -44,18 +43,7 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 		if !known || len(files) == 0 {
 			continue
 		}
-		d := Drift{Slice: name, Files: files}
-		if sp.Status == states.Verified {
-			edited, err := specfile.SetStatus(src, states.Stale)
-			if err != nil {
-				return out, err
-			}
-			if err := r.saver.Save(ctx, name, edited); err != nil {
-				return out, err
-			}
-			d.Marked = true
-		}
-		out = append(out, d)
+		out = append(out, Drift{Slice: name, Files: files})
 	}
 	return out, nil
 }

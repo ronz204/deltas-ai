@@ -9,7 +9,10 @@ import (
 	"github.com/ronz204/deltas-ai/package/usecase/tracking"
 )
 
-func (g *Guard) start(ctx context.Context) (Decision, error) {
+func (g *Guard) start(ctx context.Context, e Event) (Decision, error) {
+	if g.evidence != nil && e.Session != "" {
+		_ = g.evidence.Begin(ctx, e.Session)
+	}
 	rows, err := g.slices.Report(ctx)
 	if err != nil {
 		return Decision{}, err
@@ -37,6 +40,9 @@ func (g *Guard) start(ctx context.Context) (Decision, error) {
 		if len(r.Changed) > 0 {
 			fmt.Fprintf(&b, ", changed since it was verified: %s", fileList(r.Changed))
 		}
+		if next := nextStep(r); next != "" {
+			fmt.Fprintf(&b, "; next: %s", next)
+		}
 		b.WriteByte('\n')
 	}
 	if len(problems) > 0 {
@@ -45,37 +51,26 @@ func (g *Guard) start(ctx context.Context) (Decision, error) {
 			b.WriteString("- " + p + "\n")
 		}
 	}
-	b.WriteString("The knowledge base is not edited directly: specs are written with delta spec write and tests are linked with delta link.")
+	b.WriteString("The knowledge base is not edited directly: specs are written with delta spec write and tests are linked with delta link. A request that changes what a feature promises goes through the comper skill; anything else is ordinary work.")
 	return Decision{Context: b.String()}, nil
 }
 
-func (g *Guard) prompt(ctx context.Context) (Decision, error) {
-	rows, err := g.slices.Report(ctx)
-	if err != nil {
-		return Decision{}, err
-	}
-	var b strings.Builder
-	b.WriteString("Delta: if this request adds, changes, removes, checks or documents what the project does, use the comper skill before touching any file; the person may speak plainly or call a skill by name, and never types delta commands.\n")
-	for _, r := range rows {
-		if next := nextStep(r); next != "" {
-			fmt.Fprintf(&b, "- %s: %s\n", r.Slice, next)
-		}
-	}
-	return Decision{Context: strings.TrimRight(b.String(), "\n")}, nil
-}
+const promptLine = "Delta: if this request changes what a feature promises (new behavior, or a guarantee that is different), use the comper skill first. Bug fixes, refactors and tweaks need no ceremony: work as usual, and delta asks for a check of the slices you touched before you finish."
+
+func (g *Guard) prompt() Decision { return Decision{Context: promptLine} }
 
 func nextStep(r tracking.Row) string {
 	switch {
 	case r.Issues > 0:
-		return "its spec has problems: fix them with the drafter skill"
+		return "fix its spec with the drafter skill"
 	case r.Status == states.Draft:
-		return "draft: ask the person in plain words whether to approve it, and on a yes run delta approve"
+		return "ask the person in plain words whether to approve it, and on a yes run delta approve"
 	case r.Status == states.Approved:
-		return "approved, not built: the builder skill builds it"
-	case r.Status == states.Stale:
-		return "stale: the builder skill rebuilds it, or the drafter skill if the contract is out of date"
+		return "the builder skill builds it"
+	case r.Status == states.Stale, r.Status == states.Verified && len(r.Changed) > 0:
+		return "delta check " + r.Slice + " confirms it still holds, or the builder skill rebuilds it, or the drafter skill if the contract is out of date"
 	case r.Status == states.Built:
-		return "built, not verified: the auditor skill checks it"
+		return "the auditor skill checks it"
 	}
 	return ""
 }

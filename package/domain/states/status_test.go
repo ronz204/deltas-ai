@@ -20,9 +20,11 @@ func TestCanAllowsOnlyTheMovesOfTheCycle(t *testing.T) {
 	legal := map[[2]Status]bool{
 		{Draft, Approved}: true,
 		{Approved, Built}: true,
+		{Built, Built}:    true,
 		{Built, Verified}: true,
-		{Verified, Stale}: true,
+		{Verified, Built}: true,
 		{Stale, Built}:    true,
+		{Stale, Verified}: true,
 		{Approved, Draft}: true,
 		{Built, Draft}:    true,
 		{Verified, Draft}: true,

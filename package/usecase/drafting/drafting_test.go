@@ -248,8 +248,8 @@ func TestApproveNeedsTheSpec(t *testing.T) {
 	}
 }
 
-func TestBuiltFollowsApprovedOrStaleOnly(t *testing.T) {
-	for status, ok := range map[string]bool{"draft": false, "approved": true, "built": false, "verified": false, "stale": true} {
+func TestBuiltFollowsEverythingButADraft(t *testing.T) {
+	for status, ok := range map[string]bool{"draft": false, "approved": true, "built": true, "verified": true, "stale": true} {
 		m := newMemory()
 		m.specs["billing"] = withStatus(status)
 		_, err := New(m, tmpl(tpl)).Built(ctx, "billing")

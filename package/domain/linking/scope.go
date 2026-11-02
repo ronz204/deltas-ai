@@ -30,11 +30,15 @@ func testPaths(claims []claimset.Claim) []string {
 	return paths
 }
 
+func Code(file string) bool {
+	return !strings.HasSuffix(file, ".md") && !isDelta(file)
+}
+
 func (s Scope) Covers(file string) bool {
 	switch {
 	case file == s.spec:
 		return true
-	case strings.HasSuffix(file, ".md"), isDelta(file):
+	case !Code(file):
 		return false
 	}
 	return underAny(file, s.paths)

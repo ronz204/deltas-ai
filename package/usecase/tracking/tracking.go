@@ -20,10 +20,6 @@ type Baselines interface {
 	Drift(ctx context.Context, slice string, scope linking.Scope) (changed []string, known bool, err error)
 }
 
-type Saver interface {
-	Save(ctx context.Context, slice string, content []byte) error
-}
-
 type Files interface {
 	Glob(ctx context.Context, patterns []string) ([]budget.File, error)
 }
@@ -31,7 +27,6 @@ type Files interface {
 type Reporter struct {
 	specs     Specs
 	baselines Baselines
-	saver     Saver
 	files     Files
 }
 
@@ -39,8 +34,8 @@ func New(specs Specs) *Reporter {
 	return &Reporter{specs: specs}
 }
 
-func (r *Reporter) WithDrift(b Baselines, s Saver) *Reporter {
-	r.baselines, r.saver = b, s
+func (r *Reporter) WithDrift(b Baselines) *Reporter {
+	r.baselines = b
 	return r
 }
 
@@ -63,7 +58,7 @@ type Row struct {
 }
 
 func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
-	drifted, _ := r.Stale(ctx)
+	drifted, _ := r.Drifts(ctx)
 	changed := map[string][]string{}
 	for _, d := range drifted {
 		changed[d.Slice] = d.Files

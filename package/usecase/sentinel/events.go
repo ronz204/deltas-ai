@@ -13,6 +13,7 @@ type Event struct {
 	Tool string
 	Path string
 
+	Session    string
 	StopActive bool
 }
 
@@ -28,6 +29,8 @@ type Health interface {
 
 type Evidence interface {
 	Standings(ctx context.Context, slices map[string]linking.Scope) (map[string]judgment.Standing, error)
+	Begin(ctx context.Context, session string) error
+	Touched(ctx context.Context, session string) (files []string, known bool, err error)
 }
 
 type Linter interface {

@@ -1,7 +1,7 @@
 ---
 name: comper
 description: >-
-  Use for any request about what the project does or should do: adding, changing, removing, fixing, verifying or documenting behavior, deciding whether a spec is right, or approving one. It reads the state of the slices with `delta status` and hands the work to drafter (contract), builder (build), auditor (verify) or scriber (docs). It works two ways: the person asks in plain words and comper routes the request, or calls /comper to be told which skill comes next. Use it before touching code or anything under deltas/. Not for questions about the code, and not for trivial edits that no claim covers (a typo, a rename, a formatting change).
+  Use for a request that changes what a feature promises (new behavior, or a guarantee that is different), and for verifying or documenting behavior, deciding whether a spec is right, or approving one. It reads the state of the slices with `delta status` and hands the work to drafter (contract), builder (build), auditor (verify) or scriber (docs). It works two ways: the person asks in plain words and comper routes the request, or calls /comper to be told which skill comes next. Not for bug fixes, refactors and tweaks that keep every promise, not for questions about the code, and not for trivial edits that no claim covers (a typo, a rename, a formatting change): those are ordinary work.
 argument-hint: "[slice]"
 ---
 
@@ -11,7 +11,7 @@ argument-hint: "[slice]"
 
 It has two entrances:
 
-- **A plain request** ("add refunds", "is billing still right?"): it routes the request, hands the work over and carries it through.
+- **A plain request** ("add refunds", "is billing still right?"): it routes the request, hands the work over and carries it through. A request that keeps every promise (a bug fix, a refactor, a tweak) is not routed.
 - **`/comper [slice]`** with no request: it reports the state of the slice (or of all of them) and names the skill that comes next, so the person can call it directly. It does not run that skill unless the person says so.
 
 The person may speak plainly or call skills by name, in their own language. Everything the project keeps (specs, docs, commit messages, code) is written in English, whatever language the conversation is in.
@@ -28,14 +28,15 @@ The person may speak plainly or call skills by name, in their own language. Ever
 | The person wants | The slice is | Do |
 |---|---|---|
 | New behavior | has no spec | `drafter` writes the spec first |
-| A change to behavior a spec covers | any | `drafter` revises the contract first: the slice goes back to `draft` and needs a new approval, then `builder` |
+| A change to what a spec promises | any | `drafter` revises the contract first: the slice goes back to `draft` and needs a new approval, then `builder` |
+| A bug fix, refactor or tweak that keeps every promise | any | Not routed: work as usual. At the end delta asks for `delta check` of the slices whose code was touched |
 | The spec is wrong, thin or missing something | any | `drafter` |
 | To build or fix something an approved spec already asks for | `approved`, `stale` | `builder` |
 | To know whether it works, still holds or drifted | `built`, `verified`, `stale` | `auditor` |
 | The project explained or written down (overview, structure, expertise, approach) | | `scriber` |
 | To approve a spec | `draft` | Step 3 |
 
-If the request is not about behavior (a question, an explanation, a typo, a rename, formatting, a change no claim covers), do not route it: answer or do it as usual.
+If the request does not change what a feature promises (a question, an explanation, a bug fix, a refactor, a tweak, a typo, a rename, formatting, a change no claim covers), do not route it: answer or do it as usual.
 
 ## Step 2 — Hand over
 

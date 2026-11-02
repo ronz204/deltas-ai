@@ -6,7 +6,10 @@
 
 ## How to work
 
-The person never types `delta` commands. They either ask in plain words or call a skill by name. For any plain request that adds, changes, removes, checks or documents behavior, use the `comper` skill first: it reads `delta status` and hands the work to the right skill. `/comper` alone says which skill comes next.
+The person never types `delta` commands. They either ask in plain words or call a skill by name. There are two lanes:
+
+- **A request that changes what a feature promises** (new behavior, or a guarantee that is different), or that verifies or documents it: use the `comper` skill first. It reads `delta status` and hands the work to the right skill. `/comper` alone says which skill comes next.
+- **Anything else** (a bug fix, a refactor, a tweak, a dependency): ordinary work, no skill. Before you finish, delta asks for `delta check` of the slices whose code you touched.
 
 | The state is | The next step is |
 |---|---|

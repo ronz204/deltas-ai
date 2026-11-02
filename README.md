@@ -317,7 +317,7 @@ You rarely type these: the skills run them for you. The ones worth knowing by ha
 | `delta built <slice>` | Record that the build is done |
 | `delta link <slice> <id> "<cmd>"` | Set a claim's tag to `test: <cmd>` |
 | `delta check [slice]` | Run every test claim and record the result |
-| `delta stale` | Mark verified slices stale when their code changed |
+| `delta stale` | List verified slices whose code changed since they were verified (read-only) |
 
 **Integrate**
 

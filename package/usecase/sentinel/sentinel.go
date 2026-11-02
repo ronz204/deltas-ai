@@ -27,9 +27,9 @@ var fileTools = map[string]bool{"Write": true, "Edit": true}
 func (g *Guard) Decide(ctx context.Context, e Event) (Decision, error) {
 	switch e.Name {
 	case "SessionStart":
-		return g.start(ctx)
+		return g.start(ctx, e)
 	case "UserPromptSubmit":
-		return g.prompt(ctx)
+		return g.prompt(), nil
 	case "PreToolUse":
 		return g.before(e), nil
 	case "PostToolUse":

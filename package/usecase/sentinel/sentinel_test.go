@@ -110,18 +110,18 @@ func TestSessionStartSaysNothingWithoutSlices(t *testing.T) {
 	}
 }
 
-func TestEveryPromptCarriesTheNextStepOfEachSlice(t *testing.T) {
+func TestEveryPromptIsOneFixedLineWhateverTheSlices(t *testing.T) {
 	g, _ := newGuard(t, specs{
 		"billing":  "---\nformat: 1\nslice: billing\nstatus: draft\n---\n- INV-01 [none]\n  When x, y.\n",
 		"payments": "---\nformat: 1\nslice: payments\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n",
 	})
 	d, err := g.Decide(ctx, Event{Name: "UserPromptSubmit"})
-	if err != nil || d.Block {
-		t.Fatalf("%+v, %v", d, err)
+	if err != nil || d.Block || d.Context != promptLine {
+		t.Fatalf("%+v, %v; want the fixed line", d, err)
 	}
-	for _, want := range []string{"comper skill", "- billing: draft: ask the person in plain words", "- payments: approved, not built: the builder skill"} {
+	for _, want := range []string{"comper skill", "Bug fixes, refactors and tweaks need no ceremony"} {
 		if !strings.Contains(d.Context, want) {
-			t.Errorf("the context lacks %q:\n%s", want, d.Context)
+			t.Errorf("the line lacks %q:\n%s", want, d.Context)
 		}
 	}
 }
@@ -175,14 +175,26 @@ func TestSessionStartStaysQuietWhenAllIsWell(t *testing.T) {
 }
 
 type evidence struct {
-	by    map[string]judgment.Standing
-	err   error
-	asked map[string]linking.Scope
+	by      map[string]judgment.Standing
+	err     error
+	asked   map[string]linking.Scope
+	touched []string
+	unknown bool
+	began   string
 }
 
 func (e *evidence) Standings(_ context.Context, slices map[string]linking.Scope) (map[string]judgment.Standing, error) {
 	e.asked = slices
 	return e.by, e.err
+}
+
+func (e *evidence) Begin(_ context.Context, session string) error {
+	e.began = session
+	return nil
+}
+
+func (e *evidence) Touched(context.Context, string) ([]string, bool, error) {
+	return e.touched, !e.unknown, nil
 }
 
 const withTests = "---\nformat: 1\nslice: %s\nstatus: built\n---\n- INV-01 [test: go test ./%s]\n  When x, y.\n"
@@ -196,80 +208,125 @@ func stopGuard(t *testing.T, ev Evidence, slices ...string) *Guard {
 	return New(t.TempDir(), tracking.New(s), nil, ev, nil)
 }
 
-func TestStopAsksForACheckOfEverySliceThatIsNotCheckedYet(t *testing.T) {
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Passing}}
-	d, err := stopGuard(t, ev, "billing", "payments").Decide(ctx, Event{Name: "Stop"})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing") || strings.Contains(d.Reason, "payments") || !strings.Contains(d.Reason, "delta check") {
-		t.Fatalf("Decide = %+v, %v; want a block that names only billing", d, err)
+var stop = Event{Name: "Stop", Session: "s1"}
+
+func TestStopAsksForACheckOfTheSlicesThisSessionTouched(t *testing.T) {
+	ev := &evidence{
+		by:      map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Unchecked},
+		touched: []string{"billing/total.go"},
 	}
-	if len(ev.asked) != 2 || !ev.asked["billing"].Covers("billing/x.go") || ev.asked["billing"].Covers("README.md") {
-		t.Fatalf("asked about %v, want both slices with the scope their commands name", ev.asked)
+	d, err := stopGuard(t, ev, "billing", "payments").Decide(ctx, stop)
+	want := "Your changes touched code of billing: run delta check billing before you finish."
+	if err != nil || !d.Block || d.Reason != want {
+		t.Fatalf("Decide = %+v, %v; want a block that names only billing: %q", d, err, want)
+	}
+	if len(ev.asked) != 1 || !ev.asked["billing"].Covers("billing/x.go") {
+		t.Fatalf("asked about %v, want only billing with the scope its command names", ev.asked)
+	}
+}
+
+func TestStopNamesEverySliceTheSessionTouched(t *testing.T) {
+	ev := &evidence{
+		by:      map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Unchecked},
+		touched: []string{"billing/total.go", "payments/pay.go"},
+	}
+	d, _ := stopGuard(t, ev, "billing", "payments").Decide(ctx, stop)
+	if want := "touched code of billing, payments: run delta check billing payments"; !strings.Contains(d.Reason, want) {
+		t.Fatalf("Reason = %q, want %q", d.Reason, want)
 	}
 }
 
 func TestStopSaysWhenAClaimWasViolated(t *testing.T) {
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Failing}}
-	d, _ := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop"})
-	if !d.Block || !strings.Contains(d.Reason, "violated") || !strings.Contains(d.Reason, "billing") {
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Failing}, touched: []string{"billing/total.go"}}
+	d, _ := stopGuard(t, ev, "billing").Decide(ctx, stop)
+	if !d.Block || !strings.Contains(d.Reason, "violated claims for: billing") || !strings.Contains(d.Reason, "/drafter") {
 		t.Fatalf("Decide = %+v, want a block about violated claims", d)
 	}
 }
 
 func TestStopLetsClaudeFinishWhenThereIsNothingToProve(t *testing.T) {
-	passing := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
+	touched := []string{"billing/total.go"}
+	passing := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}, touched: touched}
+	none := "---\nformat: 1\nslice: billing\nstatus: built\n---\n- INV-01 [none]\n  When x, y.\n"
 	cases := map[string]*Guard{
-		"every slice stands":           stopGuard(t, passing, "billing"),
-		"no slice has a test claim":    New(t.TempDir(), tracking.New(specs{"billing": "---\nformat: 1\nslice: billing\nstatus: built\n---\n- INV-01 [none]\n  When x, y.\n"}), nil, &evidence{}, nil),
-		"there are no slices":          stopGuard(t, &evidence{}),
-		"there is no evidence to read": stopGuard(t, nil, "billing"),
+		"every touched slice stands": stopGuard(t, passing, "billing"),
+		"no slice has a test claim":  New(t.TempDir(), tracking.New(specs{"billing": none}), nil, &evidence{touched: touched}, nil),
+		"there are no slices":        stopGuard(t, &evidence{touched: touched}),
+		"there is no evidence":       stopGuard(t, nil, "billing"),
 	}
 	for name, g := range cases {
-		if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
+		if d, err := g.Decide(ctx, stop); err != nil || d.Block {
 			t.Errorf("%s: Decide = %+v, %v; want it allowed", name, d, err)
 		}
 	}
 }
 
-func TestStopPointsAtForgeForAnApprovedSliceWhoseCodeChanged(t *testing.T) {
-	head := func(slice, status string) string {
-		return "---\nformat: 1\nslice: " + slice + "\nstatus: " + status + "\n---\n"
-	}
-	approved := map[string]string{
-		"billing":  head("billing", "approved") + "- INV-01 [none]\n  When x, y.\n",
-		"payments": head("payments", "stale") + "- INV-01 [test: go test ./payments]\n  When x, y.\n",
-	}
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Failing}}
-	g := New(t.TempDir(), tracking.New(specs(approved)), nil, ev, nil)
-	d, err := g.Decide(ctx, Event{Name: "Stop"})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "/builder billing") || !strings.Contains(d.Reason, "/builder payments") || strings.Contains(d.Reason, "delta check") {
-		t.Fatalf("Decide = %+v, %v; want a block that points at /builder for both and not at delta check", d, err)
-	}
-	if len(ev.asked) != 2 {
-		t.Fatalf("asked about %v: an approved slice without test claims still has a tree to look at", ev.asked)
+func TestStopIgnoresChangesOutsideEverySlice(t *testing.T) {
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}, touched: []string{"README.md", "deltas/specs/x.spec.md", ".claude/rules/a.md"}}
+	d, err := stopGuard(t, ev, "billing").Decide(ctx, stop)
+	if err != nil || d.Block || ev.asked != nil {
+		t.Fatalf("Decide = %+v, %v (asked %v); documentation and what delta installs are not code", d, err, ev.asked)
 	}
 }
 
-func TestStopLeavesAnApprovedSliceAloneWhileNothingChanged(t *testing.T) {
-	spec := "---\nformat: 1\nslice: billing\nstatus: approved\n---\n- INV-01 [none]\n  When x, y.\n"
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Passing}}
-	g := New(t.TempDir(), tracking.New(specs{"billing": spec}), nil, ev, nil)
+func TestStopIgnoresCodeOfAnotherSlice(t *testing.T) {
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}, touched: []string{"payments/pay.go"}}
+	if d, err := stopGuard(t, ev, "billing").Decide(ctx, stop); err != nil || d.Block || ev.asked != nil {
+		t.Fatalf("Decide = %+v, %v (asked %v); payments/ is not what billing's command names", d, err, ev.asked)
+	}
+}
+
+func TestStopIgnoresCodeWhenNoSliceWasBuilt(t *testing.T) {
+	head := func(slice, status string) string {
+		return "---\nformat: 1\nslice: " + slice + "\nstatus: " + status + "\n---\n- INV-01 [test: go test ./" + slice + "]\n  When x, y.\n"
+	}
+	s := specs{"billing": head("billing", "approved"), "payments": head("payments", "draft")}
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked, "payments": judgment.Unchecked}, touched: []string{"billing/total.go", "payments/pay.go", "go.mod"}}
+	if d, err := New(t.TempDir(), tracking.New(s), nil, ev, nil).Decide(ctx, stop); err != nil || d.Block {
+		t.Fatalf("Decide = %+v, %v; approved and draft slices are backlog, never a reason to hold Claude", d, err)
+	}
+}
+
+func TestStopAsksForACheckOfAStaleSliceWhoseCodeWasTouched(t *testing.T) {
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}, touched: []string{"billing/total.go"}}
+	g := New(t.TempDir(), tracking.New(verifiedBilling("stale")), nil, ev, nil)
+	d, err := g.Decide(ctx, stop)
+	if err != nil || !d.Block || !strings.Contains(d.Reason, "delta check billing") || strings.Contains(d.Reason, "/builder") {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}
+
+func TestStopWithoutASessionBaselineLetsClaudeFinish(t *testing.T) {
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}, touched: []string{"billing/total.go"}, unknown: true}
+	g := stopGuard(t, ev, "billing")
+	if d, err := g.Decide(ctx, stop); err != nil || d.Block || ev.asked != nil {
+		t.Fatalf("Decide = %+v, %v (asked %v); with no baseline nothing is known to be this session's", d, err, ev.asked)
+	}
 	if d, err := g.Decide(ctx, Event{Name: "Stop"}); err != nil || d.Block {
-		t.Fatalf("Decide = %+v, %v; an untouched approved slice is not pending work", d, err)
+		t.Fatalf("an event without a session: %+v, %v", d, err)
 	}
 }
 
 func TestStopAsksOnlyOnce(t *testing.T) {
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}}
-	d, err := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop", StopActive: true})
+	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}, touched: []string{"billing/total.go"}}
+	d, err := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop", Session: "s1", StopActive: true})
 	if err != nil || d.Block || ev.asked != nil {
 		t.Fatalf("Decide = %+v, %v (asked %v); a Stop already continuing must be let through without a look", d, err, ev.asked)
 	}
 }
 
 func TestStopFailureIsAnErrorNotABlock(t *testing.T) {
-	ev := &evidence{err: errors.New("git is gone")}
-	if d, err := stopGuard(t, ev, "billing").Decide(ctx, Event{Name: "Stop"}); err == nil || d.Block {
+	ev := &evidence{err: errors.New("git is gone"), touched: []string{"billing/total.go"}}
+	if d, err := stopGuard(t, ev, "billing").Decide(ctx, stop); err == nil || d.Block {
 		t.Fatalf("Decide = %+v, %v; a broken delta must not block", d, err)
+	}
+}
+
+func TestSessionStartKeepsTheBaselineOfTheSession(t *testing.T) {
+	ev := &evidence{}
+	g := stopGuard(t, ev, "billing")
+	if _, err := g.Decide(ctx, Event{Name: "SessionStart", Session: "s1"}); err != nil || ev.began != "s1" {
+		t.Fatalf("began = %q, %v; want the session s1", ev.began, err)
 	}
 }
 
@@ -345,11 +402,6 @@ func TestPostToolUseFailureIsAnErrorNotAMessage(t *testing.T) {
 	}
 }
 
-func (s specs) Save(_ context.Context, slice string, content []byte) error {
-	s[slice] = string(content)
-	return nil
-}
-
 type drifting map[string][]string
 
 func (d drifting) Drift(_ context.Context, slice string, _ linking.Scope) ([]string, bool, error) {
@@ -364,87 +416,28 @@ func verifiedBilling(state string) specs {
 func driftGuard(t *testing.T, s specs, d drifting) (*Guard, string) {
 	t.Helper()
 	root := t.TempDir()
-	return New(root, tracking.New(s).WithDrift(d, s), nil, nil, nil), root
+	return New(root, tracking.New(s).WithDrift(d), nil, nil, nil), root
 }
 
-func TestPostToolUseTellsClaudeThatAVerifiedSliceWentStale(t *testing.T) {
+func TestPostToolUseNoLongerMarksASliceStale(t *testing.T) {
 	s := verifiedBilling("verified")
 	g, root := driftGuard(t, s, drifting{"billing": {"billing/total.go"}})
-	e := Event{Name: "PostToolUse", Tool: "Edit", Path: filepath.Join(root, "billing", "total.go")}
-	d, err := g.Decide(ctx, e)
-	for _, want := range []string{"billing", "stale", "billing/total.go", "/builder billing"} {
-		if err != nil || !d.Block || !strings.Contains(d.Reason, want) {
-			t.Fatalf("Decide = %+v, %v; want a block that mentions %q", d, err, want)
+	for _, tool := range []string{"Write", "Edit"} {
+		e := Event{Name: "PostToolUse", Tool: tool, Path: filepath.Join(root, "billing", "total.go")}
+		if d, err := g.Decide(ctx, e); err != nil || d.Block || d.Context != "" {
+			t.Fatalf("%s: Decide = %+v, %v; editing code is ordinary work", tool, d, err)
 		}
-	}
-	if !strings.Contains(s["billing"], "status: stale") {
-		t.Fatalf("the spec was not marked stale: %q", s["billing"])
-	}
-	if d, err := g.Decide(ctx, e); err != nil || d.Block {
-		t.Fatalf("second Decide = %+v, %v; a slice already stale is not news again", d, err)
-	}
-}
-
-func TestPostToolUseLeavesAVerifiedSliceAloneWhenNothingChanged(t *testing.T) {
-	s := verifiedBilling("verified")
-	g, root := driftGuard(t, s, drifting{"billing": {}})
-	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "billing", "total.go")}); err != nil || d.Block {
-		t.Fatalf("Decide = %+v, %v", d, err)
 	}
 	if !strings.Contains(s["billing"], "status: verified") {
 		t.Fatalf("the spec changed: %q", s["billing"])
 	}
 }
 
-func TestPostToolUseDoesNotLookForDriftWhenTheKnowledgeBaseWasTheEdit(t *testing.T) {
-	s := verifiedBilling("verified")
-	g, root := driftGuard(t, s, drifting{"billing": {"billing/total.go"}})
-	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "CLAUDE.md")}); err != nil || d.Block {
-		t.Fatalf("Decide = %+v, %v", d, err)
-	}
-}
-
-func TestPostToolUseKeepsTheLintMessageBesideTheStaleOne(t *testing.T) {
-	s := verifiedBilling("verified")
-	root := t.TempDir()
-	l := &linter{diags: []findings.Diagnostic{{File: "billing/total_test.go", Line: 3, Code: "LINT-SKIP", Message: "skipped", Warn: true}}}
-	g := New(root, tracking.New(s).WithDrift(drifting{"billing": {"billing/total_test.go"}}, s), nil, nil, l)
-	d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "billing", "total_test.go")})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "stale") || !strings.Contains(d.Reason, "LINT-SKIP") {
-		t.Fatalf("Decide = %+v, %v; want both messages", d, err)
-	}
-}
-
-func TestPostToolUseSaysWhenItCouldNotTellWhatWentStale(t *testing.T) {
-	s := verifiedBilling("verified")
-	root := t.TempDir()
-	g := New(root, tracking.New(s).WithDrift(brokenDrifting{}, s), nil, nil, nil)
-	if d, err := g.Decide(ctx, Event{Name: "PostToolUse", Tool: "Write", Path: filepath.Join(root, "a.go")}); err == nil || d.Block {
-		t.Fatalf("Decide = %+v, %v; a broken delta must not block", d, err)
-	}
-}
-
-type brokenDrifting struct{}
-
-func (brokenDrifting) Drift(context.Context, string, linking.Scope) ([]string, bool, error) {
-	return nil, true, errors.New("git is gone")
-}
-
-func TestStopSaysAStaleSliceIsStaleNotUnbuilt(t *testing.T) {
-	s := verifiedBilling("stale")
-	ev := &evidence{by: map[string]judgment.Standing{"billing": judgment.Unchecked}}
-	g := New(t.TempDir(), tracking.New(s), nil, ev, nil)
-	d, err := g.Decide(ctx, Event{Name: "Stop"})
-	if err != nil || !d.Block || !strings.Contains(d.Reason, "billing is stale") || !strings.Contains(d.Reason, "/builder billing") || strings.Contains(d.Reason, "approved but not built") {
-		t.Fatalf("Decide = %+v, %v", d, err)
-	}
-}
-
-func TestSessionStartNamesTheFilesThatMadeASliceStale(t *testing.T) {
+func TestSessionStartNamesTheFilesThatChangedAVerifiedSlice(t *testing.T) {
 	s := verifiedBilling("verified")
 	g, _ := driftGuard(t, s, drifting{"billing": {"a.go", "b.go", "c.go", "d.go"}})
 	d, err := g.Decide(ctx, Event{Name: "SessionStart"})
-	if err != nil || !strings.Contains(d.Context, "billing: stale") || !strings.Contains(d.Context, "a.go, b.go, c.go and 1 more") {
+	if err != nil || !strings.Contains(d.Context, "billing: verified") || !strings.Contains(d.Context, "a.go, b.go, c.go and 1 more") || !strings.Contains(d.Context, "next: delta check billing confirms it still holds") {
 		t.Fatalf("Decide = %+v, %v", d, err)
 	}
 }
