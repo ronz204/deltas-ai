@@ -19,7 +19,7 @@ var statuses = []Status{Draft, Approved, Built, Verified, Stale}
 
 var moves = map[Status][]Status{
 	Draft:    {Approved},
-	Approved: {Built},
+	Approved: {Built, Verified},
 	Built:    {Built, Verified},
 	Verified: {Built},
 	Stale:    {Built, Verified},

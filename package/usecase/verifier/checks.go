@@ -92,7 +92,7 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File
 	case l.spec.Status == states.Verified:
 		s.Verified = true
 		return s, nil
-	case l.spec.Status != states.Built && l.spec.Status != states.Stale:
+	case !readyToVerify(l.spec.Status, footprint):
 		return s, nil
 	}
 	if err := v.verified(ctx, l); err != nil {
@@ -103,6 +103,16 @@ func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File
 	rep.Verified = append(rep.Verified, l.slice)
 	s.Verified = true
 	return s, nil
+}
+
+func readyToVerify(status states.Status, footprint []string) bool {
+	switch status {
+	case states.Built, states.Stale:
+		return true
+	case states.Approved:
+		return len(footprint) > 0
+	}
+	return false
 }
 
 func (v *Checker) verified(ctx context.Context, l loaded) error {

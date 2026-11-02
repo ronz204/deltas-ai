@@ -29,6 +29,7 @@ The person may speak plainly or call skills by name, in their own language. Ever
 |---|---|---|
 | New behavior | has no spec | `drafter` writes the spec first |
 | A change to what a spec promises | any | `drafter` revises the contract first: the slice goes back to `draft` and needs a new approval, then `builder` |
+| One promise of a `built` or `verified` slice changes in a small way (a limit, a value, one claim's wording) | `built`, `verified` | `drafter` amends it (its Amend path) and the person approves the change; then `delta check <slice>`, and `builder` only if a claim fails |
 | A bug fix, refactor or tweak that keeps every promise | any | Not routed: work as usual. At the end delta asks for `delta check` of the slices whose code was touched |
 | The spec is wrong, thin or missing something | any | `drafter` |
 | To build or fix something an approved spec already asks for | `approved`, `stale` | `builder` |
@@ -52,7 +53,7 @@ When `drafter` leaves a `draft`, summarize its claims in plain words, say which 
 
 ## Step 4 — Carry it through
 
-After each skill finishes, read `delta status` again and take the next step the state asks for: `approved` → `builder`, `built` → `auditor`. Stop and ask the person only when:
+After each skill finishes, read `delta status` again and take the next step the state asks for: `approved` → `builder`, `built` → `auditor`. An `approved` slice that was built before (it has `deltas/specs/<slice>.files`) is an amendment: run `delta check <slice>` first. If every test claim holds it ends `verified` and there is nothing to build; if one fails, `builder` fixes it. Stop and ask the person only when:
 
 - a claim's wording or an open question needs their decision;
 - a spec needs approval (Step 3);

@@ -18,17 +18,18 @@ func TestParseStatus(t *testing.T) {
 
 func TestCanAllowsOnlyTheMovesOfTheCycle(t *testing.T) {
 	legal := map[[2]Status]bool{
-		{Draft, Approved}: true,
-		{Approved, Built}: true,
-		{Built, Built}:    true,
-		{Built, Verified}: true,
-		{Verified, Built}: true,
-		{Stale, Built}:    true,
-		{Stale, Verified}: true,
-		{Approved, Draft}: true,
-		{Built, Draft}:    true,
-		{Verified, Draft}: true,
-		{Stale, Draft}:    true,
+		{Draft, Approved}:    true,
+		{Approved, Built}:    true,
+		{Approved, Verified}: true,
+		{Built, Built}:       true,
+		{Built, Verified}:    true,
+		{Verified, Built}:    true,
+		{Stale, Built}:       true,
+		{Stale, Verified}:    true,
+		{Approved, Draft}:    true,
+		{Built, Draft}:       true,
+		{Verified, Draft}:    true,
+		{Stale, Draft}:       true,
 	}
 	for _, from := range statuses {
 		for _, to := range statuses {

@@ -1,7 +1,7 @@
 ---
 name: drafter
 description: >-
-  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. comper hands the work to it whenever behavior is new or changes. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /drafter <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
+  Use to draft or revise the contract of a slice, i.e. to write its <slice>.spec.md. It investigates the real code, interviews the user about intent, scope, invariants and acceptance, then writes the claims with `delta spec write` as a draft for a person to approve. comper hands the work to it whenever behavior is new or changes, and for a small amendment (a limit, a value, one claim's wording) of a slice that is already built. Trigger when the user wants to "spec out" a slice, write or harden a spec, or asks what a spec is missing, e.g. "let's spec out X", "write the spec for X", "this spec needs hardening", /drafter <slice>. Never approves and never edits files under deltas/ directly. Not for a trivial single-file slice with no invariant worth protecting.
 argument-hint: <slice>
 ---
 
@@ -20,6 +20,18 @@ The slice is `$ARGUMENTS`; if it is empty, ask which slice. Interview the user i
 - Run `delta status` to see the slices and their state.
 - If `<slice>` has a spec (`deltas/specs/<slice>.spec.md`), read it in full. Every question below must be about a genuine gap or an update, not something already answered. Note its state: rewriting an approved or built contract sends it back to `draft`, and a person must approve it again.
 - If it has none, confirm the slice's name and boundary with the user first. The file is created in Step 4, once there is content for it.
+
+## Amend: a small change to a slice that is already built
+
+When the slice is `built` or `verified` and the request changes one or a few claims (a limit, a value, the wording of one invariant) without changing the slice's intent or scope, don't run the whole interview. Do this instead of Steps 1 to 3:
+
+- Read the claims that change and the code that governs them. Ask at most one question, only if the new value or wording is not already clear.
+- Write the whole spec with `delta spec write` (Step 4), with only those claims changed. IDs stay stable, and the frontmatter is `status: draft`.
+- Show the person **only** the before and after of each changed claim, and say whether its tag still names a test. Ask them to approve it.
+
+If the request adds claims, or changes the slice's intent, scope or contract, it is not an amendment: go on with Step 1.
+
+An approved amendment doesn't need a rebuild when its tests still hold: `comper` runs `delta check <slice>` next, and `builder` is called only if a claim fails.
 
 ## Step 1 — Investigate the real implementation
 

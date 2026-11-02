@@ -376,3 +376,59 @@ func TestTestingConfSaysWhatNeverCountsAsCode(t *testing.T) {
 		t.Fatalf("footprint = %q; the project's own patterns replace the lockfile defaults", got)
 	}
 }
+
+func amended(slice string) string {
+	return strings.Replace(spec(slice, "- INV-01 [test: git --version]\n  When x, z.\n"), "status: approved", "status: draft", 1)
+}
+
+func TestAnAmendedContractNeedsNoRebuildWhenItsTestsStillHold(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	p.write("src/billing/total.go", "package billing\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
+		t.Fatalf("ready = %d %q", code, errOut)
+	}
+	p.write("src/billing/total.go", "package billing\n\nfunc Total() {}\n")
+	if code, _, errOut := p.delta("", "built", "billing"); code != 0 {
+		t.Fatalf("built = %d %q", code, errOut)
+	}
+	if code, out, _ := p.delta("", "check"); code != 0 || !strings.Contains(out, "billing is verified") {
+		t.Fatalf("check = %d %q", code, out)
+	}
+
+	code, out, errOut := p.delta(amended("billing"), "spec", "write", "billing")
+	if code != 0 || !strings.Contains(out, "wrote") || !strings.Contains(errOut, "draft again") {
+		t.Fatalf("spec write = %d %q %q; want the amendment saved as a draft", code, out, errOut)
+	}
+	if code, _, errOut := p.delta("", "approve", "billing"); code != 0 {
+		t.Fatalf("approve = %d %q", code, errOut)
+	}
+	if got := p.read("deltas/specs/billing.spec.md"); !strings.Contains(got, "status: approved") || !strings.Contains(got, "When x, z.") {
+		t.Fatalf("spec = %q", got)
+	}
+
+	if code, out, _ := p.delta("", "check", "billing"); code != 0 || !strings.Contains(out, "billing is verified") {
+		t.Fatalf("check = %d %q; want the amended slice verified without a rebuild", code, out)
+	}
+	if got := p.read("deltas/specs/billing.spec.md"); !strings.Contains(got, "status: verified") {
+		t.Fatalf("spec = %q", got)
+	}
+	if got := p.read("deltas/specs/billing.files"); got != "src/billing/total.go\n" {
+		t.Fatalf("footprint = %q, want it kept through the amendment", got)
+	}
+}
+
+func TestAnApprovedSliceThatWasNeverBuiltStillNeedsBuilder(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	if code, out, _ := p.delta("", "check", "billing"); code != 0 || strings.Contains(out, "is verified") {
+		t.Fatalf("check = %d %q; nothing was built, so nothing is verified", code, out)
+	}
+	if got := p.read("deltas/specs/billing.spec.md"); !strings.Contains(got, "status: approved") {
+		t.Fatalf("spec = %q", got)
+	}
+}

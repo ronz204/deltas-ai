@@ -165,7 +165,17 @@ The agent writes each test first. A hook lints every test file as it is written,
 >
 > 🤖 **Agent:** (edits the file)
 >
-> A hook reports: *"billing was verified and is now stale"*. When the agent tries to finish, the `Stop` hook asks it, once, to run `delta check billing`. The agent does and reports each claim as `Holds`, `Violated` or `Unverified`. If the change touched behavior, `/builder billing` or `/drafter billing` takes it from there.
+> When the agent tries to finish, the `Stop` hook asks it, once, to run `delta check billing`, because it touched code of that slice. The agent does and reports each claim as `Holds`, `Violated` or `Unverified`. If they all hold, `billing` is still `verified` and the contract was never touched. If a claim fails, the agent fixes the code, or tells you that the promise itself changed.
+
+**8. A promise changes**
+
+> 👤 **You:** refunds can now be requested up to 60 days after the charge
+>
+> 🤖 **Agent:** That changes `INV-02` (45 days). It is a small amendment, so I won't interview you again. Before: *"When a refund is requested more than 45 days after the charge, billing rejects it."* After: *"…more than 60 days…"*. Do you approve the change?
+>
+> 👤 **You:** Yes.
+>
+> Claude Code asks you to confirm `delta approve billing`. Then the agent runs `delta check billing`. If the test of `INV-02` still holds, `billing` is `verified` again with no rebuild. If it fails because the code still says 45, the agent calls `/builder billing` to change it.
 
 **What you did in all this:** asked, answered, read the contract, said yes twice (the contract and the plan) and confirmed one command. Everything else was the agent's.
 
@@ -191,7 +201,7 @@ Plain requests work too: *"is billing still right?"* goes to Auditor, and *"chan
 - **`verified`**: every test claim held in the last check. If the code its tests cover changes afterwards, it stays `verified` and `delta status` shows it as `verified (2 files changed)`. Nothing is rewritten: `delta check` on the slice confirms it still holds and clears the note, and if a claim now fails, Builder fixes the code or Drafter revises the contract.
 - **`stale`**: only in specs written by an older Delta, which marked a slice stale on its own. `delta check` brings it back to `verified` once its test claims hold.
 
-Rewriting an `approved`, `built` or `verified` contract sends it back to `draft` and needs a new approval; Delta says so when it happens. A claim with no test never blocks `verified`: it stays on your screen as debt.
+Rewriting an `approved`, `built` or `verified` contract sends it back to `draft` and needs a new approval; Delta says so when it happens. If the slice was built before (it has a footprint), `delta check` takes it from `approved` straight to `verified` once every test claim holds, so a small amendment needs no rebuild. A slice that was never built still needs Builder. A claim with no test never blocks `verified`: it stays on your screen as debt.
 
 ### What you will see while you work
 

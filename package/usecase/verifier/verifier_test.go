@@ -74,6 +74,12 @@ var tests = fakeTests{{Path: "billing/total_test.go", Text: "// INV-01\n// INV-0
 
 func newVerify(specs fakeSpecs, run *fakeRunner) *Checker { return New(specs, tests, run, nil) }
 
+type fakePrints map[string][]string
+
+func (f fakePrints) Footprint(_ context.Context, slice string) ([]string, error) {
+	return f[slice], nil
+}
+
 func TestCheckJudgesEveryKindOfClaim(t *testing.T) {
 	specs := fakeSpecs{"billing": specOf("billing", passing, failing, uncited, manual, untagged)}
 	run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
@@ -290,5 +296,42 @@ func TestCheckDoesNotCallASliceVerifiedUnlessItHolds(t *testing.T) {
 		if s.Verified {
 			t.Errorf("%s is not verified after the check but Seen says it is", s.Slice)
 		}
+	}
+}
+
+func TestCheckVerifiesAnApprovedSliceThatWasBuiltBefore(t *testing.T) {
+	prints := fakePrints{"billing": {"billing/total.go"}}
+	specs := fakeSpecs{"billing": specOf("billing", passing)}
+	rep, err := New(specs, tests, &fakeRunner{}, nil).WithFootprints(prints).Check(ctx, "")
+	if err != nil || !reflect.DeepEqual(rep.Verified, []string{"billing"}) {
+		t.Fatalf("Check = %+v, %v", rep, err)
+	}
+	if !strings.Contains(specs["billing"], "status: verified") {
+		t.Fatalf("stored %q; an amended contract whose tests hold needs no rebuild", specs["billing"])
+	}
+}
+
+func TestCheckLeavesAnApprovedSliceAloneWhenItWasNeverBuiltOrAClaimFails(t *testing.T) {
+	prints := fakePrints{"billing": {"billing/total.go"}}
+	cases := map[string]struct {
+		spec   string
+		prints fakePrints
+	}{
+		"it was never built":      {specOf("billing", passing), nil},
+		"a claim is violated":     {specOf("billing", passing, failing), prints},
+		"a claim is unverified":   {specOf("billing", uncited, manual), prints},
+		"it has no test claim":    {specOf("billing", manual, untagged), prints},
+		"its footprint is empty":  {specOf("billing", passing), fakePrints{"billing": {}}},
+		"another slice was built": {specOf("billing", passing), fakePrints{"payments": {"p.go"}}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			specs := fakeSpecs{"billing": c.spec}
+			run := &fakeRunner{exits: map[string]int{"go test ./failing": 1}}
+			rep, err := New(specs, tests, run, nil).WithFootprints(c.prints).Check(ctx, "")
+			if err != nil || len(rep.Verified) != 0 || specs["billing"] != c.spec {
+				t.Fatalf("Check = %+v, %v; stored %q", rep, err, specs["billing"])
+			}
+		})
 	}
 }
