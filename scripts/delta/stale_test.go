@@ -72,6 +72,27 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 	}
 }
 
+// A change that no test command of the slice names is no drift: the slice depends on what its commands run.
+func TestAChangeOutsideWhatTheCommandsNameDoesNotMakeASliceStale(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
+	p.write("billing/billing_test.go", "// INV-01\n")
+	p.write("other/main.go", "package other\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
+	if code, _, _ := p.delta("", "check"); code != 0 {
+		t.Fatal("check failed")
+	}
+
+	p.write("other/main.go", "package other\n\nfunc F() {}\n")
+	if code, out, errOut := p.delta("", "stale"); code != 0 || out != "" {
+		t.Fatalf("stale = %d %q %q; other/ is not part of billing", code, out, errOut)
+	}
+	p.write("billing/total.go", "package billing\n")
+	if code, out, _ := p.delta("", "stale"); code != 1 || !strings.Contains(out, "billing/total.go") {
+		t.Fatalf("stale = %d %q; a new file in billing/ is drift", code, out)
+	}
+}
+
 // Nothing was verified on this machine, so there is nothing to compare: a fresh clone is not stale.
 func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 	p := gitProject(t)

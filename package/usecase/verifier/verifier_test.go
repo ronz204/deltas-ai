@@ -200,8 +200,8 @@ func TestCheckRemembersWhichSlicesWereViolated(t *testing.T) {
 	if want := map[string]bool{"billing": false, "payments": true}; !reflect.DeepEqual(marks.got, want) {
 		t.Fatalf("recorded %v, want %v (a spec with problems was never checked, so it is not recorded)", marks.got, want)
 	}
-	if billing := marks.seen[0].Scope; !billing.Covers("payments/pay.go") || !billing.Covers("deltas/specs/billing.spec.md") || billing.Covers("README.md") {
-		t.Fatalf("the scope of billing = %+v, want every code file and its spec", billing)
+	if billing := marks.seen[0].Scope; !billing.Covers("billing/total.go") || billing.Covers("payments/pay.go") || !billing.Covers("deltas/specs/billing.spec.md") || billing.Covers("README.md") {
+		t.Fatalf("the scope of billing = %+v, want only the code under ./billing and its spec", billing)
 	}
 }
 

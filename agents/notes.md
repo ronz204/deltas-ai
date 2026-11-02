@@ -254,3 +254,13 @@ The older sections of this file use the names the packages had when they were wr
 - `deployer` hashes each asset once in its plan, `drafting.hasError` is one `slices.ContainsFunc`, and the next doc to write in `tracking` is the first open one of the usual order followed by the others sorted.
 
 Still open: `source/adapter` (the command line and the hook) keeps its comments and its names, and "stale only for claims verified by reading" is not decided.
+
+## Stale: decided and done
+
+The question left open in Phase 1 ("stale only for claims verified by reading") was wrong: `verified` never depended on `manual` or `none` claims, and what `stale` tells the person is that the contract may be out of date, not that a test may fail (the Stop hook already asks for a check when code changes). Dropping it for slices with tests would have lost that signal.
+
+Decided instead: a slice depends on the code its test commands name. `linking.NewScope(spec, claims)` takes the paths of every `test:` command (`go test ./billing` is `billing/`, `./billing/...` is the package and below, `./...` or `.` is the whole project), and the slice depends on every code file as soon as one command names no path or it has no test claim. The spec of the slice always counts; Markdown and what delta installs never do. There is no configuration for it.
+
+It reaches `Scope.Covers`, so it narrows at once the part of the tree the ledger fingerprints, what `delta stale` and the `PostToolUse` hook report as drift, and when the `Stop` hook asks for a check. Known blind spot: a slice whose commands name `./billing` does not go stale when `shared/money`, which `billing` imports, changes.
+
+Tests: `TestScopeFollowsThePathsOfTheTestCommands`, `TestAChangeOutsideWhatTheCommandsNameDoesNotMakeASliceStale`, and the two `Stop` tests of `scripts/delta/stop_test.go`.

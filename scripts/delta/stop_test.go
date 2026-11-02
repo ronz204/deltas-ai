@@ -85,18 +85,35 @@ func billingProject(t *testing.T) *project {
 	return p
 }
 
-// A slice depends on every code file, as a command cannot say what its code reaches:
-// only documentation is left out.
-func TestStopAsksForACheckWhateverCodeChangesButNotDocumentation(t *testing.T) {
+func TestStopAsksForACheckOnlyWhenTheCodeOfTheSliceChanges(t *testing.T) {
 	p := billingProject(t)
 
 	p.write("README.md", "# a new readme\n")
+	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
-		t.Fatalf("a README: Stop = %d %q, want it allowed", code, errOut)
+		t.Fatalf("a README and code the command does not name: Stop = %d %q, want it allowed", code, errOut)
 	}
+	p.write("billing/total.go", "package billing\n\nfunc Total() {}\n")
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
+		t.Fatalf("code under ./billing: Stop = %d %q, want a block", code, errOut)
+	}
+	if code, out, _ := p.delta("", "check"); code != 0 || verdict(out, "billing", "INV-01") != "Holds" {
+		t.Fatalf("check = %d %q", code, out)
+	}
+	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 0 {
+		t.Fatalf("after the check: Stop = %d %q, want it allowed", code, errOut)
+	}
+}
+
+func TestStopAsksForACheckWhateverCodeChangesWhenTheCommandNamesNoPath(t *testing.T) {
+	p := gitProject(t)
+	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
+	p.write("billing_test.go", "// INV-01\n")
+	p.write("shared/money.go", "package shared\n")
+	commitAll(t, p, "chore(repo): add the billing slice")
 	p.write("shared/money.go", "package shared\n\nfunc Round() {}\n")
 	if code, _, errOut := p.delta(stopEvent(t, false), "hook"); code != 2 || !strings.Contains(errOut, "billing") {
-		t.Fatalf("a shared package: Stop = %d %q, want a block, the command names only ./billing", code, errOut)
+		t.Fatalf("a command with no path: Stop = %d %q, want a block for any code", code, errOut)
 	}
 }
 

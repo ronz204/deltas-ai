@@ -57,8 +57,8 @@ func TestReport(t *testing.T) {
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows:\n got %+v\nwant %+v", rows, want)
 	}
-	if a := scopes[0]; !a.Covers("a/x.go") || !a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/specs/a.spec.md") {
-		t.Fatalf("the scope of a = %+v, want every code file and its spec", a)
+	if a := scopes[0]; !a.Covers("a/x.go") || a.Covers("b/x.go") || a.Covers("README.md") || !a.Covers("deltas/specs/a.spec.md") {
+		t.Fatalf("the scope of a = %+v, want only the code under ./a and its spec", a)
 	}
 }
 

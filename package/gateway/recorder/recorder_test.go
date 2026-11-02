@@ -44,8 +44,8 @@ func (t *tree) Tree(_ context.Context, scope linking.Scope) (string, bool, error
 }
 
 var (
-	billing  = linking.NewScope("deltas/specs/billing.spec.md")
-	payments = linking.NewScope("deltas/specs/payments.spec.md")
+	billing  = linking.NewScope("deltas/specs/billing.spec.md", nil)
+	payments = linking.NewScope("deltas/specs/payments.spec.md", nil)
 )
 
 func TestARecordedSliceStandsOnlyOnTheTreeItSaw(t *testing.T) {

@@ -80,7 +80,7 @@ func (r *Reporter) Report(ctx context.Context) ([]Row, error) {
 		}
 		file := r.specs.Path(name)
 		sp, ds := specfile.ParseSlice(file, name, src)
-		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linking.NewScope(file), Changed: changed[name]}
+		row := Row{Slice: name, Status: sp.Status, Claims: len(sp.Claims), Issues: len(ds), Scope: linking.NewScope(file, sp.Claims), Changed: changed[name]}
 		for _, c := range sp.Claims {
 			switch c.Tag.Method {
 			case claimset.Test:

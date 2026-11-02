@@ -1,12 +1,34 @@
 package linking
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ronz204/deltas-ai/package/domain/claimset"
+)
 
 type Scope struct {
-	spec string
+	spec  string
+	paths []string
 }
 
-func NewScope(spec string) Scope { return Scope{spec: spec} }
+func NewScope(spec string, claims []claimset.Claim) Scope {
+	return Scope{spec: spec, paths: testPaths(claims)}
+}
+
+func testPaths(claims []claimset.Claim) []string {
+	var paths []string
+	for _, c := range claims {
+		if c.Tag.Method != claimset.Test {
+			continue
+		}
+		named := pathsIn(c.Tag.Arg)
+		if len(named) == 0 {
+			return nil
+		}
+		paths = append(paths, named...)
+	}
+	return paths
+}
 
 func (s Scope) Covers(file string) bool {
 	switch {
@@ -15,7 +37,7 @@ func (s Scope) Covers(file string) bool {
 	case strings.HasSuffix(file, ".md"), isDelta(file):
 		return false
 	}
-	return true
+	return underAny(file, s.paths)
 }
 
 func isDelta(file string) bool {

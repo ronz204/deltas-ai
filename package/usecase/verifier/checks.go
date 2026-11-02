@@ -62,7 +62,7 @@ func (v *Checker) Check(ctx context.Context, only string) (Report, error) {
 }
 
 func (v *Checker) checkSlice(ctx context.Context, l loaded, files []linking.File, rep *Report) (Seen, error) {
-	s := Seen{Slice: l.slice, Scope: linking.NewScope(l.file)}
+	s := Seen{Slice: l.slice, Scope: linking.NewScope(l.file, l.spec.Claims)}
 	var held, open int
 	for _, c := range l.spec.Claims {
 		if err := ctx.Err(); err != nil {

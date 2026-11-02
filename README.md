@@ -116,7 +116,7 @@ Whatever a linter can check goes to a linter, not to a rule. Commit messages are
 
 - **Promised: reliability of the system.** The CLI validates, states are respected, drift is detected. This is tested with ordinary tests, with no model involved.
 - **Not promised yet: better results.** Whether an agent writes better code with Delta has not been measured. Delta does not claim token savings either: more orientation costs tokens, and the saving is a hypothesis.
-- **Gates detect, they don't guarantee.** A `Holds` means the command exited 0 and a test cites the claim's ID, not that the test ran or is a good test. Drift detection is by referenced file, which is a heuristic. The honest promise is "problems don't go unnoticed", not "there are no problems".
+- **Gates detect, they don't guarantee.** A `Holds` means the command exited 0 and a test cites the claim's ID, not that the test ran or is a good test. Drift detection is by referenced file, which is a heuristic: a slice depends on the code its test commands name (`go test ./billing` means `billing/`), and on every code file when a command names no path. The honest promise is "problems don't go unnoticed", not "there are no problems".
 
 ## Using this repo today
 

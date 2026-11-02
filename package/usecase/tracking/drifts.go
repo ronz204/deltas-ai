@@ -34,7 +34,7 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 		if len(ds) > 0 || (sp.Status != states.Verified && sp.Status != states.Stale) {
 			continue
 		}
-		files, known, err := r.baselines.Drift(ctx, name, linking.NewScope(file))
+		files, known, err := r.baselines.Drift(ctx, name, linking.NewScope(file, sp.Claims))
 		if err != nil {
 			return out, err
 		}

@@ -12,7 +12,7 @@ import (
 
 var ctx = context.Background()
 
-var everything = linking.NewScope("")
+var everything = linking.NewScope("", nil)
 
 func repo(t *testing.T) string {
 	t.Helper()
