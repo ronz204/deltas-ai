@@ -20,6 +20,7 @@ func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 
 	for _, rel := range []string{
 		".githooks/commit-msg", "deltas/specs/.gitkeep", "deltas/deltas.config", "CLAUDE.md",
+		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
 		".claude/settings.json", ".claude/rules/fidelity.md",
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 	} {
@@ -117,5 +118,34 @@ func TestInitLeavesOutTheBasePresetWhenTheConfigTurnsItOff(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(p.root, filepath.FromSlash(rel))); (err == nil) != want {
 			t.Errorf("%s installed = %v, want %v", rel, err == nil, want)
 		}
+	}
+}
+
+// The docs are seeds: init installs the templates, status asks for the first one, and neither a second init
+// nor delta update touches what a person wrote.
+func TestInitInstallsDocTemplatesThatStatusTracksAndUpdateLeavesAlone(t *testing.T) {
+	p := gitProject(t)
+	if code, _, errOut := p.delta("", "init"); code != 0 {
+		t.Fatalf("init = %d %q", code, errOut)
+	}
+	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 0 of 4 written; next: /atlas overview") {
+		t.Fatalf("status = %d %q", code, out)
+	}
+	if !strings.Contains(p.read("deltas/docs/overview.md"), "of "+filepath.Base(p.root)+".") {
+		t.Errorf("overview.md does not name the project:\n%s", p.read("deltas/docs/overview.md"))
+	}
+
+	written := "# Overview\n\nWhat the project is.\n"
+	p.write("deltas/docs/overview.md", written)
+	if code, out, _ := p.delta("", "status"); code != 0 || !strings.Contains(out, "docs: 1 of 4 written; next: /atlas structure") {
+		t.Fatalf("status = %d %q", code, out)
+	}
+	for _, args := range [][]string{{"init"}, {"update"}} {
+		if code, _, errOut := p.delta("", args...); code != 0 {
+			t.Fatalf("%v = %d %q", args, code, errOut)
+		}
+	}
+	if got := p.read("deltas/docs/overview.md"); got != written {
+		t.Fatalf("a doc a person wrote was changed:\n%s", got)
 	}
 }

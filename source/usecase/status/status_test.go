@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ronz204/deltas-ai/source/domain/budget"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 )
@@ -193,5 +194,43 @@ func TestReportShowsWhatWentStaleAndStillWorksWhenDriftCannotBeTold(t *testing.T
 	rows, err = New(specs, nil).WithDrift(brokenDrift{}, specs).Report(context.Background())
 	if err != nil || rows[0].Status != lifecycle.Verified {
 		t.Fatalf("rows = %+v, %v; a status report must not fail because git did", rows, err)
+	}
+}
+
+type docFiles []budget.File
+
+func (d docFiles) Glob(context.Context, []string) ([]budget.File, error) { return d, nil }
+
+func TestDocsCountsTheWrittenOnesAndNamesTheNextInOrder(t *testing.T) {
+	files := docFiles{
+		{Path: "deltas/docs/approach.md", Text: "# Approach\n\n<!-- todo -->\n"},
+		{Path: "deltas/docs/overview.md", Text: "# Overview\n\nA real doc.\n"},
+		{Path: "deltas/docs/structure.md", Text: "# Structure\n\n<!-- todo -->\n"},
+		{Path: "deltas/docs/expertise.md", Text: "# Expertise\n\nDone.\n"},
+		{Path: "deltas/docs/deep/other.md", Text: "<!-- not a doc -->"},
+	}
+	got, err := New(fake{}, nil).WithDocs(files).Docs(context.Background())
+	if want := (DocsRow{Total: 4, Filled: 2, Next: "structure"}); err != nil || got != want {
+		t.Fatalf("Docs = %+v, %v; want %+v", got, err, want)
+	}
+}
+
+func TestDocsHasNoNextWhenAllAreWrittenOrThereAreNone(t *testing.T) {
+	done := docFiles{{Path: "deltas/docs/overview.md", Text: "ok"}}
+	if got, _ := New(fake{}, nil).WithDocs(done).Docs(context.Background()); got != (DocsRow{Total: 1, Filled: 1}) {
+		t.Errorf("Docs = %+v", got)
+	}
+	if got, err := New(fake{}, nil).WithDocs(docFiles{}).Docs(context.Background()); err != nil || got != (DocsRow{}) {
+		t.Errorf("Docs of a project with none = %+v, %v", got, err)
+	}
+	if got, err := New(fake{}, nil).Docs(context.Background()); err != nil || got != (DocsRow{}) {
+		t.Errorf("Docs with nothing to read files from = %+v, %v", got, err)
+	}
+}
+
+func TestDocsNamesAnExtraTemplateWhenTheUsualOnesAreDone(t *testing.T) {
+	files := docFiles{{Path: "deltas/docs/overview.md", Text: "ok"}, {Path: "deltas/docs/security.md", Text: "<!-- x -->"}}
+	if got, _ := New(fake{}, nil).WithDocs(files).Docs(context.Background()); got.Next != "security" {
+		t.Errorf("Docs = %+v, want security next", got)
 	}
 }

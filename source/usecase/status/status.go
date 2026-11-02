@@ -7,6 +7,8 @@ import (
 	"slices"
 
 	"github.com/ronz204/deltas-ai/source/domain/assertion"
+	"github.com/ronz204/deltas-ai/source/domain/budget"
+	"github.com/ronz204/deltas-ai/source/domain/docs"
 	"github.com/ronz204/deltas-ai/source/domain/lifecycle"
 	"github.com/ronz204/deltas-ai/source/domain/linkcheck"
 	"github.com/ronz204/deltas-ai/source/domain/specfile"
@@ -29,11 +31,17 @@ type Saver interface {
 	Save(ctx context.Context, slice string, content []byte) error
 }
 
+// Files reads the project files that match patterns, where * stands for part of one folder or file name.
+type Files interface {
+	Glob(ctx context.Context, patterns []string) ([]budget.File, error)
+}
+
 type Reporter struct {
 	specs     Specs
 	scopes    map[string][]string
 	baselines Baselines
 	saver     Saver
+	files     Files
 }
 
 // New builds the reporter. scopes holds, for the slices that have them, the paths deltas.config says they depend on.
@@ -45,6 +53,12 @@ func New(specs Specs, scopes map[string][]string) *Reporter {
 // stale. Without it nothing is ever stale. It returns the reporter.
 func (r *Reporter) WithDrift(b Baselines, s Saver) *Reporter {
 	r.baselines, r.saver = b, s
+	return r
+}
+
+// WithDocs makes the reporter able to say how many of the docs for people are written. It returns the reporter.
+func (r *Reporter) WithDocs(f Files) *Reporter {
+	r.files = f
 	return r
 }
 
@@ -174,4 +188,51 @@ func (r *Reporter) Stale(ctx context.Context) ([]Drift, error) {
 		out = append(out, d)
 	}
 	return out, nil
+}
+
+// DocsRow says how many of the docs for people are written, and which one to write next.
+type DocsRow struct {
+	Total  int
+	Filled int
+	Next   string // the first doc, in the order docs.Order gives, that is not written yet; empty when all are
+}
+
+// Docs counts the templates delta installed under deltas/docs/ and how many of them were written. It reports
+// nothing (a zero row) for a project with no docs or when the reporter cannot read files.
+func (r *Reporter) Docs(ctx context.Context) (DocsRow, error) {
+	if r.files == nil {
+		return DocsRow{}, nil
+	}
+	found, err := r.files.Glob(ctx, []string{docs.Dir + "/*.md"})
+	if err != nil {
+		return DocsRow{}, err
+	}
+	var row DocsRow
+	open := map[string]bool{}
+	for _, f := range found {
+		name, ok := docs.Name(f.Path)
+		if !ok {
+			continue
+		}
+		row.Total++
+		if docs.Filled(f.Text) {
+			row.Filled++
+		} else {
+			open[name] = true
+		}
+	}
+	for _, name := range docs.Order {
+		if open[name] {
+			row.Next = name
+			break
+		}
+	}
+	if row.Next == "" { // a doc outside the usual four
+		for name := range open {
+			if row.Next == "" || name < row.Next {
+				row.Next = name
+			}
+		}
+	}
+	return row, nil
 }

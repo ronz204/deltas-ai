@@ -24,7 +24,7 @@ func (Bundle) GitHook(name string) ([]byte, error) {
 func (Bundle) Settings() ([]byte, error) { return harness.FS.ReadFile("core/configs/settings.json") }
 
 // Assets lists what init copies into a project, in a fixed order: the skills and the rules under .claude/,
-// deltas/deltas.config, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
+// deltas/deltas.config, the doc templates under deltas/docs/, and a CLAUDE.md that names the project. Rules from any subfolder of rules/ land in .claude/rules/.
 func (Bundle) Assets(project string) ([]setup.Asset, error) {
 	var out []setup.Asset
 	err := fs.WalkDir(harness.FS, ".", func(p string, d fs.DirEntry, err error) error {
@@ -39,8 +39,8 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 		if err != nil {
 			return err
 		}
-		if p == "core/templates/CLAUDE.md" {
-			if content, err = fill(content, project); err != nil {
+		if p == "core/templates/CLAUDE.md" || strings.HasPrefix(p, "docs/") {
+			if content, err = fill(p, content, project); err != nil {
 				return err
 			}
 		}
@@ -51,7 +51,7 @@ func (Bundle) Assets(project string) ([]setup.Asset, error) {
 }
 
 // managed says whether delta keeps a harness file up to date once it is installed: the skills and the rules.
-// The CLAUDE.md and deltas.config it starts a project with are the project's from then on.
+// The CLAUDE.md, deltas.config and doc templates it starts a project with are the project's from then on.
 func managed(p string) bool { return strings.HasPrefix(p, "skills/") || strings.HasPrefix(p, "rules/") }
 
 // destination maps a path in the harness to its place in a project; not every file is copied.
@@ -65,6 +65,8 @@ func destination(p string) (string, bool) {
 		return "deltas/deltas.config", true
 	case p == "core/templates/CLAUDE.md":
 		return "CLAUDE.md", true
+	case strings.HasPrefix(p, "docs/"):
+		return "deltas/" + p, true
 	}
 	return "", false
 }
@@ -76,8 +78,8 @@ func mode(dest string) fs.FileMode {
 	return 0o644
 }
 
-func fill(text []byte, project string) ([]byte, error) {
-	t, err := template.New("CLAUDE.md").Parse(string(text))
+func fill(name string, text []byte, project string) ([]byte, error) {
+	t, err := template.New(name).Parse(string(text))
 	if err != nil {
 		return nil, err
 	}

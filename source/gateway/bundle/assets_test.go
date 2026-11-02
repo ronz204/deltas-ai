@@ -33,6 +33,7 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 	for _, want := range []string{
 		".claude/skills/quill/SKILL.md", ".claude/skills/forge/SKILL.md", ".claude/skills/seal/SKILL.md",
 		".claude/rules/fidelity.md", ".claude/rules/honesty.md", ".claude/rules/base-scope.md", ".claude/rules/base-reliability.md", "deltas/deltas.config", "CLAUDE.md",
+		"deltas/docs/overview.md", "deltas/docs/structure.md", "deltas/docs/expertise.md", "deltas/docs/approach.md",
 	} {
 		if _, ok := by[want]; !ok {
 			t.Errorf("%s is not installed", want)
@@ -42,7 +43,7 @@ func TestAssetsGoWhereClaudeCodeLooksForThem(t *testing.T) {
 		if strings.HasPrefix(path, ".githooks") || strings.Contains(path, "settings.json") || path == "spec.md" {
 			t.Errorf("%s is installed by another route, or not at all", path)
 		}
-		if strings.Contains(path, "/core/") || strings.HasPrefix(path, "core/") || strings.HasPrefix(path, "rules/") || strings.HasPrefix(path, "skills/") {
+		if strings.Contains(path, "/core/") || strings.HasPrefix(path, "core/") || strings.HasPrefix(path, "docs/") || strings.HasPrefix(path, "rules/") || strings.HasPrefix(path, "skills/") {
 			t.Errorf("%s keeps a harness path", path)
 		}
 	}
@@ -89,5 +90,26 @@ func TestSettingsAreTheFragmentWithTheHooks(t *testing.T) {
 	raw, err := Bundle{}.Settings()
 	if err != nil || !strings.Contains(string(raw), `"delta hook"`) {
 		t.Fatalf("Settings = %q, %v", raw, err)
+	}
+}
+
+// The doc templates are the project's once installed: they name the project and delta update leaves them alone.
+func TestDocTemplatesNameTheProjectAndBelongToIt(t *testing.T) {
+	var found int
+	for path, a := range assetsOf(t) {
+		if !strings.HasPrefix(path, "deltas/docs/") {
+			continue
+		}
+		found++
+		text := string(a.Content)
+		if a.Managed || strings.Contains(text, "{{") || !strings.Contains(text, "covers: []") || !strings.Contains(text, "reviewed:") || !strings.Contains(text, "## Non-goals") {
+			t.Errorf("%s: managed = %v; want a template with covers, reviewed and a Non-goals footer, owned by the project", path, a.Managed)
+		}
+	}
+	if found != 4 {
+		t.Errorf("found %d doc templates, want 4", found)
+	}
+	if !strings.Contains(string(assetsOf(t)["deltas/docs/overview.md"].Content), "of acme.") {
+		t.Error("overview.md does not name the project")
 	}
 }

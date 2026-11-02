@@ -10,6 +10,7 @@
 |---|---|
 | The contract of a capability before changing its behavior | `deltas/specs/`: list the folder and open the spec that matches |
 | Which contracts are stale or unverified | `delta status` |
+| Why the project is built the way it is, or what a domain term means | `deltas/docs/`: written for people, so open one only when the task is about those concepts |
 | A convention for the files you are editing | Nothing to do: `.claude/rules/` loads by itself when a matching file is read |
 
 ## Commands

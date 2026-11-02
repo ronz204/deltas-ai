@@ -42,7 +42,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 	git := gitcli.New(root)
 	cache, _ := os.UserCacheDir() // without one, checks are not remembered and Stop asks for them again
 	checks := ledger.New(cache, root, git)
-	report := status.New(vault, conf.Scopes).WithDrift(checks, vault)
+	report := status.New(vault, conf.Scopes).WithDrift(checks, vault).WithDocs(vault)
 	installer := setup.New(vault, git, bundle.Bundle{}, programs, conf)
 	checker := verify.New(vault, vault, programs, checks, conf.Scopes)
 	app := cmd.New(cmd.Deps{

@@ -3,7 +3,7 @@ package harness
 
 import "embed"
 
-// FS holds core/, skills/ and rules/; embed skips names starting with "." or "_", so the git hooks live in core/githooks.
+// FS holds core/, docs/, skills/ and rules/; embed skips names starting with "." or "_", so the git hooks live in core/githooks.
 //
-//go:embed core skills rules
+//go:embed core docs skills rules
 var FS embed.FS

@@ -114,7 +114,7 @@ func (m *memory) run(stdin string, args ...string) (out, errOut string, err erro
 	cmd := New(Deps{
 		Author:    author.New(m, m),
 		Checker:   verify.New(m, m, m, nil, nil),
-		Report:    status.New(m, nil),
+		Report:    status.New(m, nil).WithDocs(m),
 		Guard:     guard.New(root, status.New(m, nil), installer, nil, nil),
 		Installer: installer,
 		Meter:     measure.New(m, budget.Defaults()),

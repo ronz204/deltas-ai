@@ -11,7 +11,7 @@ func TestCovers(t *testing.T) {
 	no := []string{
 		"", "README.md", "docs/CLAUDE.md", "main.go",
 		".claude/settings.json", ".claude/settings.local.json", ".claude/budget.conf", ".claude/docs", ".claudeX/docs/a.md",
-		"deltas", "mydeltas/a.md", "deltas/sub/x.md", "specs/x.spec.md", "src/specs/x.md", "internal/harness/rules/core/x.md",
+		"deltas", "mydeltas/a.md", "deltas/sub/x.md", "deltas/docs/overview.md", "specs/x.spec.md", "src/specs/x.md", "internal/harness/rules/core/x.md",
 	}
 	for _, p := range yes {
 		if !Covers(p) {

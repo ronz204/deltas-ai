@@ -3,6 +3,8 @@ package cmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/ronz204/deltas-ai/source/domain/budget"
 )
 
 func TestInitReportsEachStep(t *testing.T) {
@@ -69,5 +71,25 @@ func TestStatusIsSilentWhenDeltaIsSetUp(t *testing.T) {
 	m.specs["billing"] = head + claim("INV-01", "none")
 	if _, errOut, err := m.run("", "status"); err != nil || errOut != "" {
 		t.Fatalf("stderr = %q, err = %v; want silence", errOut, err)
+	}
+}
+
+func TestStatusSaysHowManyDocsAreWrittenAndWhichIsNext(t *testing.T) {
+	m := newMemory()
+	m.kb = []budget.File{
+		{Path: "deltas/docs/overview.md", Text: "# Overview\n\nWritten.\n"},
+		{Path: "deltas/docs/structure.md", Text: "# Structure\n\n<!-- todo -->\n"},
+	}
+	out, _, err := m.run("", "status")
+	if err != nil || !strings.Contains(out, "docs: 1 of 2 written; next: /atlas structure\n") {
+		t.Fatalf("status = %q, %v", out, err)
+	}
+	m.kb = []budget.File{{Path: "deltas/docs/overview.md", Text: "Written."}}
+	if out, _, _ := m.run("", "status"); !strings.Contains(out, "docs: all 1 written\n") {
+		t.Fatalf("status = %q", out)
+	}
+	m.kb = nil
+	if out, _, _ := m.run("", "status"); strings.Contains(out, "docs:") {
+		t.Fatalf("status = %q; a project with no docs says nothing about them", out)
 	}
 }

@@ -23,6 +23,9 @@ func statusCmd(d Deps) *cobra.Command {
 			if err := printRows(cmd.OutOrStdout(), rows); err != nil {
 				return err
 			}
+			if row, err := d.Report.Docs(cmd.Context()); err == nil {
+				printDocs(cmd.OutOrStdout(), row)
+			}
 			for _, problem := range d.Installer.Check(cmd.Context()) {
 				fmt.Fprintln(cmd.ErrOrStderr(), "warning:", problem)
 			}
@@ -49,4 +52,15 @@ func printRows(out io.Writer, rows []status.Row) error {
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\n", r.Slice, state, r.Claims, r.Test, r.Manual, r.None, r.Issues)
 	}
 	return tw.Flush()
+}
+
+// printDocs says how far the docs for people are; a project with none says nothing.
+func printDocs(out io.Writer, row status.DocsRow) {
+	switch {
+	case row.Total == 0:
+	case row.Next == "":
+		fmt.Fprintf(out, "docs: all %d written\n", row.Total)
+	default:
+		fmt.Fprintf(out, "docs: %d of %d written; next: /atlas %s\n", row.Filled, row.Total, row.Next)
+	}
 }
