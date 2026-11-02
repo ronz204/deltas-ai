@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// A project whose tests are Ruby specs: testing.conf says so, and a citation in one of them makes a claim hold.
 func TestTestingConfChoosesWhichFilesAreTests(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))
@@ -23,7 +22,6 @@ func TestTestingConfChoosesWhichFilesAreTests(t *testing.T) {
 	}
 }
 
-// A folder named in skip is never searched, so a test file inside it cites nothing.
 func TestTestingConfChoosesWhereNotToLookForTests(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: "+command("pass"))))

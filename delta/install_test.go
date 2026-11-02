@@ -10,7 +10,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/conffile"
 )
 
-// Everything init installs in a new repository, and that delta works on it afterwards.
 func TestInitInstallsTheHarnessAndDeltaWorksOnIt(t *testing.T) {
 	p := gitProject(t)
 	code, out, errOut := p.delta("", "init")
@@ -95,8 +94,6 @@ func TestInitKeepsWhatTheProjectAlreadyHas(t *testing.T) {
 	}
 }
 
-// The docs are seeds: init installs the templates, status asks for the first one, and neither a second init
-// nor delta update touches what a person wrote.
 func TestInitInstallsDocTemplatesThatStatusTracksAndUpdateLeavesAlone(t *testing.T) {
 	p := gitProject(t)
 	if code, _, errOut := p.delta("", "init"); code != 0 {

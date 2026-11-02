@@ -16,7 +16,6 @@ func stopEvent(t *testing.T, active bool) string {
 	return string(raw)
 }
 
-// The whole loop: Claude changes the tree and tries to finish, delta check runs, and Claude may finish.
 func TestStopWaitsForACheckOfTheCurrentTree(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
@@ -67,7 +66,6 @@ func TestStopSaysWhenTheCheckFoundAViolation(t *testing.T) {
 	}
 }
 
-// billingProject is a committed repository with one slice whose command names ./billing, and other code beside it.
 func billingProject(t *testing.T) *project {
 	t.Helper()
 	p := gitProject(t)
@@ -142,7 +140,6 @@ func TestPostToolUseLintsTheTestFileJustWritten(t *testing.T) {
 	}
 }
 
-// Builder's turn: code written for an approved slice is pending work until delta built, then delta check closes it.
 func TestStopPointsAtForgeUntilTheSliceIsBuilt(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", spec("billing", claimOf("INV-01", "test: git --version")))

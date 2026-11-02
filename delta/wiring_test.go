@@ -11,14 +11,12 @@ import (
 	"testing"
 )
 
-// TestHelperProcess is the command the claims run: this test binary again, told by its argument to pass or fail.
 func TestHelperProcess(t *testing.T) {
 	if flag.Arg(0) == "fail" {
 		os.Exit(1)
 	}
 }
 
-// command is a claim command that exits 0 (pass) or 1 (fail); extra words are ignored by the helper but can name a path.
 func command(mode string, extra ...string) string {
 	return strings.Join(append([]string{fmt.Sprintf(`"%s" -test.run=^TestHelperProcess$ %s`, os.Args[0], mode)}, extra...), " ")
 }
@@ -28,7 +26,6 @@ type project struct {
 	root string
 }
 
-// isolateCache points the user's cache directory at a temporary one, so no test writes the real one.
 func isolateCache(t *testing.T) {
 	t.Helper()
 	cache := t.TempDir()
@@ -307,7 +304,6 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 	}
 }
 
-// One deltas/ per project: a monorepo keeps every spec in the root's, and a nested deltas/ is not read.
 func TestAMonorepoHasOneDeltasFolderAtTheRoot(t *testing.T) {
 	p := newProject(t)
 	p.write("deltas/specs/login.spec.md", spec("login", claimOf("INV-01", "test: "+command("pass", "./services/auth"))))
@@ -329,7 +325,6 @@ func TestAMonorepoHasOneDeltasFolderAtTheRoot(t *testing.T) {
 	}
 }
 
-// built is a spec of a slice whose code is done, the state in which Stop expects a delta check.
 func built(slice string, claims ...string) string {
 	return strings.Replace(spec(slice, claims...), "status: approved", "status: built", 1)
 }

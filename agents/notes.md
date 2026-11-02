@@ -270,3 +270,14 @@ Tests: `TestScopeFollowsThePathsOfTheTestCommands`, `TestAChangeOutsideWhatTheCo
 `source/adapter` is now `package/adapter`, and `source/` is gone: `cmd` is `terminal` (the command line) and `hook` is `listener` (the Claude Code hook events), both 8 characters with no icon in Material Icon Theme. `terminal/program.go` is `terminal.go`, `stale.go` is `drifts.go` and `hook.go` is `listener.go`. No comments; `foundIn` is one `slices.ContainsFunc`, and `init` and `update` print their steps through `printSteps`.
 
 The Go code is now `scripts/delta` (the wiring) and `package/{domain,usecase,gateway,adapter}`.
+
+## Phase 9: the entrypoint
+
+`scripts/delta` is `delta/` at the root, and `scripts/` is gone. The folder has to be called `delta` because `go install` names the binary after it, and the hooks, `Locate("delta")` and the `delta (deltas-ai) <version>` line all depend on that name. Build it with `go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o delta ./delta` to set the version (the README says so now, and the comment that said it is gone).
+
+- `run.go` is split in `wiring.go` (`run`, `newApp` and `exitCode`) and `config.go` (`loadConf`); `main.go` only starts the program. No comments.
+- The tests keep the package `main` and take 6 to 8 characters: `wiring_test`, `install_test`, `stopping_test`, `drifts_test`, `config_test`, `hooking_test` (`budget_test`, `compat_test` and `update_test` are unchanged).
+- The `commits` job of `.github/workflows/ci.yml` is removed: it built the CLI and ran `delta commit-msg` on every commit of a pull request, and that command went away in Phase 1 together with the git hook. Commit messages are a rule now, so nothing in CI checks them.
+- Checked by hand: the binary built from `./delta` runs `delta version`, `delta init` (22 files installed in a new repository) and `delta status`.
+
+The Go code is now `delta/` (the entrypoint) and `package/{domain,usecase,gateway,adapter}`; the sections above keep the paths they had when they were written.

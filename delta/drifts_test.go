@@ -30,8 +30,6 @@ func commitAll(t *testing.T, p *project, message string) {
 	}
 }
 
-// The whole loop of Phase 5: a slice is verified, its code changes, and delta says so on its own, until the slice
-// is built and verified again.
 func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))
@@ -57,7 +55,6 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 		t.Fatalf("stale = %d %q; want it to list main.go and fail", code, out)
 	}
 
-	// Builder rebuilds it: built, then checked, which is the new baseline.
 	if code, _, errOut := p.delta("", "ready", "billing"); code != 0 {
 		t.Fatalf("ready = %d %q; a stale slice is ready for Builder", code, errOut)
 	}
@@ -72,7 +69,6 @@ func TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain(t *testing.
 	}
 }
 
-// A change that no test command of the slice names is no drift: the slice depends on what its commands run.
 func TestAChangeOutsideWhatTheCommandsNameDoesNotMakeASliceStale(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: "+command("pass", "./billing"))))
@@ -93,7 +89,6 @@ func TestAChangeOutsideWhatTheCommandsNameDoesNotMakeASliceStale(t *testing.T) {
 	}
 }
 
-// Nothing was verified on this machine, so there is nothing to compare: a fresh clone is not stale.
 func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", strings.Replace(built("billing", claimOf("INV-01", "test: git --version")), "status: built", "status: verified", 1))
@@ -105,7 +100,6 @@ func TestASliceThatWasNeverVerifiedHereIsNotStale(t *testing.T) {
 	}
 }
 
-// What delta installs is not code: running update, or editing budget.conf, must not make a slice stale.
 func TestChangingDeltasOwnFilesDoesNotMakeASliceStale(t *testing.T) {
 	p := gitProject(t)
 	p.write("deltas/specs/billing.spec.md", built("billing", claimOf("INV-01", "test: git --version")))

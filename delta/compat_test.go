@@ -9,12 +9,11 @@ import (
 	"testing"
 )
 
-// The same claims with the same evidence must get the same verdicts in every language.
 var wantVerdicts = map[string]string{
 	"INV-01": "Holds",
 	"INV-02": "Violated",
-	"INV-03": "Unverified", // the command exits 0 but no test cites it
-	"INV-04": "Holds",      // a skipped test exits 0: the known limit, which lint warns about
+	"INV-03": "Unverified",
+	"INV-04": "Holds",
 	"INV-05": "Unverified",
 	"ACC-01": "Unverified",
 }

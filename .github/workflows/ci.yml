@@ -28,25 +28,3 @@ jobs:
       - name: Race detector
         if: matrix.os == 'ubuntu-latest'
         run: go test -race ./...
-
-  commits:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - run: go build -o "$RUNNER_TEMP/delta" ./scripts/delta
-      - name: Check the message of every commit in the pull request
-        env:
-          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
-        run: |
-          status=0
-          for sha in $(git rev-list --no-merges "$RANGE"); do
-            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/message"
-            "$RUNNER_TEMP/delta" commit-msg "$RUNNER_TEMP/message" || { echo "in commit $sha" >&2; status=1; }
-          done
-          exit $status

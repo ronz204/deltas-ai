@@ -9,8 +9,6 @@ import (
 	"github.com/ronz204/deltas-ai/package/domain/manifest"
 )
 
-// init records what it installed, and update then keeps the harness current without touching what the project
-// changed or what is the project's own.
 func TestUpdateKeepsTheHarnessCurrentAndTheProjectsChanges(t *testing.T) {
 	p := gitProject(t)
 	p.delta("", "init")
@@ -21,7 +19,6 @@ func TestUpdateKeepsTheHarnessCurrentAndTheProjectsChanges(t *testing.T) {
 		t.Fatalf("a fresh install is out of date: %d %q", code, out)
 	}
 
-	// The project edits a rule and loses a skill; a skill delta used to ship and a config of its own remain.
 	p.write(".claude/rules/claims-fidelity.md", "# our own rule\n")
 	if err := os.Remove(filepath.Join(p.root, ".claude", "skills", "auditor", "SKILL.md")); err != nil {
 		t.Fatal(err)
@@ -63,7 +60,6 @@ func TestUpdateKeepsTheHarnessCurrentAndTheProjectsChanges(t *testing.T) {
 	}
 }
 
-// status tells a project when its harness is behind this program's.
 func TestStatusWarnsWhenTheHarnessIsOutOfDate(t *testing.T) {
 	p := gitProject(t)
 	p.delta("", "init")

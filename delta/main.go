@@ -1,4 +1,3 @@
-// Command delta keeps a verifiable contract between a project and its code.
 package main
 
 import (
@@ -7,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 )
+
+var version = "dev"
 
 func main() {
 	wd, err := os.Getwd()
@@ -19,6 +20,3 @@ func main() {
 	stop()
 	os.Exit(code)
 }
-
-// version is set at build time: go build -ldflags "-X main.version=1.2.3"
-var version = "dev"

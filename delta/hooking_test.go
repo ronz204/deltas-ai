@@ -48,7 +48,6 @@ func TestHookInputThatIsNotJSONNeverBlocks(t *testing.T) {
 	}
 }
 
-// isolatedGit skips the test without git, and keeps the machine's own git configuration out of it.
 func isolatedGit(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {

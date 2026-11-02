@@ -120,7 +120,7 @@ Whatever a linter can check goes to a linter, not to a rule. Commit messages are
 
 ## Using this repo today
 
-Build the CLI (`go install ./scripts/delta`) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
+Build the CLI (`go install ./delta`, or `go build -ldflags "-X main.version=1.2.3" -o delta ./delta` to set the version) and run `delta init` in a git repository. It installs, without replacing anything the project already has:
 
 - the skills and rules under `.claude/`, and Delta's hooks and permissions merged into `.claude/settings.json`;
 - `deltas/budget.conf` and `deltas/testing.conf`, a minimal `CLAUDE.md` and the `deltas/specs/` folder.
@@ -139,7 +139,7 @@ Then:
 |---|---|
 | `agents/` | What `delta init` installs, embedded in the binary: the skills Comper (it routes plain requests, and `/comper` says which skill is next), Drafter, Builder, Auditor and Scriber, the rules, the hook settings and the config files |
 | `docs/` | Working documents, in Spanish: `direction.md` (what Delta becomes and why), `backstory.md` (context), `blueprint.md` (design of the Go CLI), `waypoints.md` (order of work) |
-| `scripts/`, `package/` | The Go CLI: `scripts/delta` wires it, and `package/` holds the domain, the use cases, the gateways and the adapters (the command line and the hook) |
+| `delta/`, `package/` | The Go CLI: `delta/` is the entrypoint that wires it, and `package/` holds the domain, the use cases, the gateways and the adapters (the command line and the hook) |
 
 ## Non-goals
 
