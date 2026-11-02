@@ -210,7 +210,7 @@ Cada skill es dueño de un tramo del ciclo, y el nombre lo evoca:
 | **Forge** | la fragua donde se construye | `approved` → `built` | Plan, tests, código |
 | **Seal** | el sello que certifica | `built` → `verified` | Verifica; si hay deriva, el sello se rompe (`stale`) y el ciclo vuelve a Quill |
 
-Los tres nombres son sustantivos de 4-5 letras y los comandos quedan `/quill`, `/forge`, `/seal`. La descripción de cada skill (que es lo que dispara su carga) debe nombrar el verbo, no solo la metáfora.
+Un cuarto skill, **Atlas** (el atlas del proyecto), no pertenece al ciclo del contrato: escribe los docs para personas (`/atlas <doc>`, sección 6.8). Los tres nombres del ciclo son sustantivos de 4-5 letras y los comandos quedan `/quill`, `/forge`, `/seal`. La descripción de cada skill (que es lo que dispara su carga) debe nombrar el verbo, no solo la metáfora.
 
 ### 6.4 IDs estables por claim
 
@@ -264,6 +264,19 @@ Forge (antes Executor) no se disparó en 6 de 6 corridas headless. No sé la cau
 - Forge puede usar `delta link` para enlazar los tests que escribe, así el lazo se cierra sin violar "nunca edita la KB".
 
 **Ojo:** las reglas de generación de código (sección 7) se apoyan en Forge, que es la pieza más débil y menos probada. Arreglar cómo se dispara va antes que pulir las reglas.
+
+### 6.8 Docs para personas
+
+Los docs de contexto de la primera generación (`.claude/docs/`) los escribía un LLM y los leía el agente. La evidencia disponible no los respalda: los archivos de contexto generales no mejoraron el éxito de los agentes y subieron el costo más de un 20 % (Gloaguen et al., ICLR 2026, arXiv 2602.11988), y los resúmenes del repositorio fueron lo menos útil. Lo que sí rindió fueron las restricciones concretas y lo que el modelo no puede adivinar.
+
+Por eso los docs de ahora son **para la persona que se une al proyecto**, no para el agente:
+
+- **Cuatro archivos** en `deltas/docs/`: `overview` (visión, alcance, conceptos), `structure` (stack, topología, datos y persistencia, decisiones), `expertise` (glosario y mecanismos no obvios) y `approach` (pilares, roadmap, riesgos, criterios de hecho). No hay `modules`: narraba el código paso a paso, que es lo que más rápido se pudre.
+- **Se instalan como semilla** con `delta init` (plantilla con guías en comentarios, `covers:` y `reviewed:` en el frontmatter) y `delta update` no los toca. `knowledge.Covers` no los incluye: el agente puede escribirlos.
+- **Un doc está escrito cuando no le queda ningún comentario `<!-- -->`.** `delta status` cuenta cuántos lo están y nombra el siguiente.
+- **Atlas** los rellena, de uno en uno: lee del código lo que muestra, pregunta lo que no, propone el borrador y la persona lo aprueba. Lo que no encuentra queda como pregunta abierta.
+- **Al agente solo le llega una fila** en el `CLAUDE.md` ("léelos solo si la tarea trata de esos conceptos"). Nada de esto se carga por defecto.
+- **Frescura:** `covers:` y `reviewed:` permiten, más adelante, que `delta stale` avise de un doc cuyo alcance cambió. Se hará solo si Kelsen lo pide.
 
 ### 6.7 Presupuesto sin romperse
 
@@ -437,7 +450,7 @@ Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los
 ## 11. Decisiones abiertas
 
 1. ~~**Orden de principios**~~ **Resuelta:** se mantiene fiabilidad > claridad > adopción > costo.
-2. ~~**Orientación inicial** (lo que hacía Surveyor)~~ **Resuelta:** `delta init` genera un esqueleto determinista y un `CLAUDE.md` mínimo; los docs curados nacen a demanda cuando Quill los necesita. No hay skill de escaneo.
+2. ~~**Orientación inicial** (lo que hacía Surveyor)~~ **Resuelta:** `delta init` genera un esqueleto determinista, un `CLAUDE.md` mínimo y las plantillas de los docs para personas (`deltas/docs/`); estos los rellena Atlas a demanda (6.8). No hay skill de escaneo.
 3. ~~**Las cuatro reglas core**~~ **Resuelta:** el core son R1 (fidelidad) y R2 (honestidad); alcance y fiabilidad pasan al preset `base`, que carga por ruta. La de "cambio seguro" sigue fuera. Queda por confirmar solo el texto final.
 4. ~~**Idioma**~~ **Resuelta:** las reglas, skills y el repo en inglés; estos documentos y la conversación en español.
 5. ~~**Techo del core**~~ **Resuelta:** ~600 tokens (core) y ~600 más (`base`) como estimación; se ajusta con `delta budget` sobre la marcha.
@@ -474,7 +487,10 @@ Los gates detectan problemas; no garantizan calidad. La promesa correcta es "los
 **Fase 5: deriva automática**
 - `delta stale` y su integración con `Stop`. Es la pieza más diferenciadora, y también la más heurística: conviene hacerla después de tener lo anterior firme.
 
-**Fase 6: dogfooding en Kelsen**
+**Fase 6: docs para personas**
+- Plantillas de `overview`, `structure`, `expertise` y `approach` en `source/harness/docs/`, instaladas por `delta init` en `deltas/docs/` como semilla; el skill Atlas que las rellena; la línea de docs en `delta status`. Quill propone reglas como restricciones negativas, con `paths:` y su costo en tokens (pendiente).
+
+**Fase 7: dogfooding en Kelsen**
 - Usar Delta en varias features reales. Anotar dónde estorba y dónde salva.
 
 ---
@@ -492,7 +508,7 @@ Sin benchmark de modelo obligatorio. Criterios que se pueden comprobar:
 
 **Medición opcional y barata de "resultado" (fidelidad al contrato). Pospuesta por ahora (decisión 10); queda anotada por si se retoma:** construir los mismos slices con y sin las reglas core y contar, con `delta check`, cuántos claims quedan `Violated` o `Unverified`. Es determinista, no necesita juez LLM y mide justo lo que Delta promete. No sustituye un benchmark de calidad general, pero permite afirmar "fidelidad al contrato" con un número. Convendría repetir cada corrida varias veces (el agente no es determinista) y cuidar que el baseline no quede contaminado por los hooks de Delta, que fue justo el error que ponytail documentó en el suyo.
 
-Los umbrales numéricos concretos los definís vos al arrancar la Fase 6; es mejor fijarlos *antes* de medir, no después.
+Los umbrales numéricos concretos los definís vos al arrancar la Fase 7; es mejor fijarlos *antes* de medir, no después.
 
 ---
 

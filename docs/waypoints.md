@@ -10,7 +10,7 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 
 ## Estado
 
-**Avance total: 65 de 73 tareas, 89 %**
+**Avance total: 72 de 84 tareas, 86 %**
 
 | Fase | Nombre | Estado | Avance |
 |---|---|---|---|
@@ -20,7 +20,8 @@ Todas las decisiones abiertas de §11 están resueltas, así que nada de lo que 
 | 3 | Estados y Forge | ✅ Terminada | 12/12, 100 % |
 | 4 | Reglas core y preset `base` | ✅ Terminada | 9/9, 100 % |
 | 5 | Deriva automática | ✅ Terminada | 6/6, 100 % |
-| 6 | Dogfooding en Kelsen | 🔲 Pendiente | 0/8, 0 % |
+| 6 | Docs para personas y Atlas | 🔄 En progreso | 7/11, 64 % |
+| 7 | Dogfooding en Kelsen | 🔲 Pendiente | 0/8, 0 % |
 
 Leyenda: 🔲 Pendiente · 🔄 En progreso · ✅ Terminada.
 
@@ -43,7 +44,9 @@ Fase 4  reglas core y preset base          |
    |                                       |
 Fase 5  deriva automática (delta stale) <--+
    |
-Fase 6  dogfooding en Kelsen
+Fase 6  docs para personas y Atlas
+   |
+Fase 7  dogfooding en Kelsen
 ```
 
 Por qué este orden:
@@ -51,7 +54,8 @@ Por qué este orden:
 - **La Fase 1 va antes que todo lo demás** porque `lint`, `check` y `status` son la base de los hooks, de los estados y de las reglas. Sin ellos, los hooks no tienen nada que invocar.
 - **La Fase 3 va antes que la 4** porque R1 y R2 se apoyan en Forge, que es la pieza más débil (no se disparó en 6 de 6 corridas). Pulir reglas sobre un skill que no arranca no sirve.
 - **La Fase 5 va al final de la construcción** porque es la más diferenciadora y también la más heurística; conviene tener lo anterior firme antes de medir su ruido.
-- **La Fase 6 es la única que valida el conjunto.** No hay benchmark de modelo (decisión 10): el criterio es usarlo en un repo real.
+- **La Fase 6 va antes de Kelsen** porque los docs para personas (qué es el proyecto, cómo se persiste, qué significan sus términos) son parte de lo que una persona de fuera necesita para seguir el flujo sin ayuda, uno de los criterios de la Fase 7.
+- **La Fase 7 es la única que valida el conjunto.** No hay benchmark de modelo (decisión 10): el criterio es usarlo en un repo real.
 
 Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit (o varios, uno por concern) antes de abrir la siguiente.
 
@@ -195,14 +199,37 @@ Regla de trabajo: cada fase termina con sus criterios cumplidos y con un commit 
 
 **Cierra cuando**
 - [x] Cambiar un archivo referenciado devuelve el slice a `stale` y se avisa solo. *`TestAVerifiedSliceGoesStaleWhenItsCodeChangesAndIsVerifiedAgain` recorre el ciclo con un repositorio git real: verificado, cambio de código, aviso de `PostToolUse`, `status`, `delta stale`, y de vuelta a `verified` tras `built` y `check`. Otros dos casos: un cambio fuera de `scope.<slice>` no lo marca, y un slice nunca verificado en esa máquina tampoco.*
-- [x] Se conocen los falsos positivos por diseño, para decidir si hay que afinar la granularidad. *Sin `scope.<slice>`, cualquier cambio de código en el proyecto marca `stale` a todos los slices verificados: es el ruido más probable. Además, un comentario o un renombrado cuentan igual que un cambio de comportamiento. Los falsos negativos son el caso opuesto: un cambio de comportamiento fuera del alcance declarado. Medirlo en un caso real pasa a la Fase 6, porque aquí no hay ninguno.*
+- [x] Se conocen los falsos positivos por diseño, para decidir si hay que afinar la granularidad. *Sin `scope.<slice>`, cualquier cambio de código en el proyecto marca `stale` a todos los slices verificados: es el ruido más probable. Además, un comentario o un renombrado cuentan igual que un cambio de comportamiento. Los falsos negativos son el caso opuesto: un cambio de comportamiento fuera del alcance declarado. Medirlo en un caso real pasa a la Fase 7, porque aquí no hay ninguno.*
 - [x] Commit(s) de la fase, uno por concern. *Uno para el código y los tests, otro para el blueprint y otro para este documento.*
 
 ---
 
-## Fase 6: dogfooding en Kelsen
+## Fase 6: docs para personas y Atlas
 
-**Estado: 🔲 Pendiente, 0/7.**
+**Estado: 🔄 En progreso, 7/11.**
+
+*Los docs de contexto de la primera generación los escribía un LLM y los leía el agente; la evidencia no los respalda (`direction.md`, §6.8). Los de ahora son para la persona que se une al proyecto, y el agente casi no los consulta.*
+
+**Entregables**
+- [x] Plantillas de `overview`, `structure`, `expertise` y `approach` en `source/harness/docs/`, con la forma de los ejemplos de `samples/` (frase de apertura, secciones, pie `Non-goals`), `covers:` y `reviewed:` en el frontmatter y una sección de persistencia dentro de `structure`. *Sin `modules`: narra el código paso a paso, que es lo que más rápido se pudre.*
+- [x] `delta init` las instala en `deltas/docs/` como semilla, con el nombre del proyecto, y `delta update` no las toca. *`knowledge.Covers` no las incluye, así que el agente puede escribirlas.*
+- [x] Skill Atlas (`/atlas <doc>`): lee del código lo que muestra, pregunta lo que no, propone el borrador y escribe tras aprobación, con `covers:`, `reviewed:` y preguntas abiertas en vez de invenciones. Solo se invoca explícitamente (`disable-model-invocation`).
+- [x] `delta status` dice cuántos docs están escritos y cuál sigue. *Un doc está escrito cuando no le queda ningún comentario `<!-- -->`.*
+- [x] Una fila en el `CLAUDE.md` mínimo apunta a `deltas/docs/` ("léelos solo si la tarea trata de esos conceptos").
+- [ ] Quill propone reglas al entender una idea: restricciones negativas, con `paths:` y su costo en tokens, que la persona aprueba (`direction.md`, §6.7).
+- [ ] Plantilla de regla en `core/templates/` (`paths:`, qué prohíbe, qué fallo previene y cómo se detecta).
+
+**Cierra cuando**
+- [x] `delta budget` confirma que lo siempre cargado sigue bajo el techo. *Tras `delta init` en un repositorio vacío: 1 401 tokens de 3 500 (antes 1 215); el aumento es la fila de `CLAUDE.md` y la descripción de Atlas.*
+- [x] El agente puede escribir en `deltas/docs/` sin que el hook de la KB lo bloquee. *Lo fija un caso en la prueba de `knowledge.Covers`.*
+- [ ] Atlas rellena un doc de verdad en una sesión interactiva. *No se ha probado: el skill solo se ha probado por lo que lo rodea (instalación, `status`, `update`), no ejecutándolo.*
+- [ ] Commit(s) de la fase, uno por concern.
+
+---
+
+## Fase 7: dogfooding en Kelsen
+
+**Estado: 🔲 Pendiente, 0/8.**
 
 *La validación. Sin benchmark ni medición de modelo (decisión 10).*
 
@@ -241,5 +268,5 @@ No están en ninguna fase. Cada una tiene que ganarse su lugar con la prueba de 
 |---|---|
 | Forge sigue sin dispararse al final de la Fase 3 | Detener la Fase 4. Las reglas de generación dependen de él (§14) |
 | El CLI crece más de lo previsto | Cada comando nuevo pasa la prueba de entrada; si no se puede justificar, queda en "para más adelante" |
-| Un falso `Holds` real aparece antes de la Fase 6 | Subir el archivo de evidencia de "anotado" a la Fase 1 o 2 |
+| Un falso `Holds` real aparece antes de la Fase 7 | Subir el archivo de evidencia de "anotado" a la Fase 1 o 2 |
 | Los hooks de Claude Code cambian | El núcleo vive en el CLI; solo se reescribe el adaptador (§14) |

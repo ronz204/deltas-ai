@@ -106,7 +106,7 @@ deltas-ai/
 
 **Por qué `source`:** es una preferencia de nombre. Al no llamarse `internal`, el compilador ya no impide que otros módulos importen estos paquetes; la API pública de Delta es el CLI y el formato del spec, no los paquetes Go.
 
-**Lo que no está en esta estructura:** `docs/` (documentos de trabajo) sigue en la raíz. Este repo no tiene `.claude/`, `deltas/`, `deltas.config` ni `.githooks/`: Delta no se construye con Delta por ahora (decisión 10); el primer uso real es otro proyecto (Fase 6).
+**Lo que no está en esta estructura:** `docs/` (documentos de trabajo) sigue en la raíz. Este repo no tiene `.claude/`, `deltas/`, `deltas.config` ni `.githooks/`: Delta no se construye con Delta por ahora (decisión 10); el primer uso real es otro proyecto (Fase 7).
 
 ---
 
@@ -157,6 +157,7 @@ type Runner interface {
 | `specfile` | El archivo completo | `Spec` (formato, slice, estado, claims), `Parse(name, src) (Spec, []Diagnostic)`, `SetStatus(src, status) ([]byte, error)`, `SetTag(src, id, tag) ([]byte, error)` |
 | `lifecycle` | El ciclo de vida | `Status` (`Draft`, `Approved`, `Built`, `Verified`, `Stale`), `Can(from, to) bool`: el ciclo, y la vuelta a `draft` desde cualquier otro estado |
 | `judgment` | El resultado de verificar | `Verdict` (`Holds`, `Violated`, `Unverified`), `Outcome` (claim, veredicto, motivo), `Judge(tag, exit, cited) Outcome`; `Mark` (el árbol que vio un `delta check` y si hubo violación) y `Mark.At(tree)`, que dice si es `Unchecked`, `Failing` o `Passing` para el árbol de ahora |
+| `docs` | Los docs para personas (`deltas/docs/`) | `Dir`, `Order` (el orden en que se rellenan), `Name(path)` y `Filled(text)`: un doc está escrito cuando no le queda ningún comentario `<!-- -->` |
 | `drift` | Cuándo un contrato está viejo | `Changed(before, after map[string]string) []string`: los archivos añadidos, borrados o editados entre dos huellas (ruta → hash de contenido) |
 | `linkcheck` | Coherencia entre specs y tests | Reglas: ID sin test que lo cite, test que cita un ID inexistente, claim sin tag, `skip`/`only` en archivos que citan IDs. `Scope` es la parte del proyecto de la que depende un slice: todos los archivos de código, o solo las rutas que `deltas.config` declare para él, más su propio spec; el Markdown no cuenta. `TestMatcher` dice qué archivos son tests, con los patrones de `deltas.config` o con la regla propia de Delta. `Under(files, dir)` nombra los archivos desde la carpeta en que corre un comando |
 | `commits` | Conventional Commits | `Validate(message) []Diagnostic`: tipos permitidos, longitud de 40 a 50, imperativo, minúscula, sin punto final |
@@ -180,7 +181,7 @@ Observaciones:
 | `setup` | `delta init`, y el aviso de `status` y `SessionStart` | `Run` escribe el esqueleto, instala el harness desde `bundle` y fija `core.hooksPath` sin pisar uno ajeno; es idempotente. `Update` y `Pending` mantienen al día el harness con `deltas.manifest` (sección 12). `Check` lista los problemas de instalación, sin fallar. `Check` incluye también los problemas de `deltas.config`, las herramientas que pide y no están en el `PATH`, y el aviso de harness desactualizado |
 | `author` | `delta spec new`, `spec write`, `link`, `approve`, `built` | Valida con `domain` y escribe con `vaults`. Es el único camino de escritura de la KB, y aplica las reglas de estado de `spec write` (sección 7.2) |
 | `verify` | `delta spec lint`, `lint`, `check` | Carga specs, busca tests que citen IDs, ejecuta comandos con `runner`, aplica `judgment.Judge` y anota qué slices revisó y si hubo violación (`ledger`) |
-| `status` | `delta status`, `ready`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git`. `Ready` dice si un slice puede construirse |
+| `status` | `delta status`, `ready`, `stale` | Reúne estado, cobertura y deriva por slice; compara con `git`. `Ready` dice si un slice puede construirse. `Docs` cuenta cuántos docs para personas están escritos y cuál sigue (`delta status` lo imprime como `docs: 1 of 4 written; next: /atlas structure`) |
 | `guard` | `delta hook` | Responde "¿se permite esto?" para cada evento: editar la KB, commitear, empezar la sesión y terminar el turno (`Stop`) |
 | `measure` | `delta budget` | Lee los archivos que se cargan siempre y los pesa contra los techos que le da `deltas.config` (o los valores por defecto) |
 
@@ -299,7 +300,7 @@ Qué garantiza y qué no: un `Holds` prueba que el comando salió con 0 y que ex
 
 ### 8.3 `delta stale`
 
-**Qué referencia un spec.** Un spec no nombra archivos: lo que "referencia" es su `Scope` (sección 8.7), es decir, todo el código del proyecto salvo que `deltas/deltas.config` declare `scope.<slice>`. Sin esa clave, cualquier cambio de código en cualquier parte deja viejos a todos los slices verificados; por eso conviene declararla (fase 6).
+**Qué referencia un spec.** Un spec no nombra archivos: lo que "referencia" es su `Scope` (sección 8.7), es decir, todo el código del proyecto salvo que `deltas/deltas.config` declare `scope.<slice>`. Sin esa clave, cualquier cambio de código en cualquier parte deja viejos a todos los slices verificados; por eso conviene declararla (fase 7).
 
 **Línea base.** Cuando un `delta check` deja un slice `verified` (lo verifica, o ya lo estaba y sus claims `test` siguen cumpliéndose), `ledger` anota la huella de su alcance: `gitcli.Files` da, para cada archivo que cubre (los versionados y los sin versionar no ignorados), el hash de su contenido. Una verificación que no deja el slice `verified` no toca la línea base. Vive en la caché del usuario, igual que la marca de `delta check`, y se pierde con ella: un clon recién hecho no tiene línea base, así que ningún slice figura `stale` hasta que se verifique allí (el estado `verified` del spec no basta para comparar).
 
@@ -534,7 +535,7 @@ Cada paso termina con sus tests antes de empezar el siguiente:
 | El formato del JSON de los hooks puede cambiar | El adaptador `hook` no tiene reglas; si cambia la plataforma, se reescribe solo ese paquete |
 | La estructura de cuatro capas es más pesada que un `main` y unos archivos | Es la que hace posible el test de dependencias; si en la práctica estorba, `usecase` y `domain` se pueden fundir sin tocar `gateway` ni `adapter` |
 | Un `Holds` no prueba que el test corrió | Límite documentado; mejora futura: archivo de evidencia (`direction.md`, §10) |
-| `stale` por archivo da falsos positivos | Medir el ruido en Kelsen antes de afinar (Fase 6) |
+| `stale` por archivo da falsos positivos | Medir el ruido en Kelsen antes de afinar (Fase 7) |
 | El CLI crece sin control | Cada comando y cada paquete pasa la prueba de entrada (pilar 9) |
 
 ---
